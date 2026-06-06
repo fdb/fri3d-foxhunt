@@ -110,6 +110,16 @@ def banner(screen, title, color=GREEN, right=None):
         label(screen, right, 240, 8, CREAM, font_small(), w=72, center=True)
 
 
+def statbar(parent, x, y, w, text, frac, color, track=0xD8C9A4):
+    """A labelled 0..1 meter: small caption above a filled track. Returns the
+    fill box so the caller can animate it with `fill.set_width(int(w*frac))`."""
+    label(parent, text, x, y, INK, font_small())
+    t = box(parent, x, y + 15, w, 8, track, radius=2)
+    f = box(t, 0, 0, max(0, int(w * frac)), 8, color, radius=2)
+    f.align(lv.ALIGN.LEFT_MID, 0, 0)
+    return f
+
+
 def focusable(obj, on_click=None):
     """Make an obj tap/click/arrow-key activatable, give it a gold focus ring
     (for joystick/arrow nav), and register it in the default LVGL group."""

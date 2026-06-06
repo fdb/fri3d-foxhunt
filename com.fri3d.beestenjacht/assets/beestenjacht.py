@@ -12,6 +12,7 @@ import sound
 from creatures import CREATURES
 from fox_radio import RADIO
 from screen_hunt import HuntActivity
+from screen_beast import BeastActivity
 
 _COLS = (6, 84, 162, 240)
 _ROWS = (30, 100, 170)
@@ -70,9 +71,20 @@ class HomeActivity(Activity):
             ui.label(cell, c["naam"] if is_caught else "???", 0, 51,
                      ui.INK if is_caught else 0x8A7D5E, ui.font_small(), w=74, center=True)
 
-            if huntable:
+            # Every tile is navigable (arrows/click) so the grid never goes
+            # dead: caught -> companion page, huntable -> the hunt, dormant ->
+            # selectable but inert (still sleeping).
+            if is_caught:
+                ui.focusable(cell, on_click=lambda cc=cid: self._open(cc))
+            elif huntable:
                 ui.focusable(cell, on_click=lambda cc=cid: self._hunt(cc))
+            else:
+                ui.focusable(cell)
 
     def _hunt(self, cid):
         sound.play("tap")
         self.startActivity(Intent(activity_class=HuntActivity, extras={"fox_id": cid}))
+
+    def _open(self, cid):
+        sound.play("tap")
+        self.startActivity(Intent(activity_class=BeastActivity, extras={"fox_id": cid}))
