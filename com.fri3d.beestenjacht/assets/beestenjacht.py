@@ -59,7 +59,7 @@ class HomeActivity(Activity):
                 cell.set_style_border_width(2, 0)
                 cell.set_style_border_color(ui.hexc(ui.GREEN), 0)
 
-            sp = art.creature_sprite(cell, c, 3, silhouette=not is_caught)
+            sp = art.creature_panel(cell, c, 3, silhouette=not is_caught)
             sp.align(lv.ALIGN.TOP_MID, 0, 3)
 
             ui.label(cell, c["naam"] if is_caught else "???", 0, 51,

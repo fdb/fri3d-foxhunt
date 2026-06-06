@@ -103,5 +103,60 @@ def draw_sprite(parent, rows, palette, scale, silhouette=False, reveal=1.0):
     return canvas
 
 
-def creature_sprite(parent, c, scale, silhouette=False, reveal=1.0):
-    return draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, silhouette, reveal)
+# ── Creature renderer: real PNG art when present, procedural otherwise ──────
+# Creature PNGs are authored at 16x16 RGBA (same grid as the shapes) and live
+# in assets/sprites/ (NOT assets/creatures/ — that would shadow creatures.py on
+# import). A creature opts in via its "img" field (see creatures.py).
+_CREATURE_DIR = "M:apps/com.fri3d.beestenjacht/assets/sprites/"
+_IMG_SRC = 16
+
+
+def _bare(o):
+    o.set_style_pad_all(0, 0)
+    o.set_style_border_width(0, 0)
+    o.set_style_radius(0, 0)
+    o.set_style_bg_opa(lv.OPA.TRANSP, 0)
+    o.remove_flag(lv.obj.FLAG.SCROLLABLE)
+
+
+def _layer(parent, c, scale, silhouette):
+    """One creature image/canvas at (0,0), nominal size 16*scale, full colour
+    or silhouette."""
+    if c.get("img"):
+        img = lv.image(parent)
+        img.set_src(_CREATURE_DIR + c["img"])
+        img.set_pos(0, 0)
+        img.set_pivot(0, 0)                 # scale from top-left so it fills (0,0)->(px,px)
+        img.set_antialias(False)            # crisp pixels
+        if scale != 1:
+            img.set_scale(256 * scale)      # src is 16px -> 16*scale px
+        if silhouette:
+            img.set_style_image_recolor(lv.color_hex(_SIL), 0)
+            img.set_style_image_recolor_opa(lv.OPA.COVER, 0)
+        return img
+    cv = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, silhouette)
+    cv.set_pos(0, 0)
+    return cv
+
+
+def creature_panel(parent, c, scale, reveal=1.0, silhouette=False):
+    """A 16*scale square wrapper showing the creature full / silhouette /
+    partially revealed (colour fills top-down). Backend-agnostic: PNG art and
+    procedural sprites both go through here, so every screen behaves the same."""
+    px = 16 * scale
+    wrap = lv.obj(parent)
+    _bare(wrap)
+    wrap.set_size(px, px)
+    if silhouette or reveal <= 0.0:
+        _layer(wrap, c, scale, True)
+    elif reveal >= 1.0:
+        _layer(wrap, c, scale, False)
+    else:
+        # silhouette base + colour clipped to the top `reveal` fraction
+        _layer(wrap, c, scale, True)
+        clip = lv.obj(wrap)
+        _bare(clip)
+        clip.set_size(px, max(1, int(reveal * px)))
+        clip.set_pos(0, 0)
+        _layer(clip, c, scale, False)
+    return wrap

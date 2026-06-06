@@ -21,7 +21,7 @@ class WinActivity(Activity):
         panel = ui.box(s, 114, 66, 92, 92, 0xE9F1CF, radius=2)
         panel.set_style_border_width(3, 0)
         panel.set_style_border_color(ui.hexc(ui.GOLD if leg else ui.GREEN_D), 0)
-        sp = art.creature_sprite(panel, c, 5)
+        sp = art.creature_panel(panel, c, 5)
         sp.align(lv.ALIGN.CENTER, 0, 0)
 
         ui.label(s, c["naam"], 0, 166, ui.CREAM, ui.font_title(), w=320, center=True)

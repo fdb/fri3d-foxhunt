@@ -31,7 +31,7 @@ class HuntActivity(Activity):
         card = ui.box(s, 6, 30, 308, 120, 0xE9F1CF, radius=2)
         card.set_style_border_width(2, 0)
         card.set_style_border_color(ui.hexc(ui.TERRA), 0)
-        self.sil = art.creature_sprite(card, self.c, 6, silhouette=True)
+        self.sil = art.creature_panel(card, self.c, 6, silhouette=True)
         self.sil.align(lv.ALIGN.CENTER, 0, -2)
         self.heart = art.draw_sprite(card, art.HEART, {"k": 0x7A1F12, "r": 0xE0463A}, 3)
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 8)

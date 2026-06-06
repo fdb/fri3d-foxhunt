@@ -48,7 +48,7 @@ class CodeActivity(Activity):
         # creature "fills in" top-down, a quarter per entered digit
         if self._sprite is not None:
             self._sprite.delete()
-        self._sprite = art.creature_sprite(self.rev, self.c, 4, reveal=len(self.entry) / 4.0)
+        self._sprite = art.creature_panel(self.rev, self.c, 4, reveal=len(self.entry) / 4.0)
         self._sprite.align(lv.ALIGN.CENTER, 0, 0)
 
     def press(self, k):
