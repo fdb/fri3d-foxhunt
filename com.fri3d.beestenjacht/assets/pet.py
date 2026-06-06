@@ -33,12 +33,44 @@ def default_state(date, place, now):
         "date": date,           # gevonden op (YYYY-MM-DD)
         "place": place,         # plaats
         "sightings": 1,         # waarnemingen
+        "bijnaam": "",          # nickname (falls back to the creature name)
         "bond": 10,
         "mood": 65,
         "energy": 75,
         "hunger": 25,
         "last": now,            # epoch seconds of last update
     }
+
+
+# ── presentation helpers (derive the screens' segments / hearts / level) ────
+LEVEL_MAX = 5
+
+
+def segments(value, total=5):
+    """A 0..100 stat as a lit-segment count 0..total (round to nearest cell)."""
+    return min(total, max(0, int(value * total / 100 + 0.5)))
+
+
+def level(bond):
+    """1..5, every 20 bond points is a level."""
+    return min(LEVEL_MAX, 1 + bond // 20)
+
+
+def hearts(bond):
+    """Filled Band hearts (== level) out of 5."""
+    return level(bond)
+
+
+def level_pct(bond):
+    """Percent toward the next level (100 once maxed)."""
+    if level(bond) >= LEVEL_MAX:
+        return 100
+    return (bond % 20) * 5
+
+
+def fullness(hunger):
+    """VERZADIGD meter: how full the creature is (inverse of hunger)."""
+    return 100 - hunger
 
 
 def decay(state, now):
@@ -80,6 +112,23 @@ def act(state, action, now):
 _OK_MSG = {"voeden": "smikkelt!", "aaien": "spint van plezier", "spelen": "wat een lol!"}
 
 
+def feed(state, food, favoriet, now):
+    """Feed a specific hapje. Returns (new_state, ok, message, is_favourite).
+    The creature's favourite food grants extra band ('favoriet = +1 band')."""
+    s = dict(state)
+    if s.get("hunger", 0) <= 8:
+        s["mood"] = _clamp(s.get("mood", 0) - 2)
+        s["last"] = now
+        return s, False, "zit vol!", False
+    is_fav = food == favoriet
+    s["hunger"] = _clamp(s.get("hunger", 0) - 35)
+    s["energy"] = _clamp(s.get("energy", 0) + 8)
+    s["mood"] = _clamp(s.get("mood", 0) + (8 if is_fav else 4))
+    s["bond"] = _clamp(s.get("bond", 0) + (8 if is_fav else 3))
+    s["last"] = now
+    return s, True, ("favoriet! +band" if is_fav else "mmm!"), is_fav
+
+
 def face(state):
     """Derive an ASCII mood face + word from the stats (font is ASCII-only).
     Order matters: urgent needs (honger, moe) win over general mood."""
@@ -111,4 +160,16 @@ if __name__ == "__main__":
     assert face({"hunger": 80})[1] == "honger!"
     assert face({"hunger": 10, "energy": 10})[1] == "moe"
     assert face({"hunger": 10, "energy": 90, "mood": 80})[1] == "blij"
+    # presentation helpers
+    assert segments(0) == 0 and segments(100) == 5 and segments(50) == 3, segments(50)
+    assert level(0) == 1 and level(50) == 3 and level(100) == 5, level(50)
+    assert hearts(50) == 3
+    assert level_pct(50) == 50 and level_pct(100) == 100, level_pct(50)
+    assert fullness(25) == 75
+    # favourite food grants more band than a plain hapje
+    base = dict(st); base["hunger"] = 60
+    plain, ok, _, fav = feed(base, "noot", "bes", st["last"])
+    assert ok and not fav and plain["bond"] == base["bond"] + 3, plain
+    favd, ok, _, fav = feed(base, "bes", "bes", st["last"])
+    assert ok and fav and favd["bond"] == base["bond"] + 8, favd
     print("pet.py self-test OK")

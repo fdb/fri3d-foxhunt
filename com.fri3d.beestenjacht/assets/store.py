@@ -9,6 +9,7 @@
 from mpos import SharedPreferences
 import mpos.time
 import pet
+from creatures import by_id
 
 _APP = "com.fri3d.beestenjacht"
 _PLACE = "Fri3d Camp"   # stub: no GPS yet — see fox_radio for the backend seam
@@ -76,3 +77,16 @@ def do_action(cid, action):
     state, ok, msg = pet.act(pet.decay(raw, _now()), action, _now())
     prefs.edit().put_dict_item("beast", str(cid), state).commit()
     return state, ok, msg
+
+
+def do_feed(cid, food):
+    """Feed a hapje ('bes'|'noot'|'eikel'); persist; (state, ok, msg, is_fav)."""
+    prefs = SharedPreferences(_APP)
+    raw = _raw_state(prefs, cid)
+    if raw is None:
+        return None, False, "", False
+    c = by_id(cid)
+    favoriet = c.get("favoriet") if c else None
+    state, ok, msg, is_fav = pet.feed(pet.decay(raw, _now()), food, favoriet, _now())
+    prefs.edit().put_dict_item("beast", str(cid), state).commit()
+    return state, ok, msg, is_fav

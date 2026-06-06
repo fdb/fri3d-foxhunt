@@ -1,97 +1,103 @@
-# screen_beast.py — the companion page for a CAUGHT creature ("boek" entry).
+# screen_beast.py — BEEST-PAGINA: the hub for a caught creature.
 #
-# Portrait + mood face on the left, the four living stats on the right, the
-# log facts (gevonden op / plaats / waarnemingen) underneath, and three care
-# actions along the bottom. pet.py owns the rules; store.py persists.
+# Portrait card with nickname on the left; Band hearts + Humeur/Energie/Honger
+# segment meters + found facts on the right; a 4-button action bar (VOER / AAI /
+# SPEEL / DOSSIER). VOER and DOSSIER open dedicated screens; AAI and SPEEL are
+# inline care actions. Layout follows the design (detail.jsx PxDetail).
 
 import lvgl as lv
-from mpos import Activity
+from mpos import Activity, Intent
 import ui
 import art
 import sound
 import store
 import pet
 from creatures import by_id
+from screen_feed import FeedActivity
+from screen_dossier import DossierActivity
 
-_BAR_X = 116
-_BAR_W = 150
-_BAR_Y = (32, 72, 112, 152)
-
-_COLORS = {"bond": ui.GOLD, "mood": ui.GREEN, "energy": ui.GREEN_D, "hunger": ui.TERRA}
-_ACTIONS = (("voeden", "VOEDEN", ui.GREEN), ("aaien", "AAIEN", ui.GOLD), ("spelen", "SPELEN", ui.TERRA))
+# action-bar buttons: (icon, label, kind)
+_ACTS = (("food", "VOER", "feed"), ("paw", "AAI", "aaien"),
+         ("ball", "SPEEL", "spelen"), ("book", "DOSSIER", "dossier"))
+_SEG = (("mood", "Humeur", ui.GOLD), ("energy", "Energie", ui.GREEN), ("hunger", "Honger", ui.TERRA))
 
 
 class BeastActivity(Activity):
     def onCreate(self):
         self.fox_id = self.getIntent().extras.get("fox_id", 0)
         self.c = by_id(self.fox_id)
-        self.bars = {}          # stat key -> fill box
-        self.vals = {}          # stat key -> value label
+        self._bubble_timer = None
 
         s = ui.make_screen(ui.PAPER)
-        rare = self.c["rarity"] != "norm"
-        ui.banner(s, self.c["naam"], ui.GREEN,
-                  right=("legendarisch" if self.c["rarity"] == "leg" else "zeldzaam" if rare else "gewoon"))
+        ui.banner(s, self.c["naam"], ui.GREEN)
+        # LV badge (own ref so it updates when band crosses a level)
+        self.lvtag = ui.label(s, "", 270, 6, ui.CREAM, ui.font_small(), w=44, center=True)
 
-        # ── left: portrait + mood face ──────────────────────────────────
-        card = ui.box(s, 6, 32, 92, 92, ui.CARD, radius=2)
-        card.set_style_border_width(2, 0)
+        # ── portrait card ───────────────────────────────────────────────
+        rare = self.c["rarity"] != "norm"
+        card = ui.panel(s, 8, 32, 132, 150, 0xE9F1CF)
         card.set_style_border_color(ui.hexc(ui.GOLD if rare else ui.GREEN_D), 0)
         sp = art.creature_panel(card, self.c, 5)
-        sp.align(lv.ALIGN.CENTER, 0, 0)
-        self.face = ui.label(s, "", 6, 126, ui.INK, ui.font_label(), w=92, center=True)
+        sp.align(lv.ALIGN.CENTER, 0, -12)
+        self.bubble = ui.label(card, "", 4, 2, ui.INK, ui.font_small(), w=124)
+        strip = ui.box(card, 0, 130, 128, 18, ui.GREEN)
+        self.nick = ui.label(strip, "", 0, 1, ui.CREAM, ui.font_small(), w=128, center=True)
 
-        # ── left: log facts ─────────────────────────────────────────────
-        self.lbl_date = ui.label(s, "", 6, 144, 0x5E6B44, ui.font_small(), w=104)
-        self.lbl_place = ui.label(s, "", 6, 158, 0x5E6B44, ui.font_small(), w=104)
-        self.lbl_seen = ui.label(s, "", 6, 172, 0x5E6B44, ui.font_small(), w=104)
+        # ── stats column (rebuilt on every refresh) ─────────────────────
+        self.stats = ui.box(s, 150, 34, 164, 148)
 
-        # ── right: the four living stats ────────────────────────────────
-        for i, (key, text) in enumerate(pet.STATS):
-            y = _BAR_Y[i]
-            self.bars[key] = ui.statbar(s, _BAR_X, y, _BAR_W, text, 0.0, _COLORS[key])
-            self.vals[key] = ui.label(s, "", _BAR_X + _BAR_W - 30, y, ui.INK, ui.font_small(), w=30, center=True)
-
-        # ── feedback line + action buttons ──────────────────────────────
-        self.msg = ui.label(s, "", 6, 190, ui.GREEN_D, ui.font_small(), w=308, center=True)
-        for i, (action, text, color) in enumerate(_ACTIONS):
-            b = ui.box(s, 6 + i * 104, 210, 100, 26, color, radius=3)
-            b.set_style_border_width(2, 0)
-            b.set_style_border_color(ui.hexc(ui.INK), 0)
-            bl = ui.label(b, text, 0, 0, ui.CREAM, ui.font_label(), w=100, center=True)
-            bl.align(lv.ALIGN.CENTER, 0, 0)
-            ui.focusable(b, on_click=lambda a=action: self._act(a))
+        # ── action bar ──────────────────────────────────────────────────
+        bw, gap = 73, 5
+        for i, (ic, lab, kind) in enumerate(_ACTS):
+            accent = (i == 0)
+            b = ui.panel(s, 6 + i * (bw + gap), 198, bw, 36, ui.GREEN if accent else ui.CARD)
+            art.icon(b, ic, 2).align(lv.ALIGN.TOP_MID, 0, 3)
+            ui.label(b, lab, 0, 22, ui.CREAM if accent else ui.INK, ui.font_small(), w=bw, center=True)
+            ui.focusable(b, on_click=lambda k=kind: self._press(k))
 
         self.setContentView(s)
         self._refresh()
 
     def onResume(self, screen):
         super().onResume(screen)
-        self._refresh()         # re-apply time-decay every time you return
+        self._refresh()
 
     def _refresh(self):
         st = store.beast_state(self.fox_id)
         if st is None:
             return
-        # Narrow left column (~104px): keep each fact on one line so it can't
-        # wrap and overrun the line below.
-        self.lbl_date.set_text(st.get("date", "?"))
-        self.lbl_place.set_text(st.get("place", "?"))
-        self.lbl_seen.set_text("%dx gezien" % st.get("sightings", 1))
-        self._set_values(st, "")
+        self.lvtag.set_text("LV.%d" % pet.level(st["bond"]))
+        self.nick.set_text(st.get("bijnaam") or self.c["naam"])
+        self.stats.clean()
+        g = self.stats
+        ui.label(g, "Band", 0, 0, ui.INK, ui.font_small())
+        ui.heart_row(g, 0, 16, pet.hearts(st["bond"]), scale=2)
+        for i, (k, lab, col) in enumerate(_SEG):
+            ui.seg_bar(g, 0, 44 + i * 22, lab, pet.segments(st[k]), col)
+        ui.label(g, "gevonden " + st.get("date", "?"), 0, 112, 0x5E6B44, ui.font_small(), w=164)
+        ui.label(g, "%s . %dx gezien" % (st.get("place", "?"), st.get("sightings", 1)),
+                 0, 128, 0x5E6B44, ui.font_small(), w=164)
 
-    def _set_values(self, st, msg):
-        for key, _ in pet.STATS:
-            v = st.get(key, 0)
-            self.bars[key].set_width(max(0, int(_BAR_W * v / 100)))
-            self.vals[key].set_text(str(v))
-        ic, word = pet.face(st)
-        self.face.set_text(ic + "  " + word)
-        self.msg.set_text(msg)
+    def _press(self, kind):
+        if kind == "feed":
+            sound.play("tap")
+            self.startActivity(Intent(activity_class=FeedActivity, extras={"fox_id": self.fox_id}))
+        elif kind == "dossier":
+            sound.play("tap")
+            self.startActivity(Intent(activity_class=DossierActivity, extras={"fox_id": self.fox_id}))
+        else:                                   # aaien / spelen — inline care
+            st, ok, msg = store.do_action(self.fox_id, kind)
+            sound.play("tap" if ok else "error")
+            self._flash(msg)
+            self._refresh()
 
-    def _act(self, action):
-        st, ok, msg = store.do_action(self.fox_id, action)
-        if st is None:
-            return
-        sound.play("tap" if ok else "error")
-        self._set_values(st, msg)
+    def _flash(self, text):
+        self.bubble.set_text(text)
+        if self._bubble_timer:
+            self._bubble_timer.delete()
+        self._bubble_timer = lv.timer_create(self._clear_bubble, 1100, None)
+
+    def _clear_bubble(self, t):
+        t.delete()
+        self._bubble_timer = None
+        self.bubble.set_text("")

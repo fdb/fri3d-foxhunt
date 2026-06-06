@@ -110,14 +110,49 @@ def banner(screen, title, color=GREEN, right=None):
         label(screen, right, 240, 8, CREAM, font_small(), w=72, center=True)
 
 
-def statbar(parent, x, y, w, text, frac, color, track=0xD8C9A4):
-    """A labelled 0..1 meter: small caption above a filled track. Returns the
-    fill box so the caller can animate it with `fill.set_width(int(w*frac))`."""
+import art
+
+_TRACK = 0xD8C9A4   # empty-segment / track colour
+
+
+def panel(parent, x, y, w, h, bg=CARD, radius=2, border=INK, bw=2):
+    """A pixel panel: filled box with a hard ink outline (design 'Panel')."""
+    o = box(parent, x, y, w, h, bg, radius=radius)
+    if bw:
+        o.set_style_border_width(bw, 0)
+        o.set_style_border_color(hexc(border), 0)
+    return o
+
+
+def seg_bar(parent, x, y, text, lit, color, total=5, seg_w=16, seg_h=11, gap=3, label_w=56):
+    """Label + a row of `total` segment cells, `lit` of them coloured. Mirrors
+    the device's 5-LED look. Returns the list of cells for live updates."""
     label(parent, text, x, y, INK, font_small())
-    t = box(parent, x, y + 15, w, 8, track, radius=2)
-    f = box(t, 0, 0, max(0, int(w * frac)), 8, color, radius=2)
-    f.align(lv.ALIGN.LEFT_MID, 0, 0)
-    return f
+    sx = x + label_w
+    cells = []
+    for i in range(total):
+        c = box(parent, sx + i * (seg_w + gap), y, seg_w, seg_h, color if i < lit else _TRACK)
+        c.set_style_border_width(1, 0)
+        c.set_style_border_color(hexc(INK), 0)
+        cells.append(c)
+    return cells
+
+
+def set_segments(cells, lit, color):
+    for i, c in enumerate(cells):
+        c.set_style_bg_color(hexc(color if i < lit else _TRACK), 0)
+
+
+def heart_row(parent, x, y, filled, total=5, scale=2, gap=3):
+    """A row of pixel hearts, `filled` red and the rest greyed out."""
+    hw = 9 * scale
+    hearts = []
+    for i in range(total):
+        pal = {"k": 0x7A1F12, "r": 0xE0463A} if i < filled else {"k": 0xB0A07E, "r": 0xECE0C2}
+        h = art.draw_sprite(parent, art.HEART, pal, scale)
+        h.set_pos(x + i * (hw + gap), y)
+        hearts.append(h)
+    return hearts
 
 
 def focusable(obj, on_click=None):

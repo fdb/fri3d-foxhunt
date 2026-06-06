@@ -42,6 +42,35 @@ HEART = [
     ".krrrrrk.", "..krrrk..", "...krk...", "....k....",
 ]
 
+# ── 8x8 UI icons (action bar + foods), ported from the design ───────────────
+# Each has its own palette; chars not in the palette are skipped (transparent).
+ICONS = {
+    "food":  {"rows": ["...gg...", "..gkk...", ".kkrrk..", "krrrrrk.",
+                       "krrwrrk.", "krrrrrk.", ".krrrk..", "..kkk..."],
+              "pal": {"g": 0x5A9A3C, "r": 0xD6483A, "w": 0xF6CF93, "k": 0x34271A}},
+    "paw":   {"rows": ["p.p.p.p.", "p.p.p.p.", "........", ".ppppp..",
+                       "ppppppp.", "ppppppp.", ".ppppp..", "........"],
+              "pal": {"p": 0x8A5A2E}},
+    "ball":  {"rows": ["..kkkk..", ".kwwrrk.", "kwwrrrrk", "kwrrkkrk",
+                       "krrkkrrk", "krrrrrwk", ".krrwwk.", "..kkkk.."],
+              "pal": {"k": 0x34271A, "r": 0xCF6A3F, "w": 0xF6CF93}},
+    "book":  {"rows": ["kkkkkkk.", "kwwwwwwk", "kwkwwkwk", "kwwwwwwk",
+                       "kwkwwkwk", "kwwwwwwk", "kwwwwwwk", "kkkkkkk."],
+              "pal": {"k": 0x34271A, "w": 0xEFE0BB}},
+    "nut":   {"rows": ["..kkk...", ".kbbbk..", "kbbbbbk.", "kbdddbk.",
+                       "kbddddbk", ".kdddbk.", "..kddk..", "...kk..."],
+              "pal": {"k": 0x34271A, "b": 0xCAA05A, "d": 0x8A5F2C}},
+    "acorn": {"rows": [".kkkkk..", "kbkbkbk.", "kbbbbbk.", ".kdddk..",
+                       ".kdddk..", "..kdk...", "..kdk...", "...k...."],
+              "pal": {"k": 0x34271A, "b": 0x9A7541, "d": 0xC89A5A}},
+}
+
+
+def icon(parent, name, scale=2):
+    """Render an 8x8 UI icon onto a transparent canvas. Returns the canvas."""
+    ic = ICONS[name]
+    return draw_sprite(parent, ic["rows"], ic["pal"], scale)
+
 _BASE = {"k": 0x34271A, "w": 0xFFF7E6, "e": 0x241A12, "n": 0xCF6A4E, "b": 0xF0C64A}
 
 
