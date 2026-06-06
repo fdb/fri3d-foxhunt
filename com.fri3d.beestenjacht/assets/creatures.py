@@ -20,7 +20,7 @@ CREATURES = [
     {"id": 7,  "naam": "Giraptor",    "rarity": "rare", "shape": "bird", "pal": "green",    "code": "7890", "beacon": 7},
     {"id": 8,  "naam": "Koekoekoek",  "rarity": "rare", "shape": "bird", "pal": "brown",    "code": "8901", "beacon": 8},
     {"id": 9,  "naam": "Schaapegaai", "rarity": "rare", "shape": "owl",  "pal": "bluegrey", "code": "9012", "beacon": 9},
-    {"id": 10, "naam": "Kat",         "rarity": "norm", "shape": "fox",  "pal": "grey",     "code": "0123", "beacon": 10},
+    {"id": 10, "naam": "Kat",         "rarity": "norm", "shape": "fox",  "pal": "grey",     "code": "0123", "beacon": 10, "img": "kat.png"},
     {"id": 11, "naam": "Paauwpegaai", "rarity": "leg",  "shape": "bird", "pal": "gold",     "code": "1111", "beacon": 11},
 ]
 

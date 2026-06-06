@@ -8,7 +8,7 @@ import random
 from creatures import CREATURES
 
 # Which beacons are transmitting right now (drives awake/dormant on home).
-_AWAKE = (0, 1, 3, 4)
+_AWAKE = (0, 1, 4, 10)
 
 
 class FoxReading:
