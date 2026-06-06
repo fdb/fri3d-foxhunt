@@ -70,9 +70,7 @@ class HomeActivity(Activity):
             ui.label(cell, c["naam"] if is_caught else "???", 0, 51,
                      ui.INK if is_caught else 0x8A7D5E, ui.font_small(), w=74, center=True)
 
-            if is_caught:
-                ui.label(cell, "v", 4, 2, ui.GREEN_D, ui.font_label())
-            elif huntable:
+            if huntable:
                 ui.focusable(cell, on_click=lambda cc=cid: self._hunt(cc))
 
     def _hunt(self, cid):
