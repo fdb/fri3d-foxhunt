@@ -10,7 +10,7 @@
 # art.creature_sprite() at real images. Nothing else in the app cares.
 
 CREATURES = [
-    {"id": 0,  "naam": "Vos",         "rarity": "norm", "shape": "fox",  "pal": "orange",   "code": "1234", "beacon": 0},
+    {"id": 0,  "naam": "Vos",         "rarity": "norm", "shape": "fox",  "pal": "orange",   "code": "1234", "beacon": 0, "img": "vos.png"},
     {"id": 1,  "naam": "Egel",        "rarity": "norm", "shape": "owl",  "pal": "brown",    "code": "2345", "beacon": 1, "img": "egel.png"},
     {"id": 2,  "naam": "Uil",         "rarity": "norm", "shape": "owl",  "pal": "grey",     "code": "3456", "beacon": 2},
     {"id": 3,  "naam": "Everzwaan",   "rarity": "rare", "shape": "bird", "pal": "cream",    "code": "7391", "beacon": 3},
