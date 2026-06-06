@@ -20,7 +20,7 @@ class CodeActivity(Activity):
         self.entry = ""
 
         s = ui.make_screen(0xDFEEBF)
-        ui.banner(s, "VOER DE CODE IN", ui.GREEN, back=True)
+        ui.banner(s, "VOER DE CODE IN", ui.GREEN)
 
         kx, ky, kw, kh, kg = 6, 34, 58, 45, 6
         for i, k in enumerate(KEYS):
@@ -35,14 +35,21 @@ class CodeActivity(Activity):
             ui.focusable(b, on_click=lambda kk=k: self.press(kk))
 
         self.dots = ui.label(s, "____", 198, 40, ui.INK, ui.font_title(), w=116, center=True)
-        rev = ui.box(s, 214, 80, 92, 92, 0xEEF4D6, radius=2)
-        rev.set_style_border_width(2, 0)
-        rev.set_style_border_color(ui.hexc(ui.TERRA), 0)
-        sp = art.creature_sprite(rev, self.c, 4)
-        sp.align(lv.ALIGN.CENTER, 0, 0)
-        ui.label(s, "vul de code in", 198, 178, 0x5E6B44, ui.font_label(), w=116, center=True)
+        self.rev = ui.box(s, 214, 80, 92, 92, 0xEEF4D6, radius=2)
+        self.rev.set_style_border_width(2, 0)
+        self.rev.set_style_border_color(ui.hexc(ui.TERRA), 0)
+        self._sprite = None
+        self._draw_reveal()                       # starts as a full silhouette
+        ui.label(s, "vul de code in", 198, 178, 0x5E6B44, ui.font_small(), w=116, center=True)
 
         self.setContentView(s)
+
+    def _draw_reveal(self):
+        # creature "fills in" top-down, a quarter per entered digit
+        if self._sprite is not None:
+            self._sprite.delete()
+        self._sprite = art.creature_sprite(self.rev, self.c, 4, reveal=len(self.entry) / 4.0)
+        self._sprite.align(lv.ALIGN.CENTER, 0, 0)
 
     def press(self, k):
         sound.play("tap")
@@ -53,6 +60,7 @@ class CodeActivity(Activity):
         elif len(self.entry) < 4:
             self.entry += k
         self.dots.set_text((self.entry + "____")[:4])
+        self._draw_reveal()
         if len(self.entry) == 4:
             self.submit()
 
@@ -65,3 +73,4 @@ class CodeActivity(Activity):
             sound.play("error")
             self.entry = ""
             self.dots.set_text("____")
+            self._draw_reveal()

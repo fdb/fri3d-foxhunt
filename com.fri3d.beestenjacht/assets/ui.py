@@ -24,28 +24,40 @@ def hexc(v):
     return lv.color_hex(v)
 
 
-# ---- fonts (built-in Montserrat for now; swap to baked Pixelify later) ----
+# ---- fonts: baked Pixelify Sans bitmap fonts (crisp, no anti-alias) --------
+# Loaded at runtime via lv.binfont_create (.bin from lv_font_conv). Falls back
+# to built-in Montserrat if a font fails to load, so the app always runs.
+_FONT_DIR = "M:apps/com.fri3d.beestenjacht/assets/fonts/"
 _FONTS = {}
 
 
-def _font(size):
-    if size in _FONTS:
-        return _FONTS[size]
+def _load(name, fallback_size):
+    if name in _FONTS:
+        return _FONTS[name]
     f = None
     try:
-        f = FontManager.getFont(size=size)
+        f = lv.binfont_create(_FONT_DIR + name)
     except Exception as e:
-        print("ui: font", size, "failed:", e)
-    _FONTS[size] = f
+        print("ui: binfont", name, "failed:", e)
+    if f is None:
+        try:
+            f = FontManager.getFont(size=fallback_size)
+        except Exception:
+            f = None
+    _FONTS[name] = f
     return f
 
 
-def font_title():
-    return _font(20)
+def font_small():
+    return _load("pixelify_r14.bin", 12)
 
 
 def font_label():
-    return _font(14)
+    return _load("pixelify_r16.bin", 14)
+
+
+def font_title():
+    return _load("pixelify_b22.bin", 20)
 
 
 # ---- positioned widget helpers -------------------------------------------
@@ -89,20 +101,20 @@ def label(parent, text, x, y, color=INK, font=None, w=None, center=False):
     return l
 
 
-def banner(screen, title, color=GREEN, right=None, back=False):
+def banner(screen, title, color=GREEN, right=None):
+    # No back button: MicroPythonOS provides a global left-edge back swipe
+    # (main.py handle_back_swipe) plus Esc / joystick. Apps don't draw their own.
     box(screen, 0, 0, 320, 26, color)
-    label(screen, ("< " + title) if back else title, 8, 4, CREAM, font_title())
+    label(screen, title, 8, 4, CREAM, font_title())
     if right is not None:
-        label(screen, right, 240, 7, CREAM, font_label(), w=72, center=True)
+        label(screen, right, 240, 8, CREAM, font_small(), w=72, center=True)
 
 
 def focusable(obj, on_click=None):
-    """Make an obj tap/click/arrow-key activatable with a focus outline, and
-    register it in the default LVGL group (where the board's indevs deliver)."""
+    """Make an obj tap/click/arrow-key activatable and register it in the
+    default LVGL group (where the board's joystick/keyboard indevs deliver).
+    Focus highlight is left to the system theme."""
     obj.add_flag(lv.obj.FLAG.CLICKABLE)
-    obj.set_style_outline_width(3, lv.STATE.FOCUSED)
-    obj.set_style_outline_color(hexc(0xFFFFFF), lv.STATE.FOCUSED)
-    obj.set_style_outline_opa(lv.OPA.COVER, lv.STATE.FOCUSED)
     g = lv.group_get_default()
     if g:
         g.add_obj(obj)

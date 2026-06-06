@@ -16,7 +16,7 @@ class WinActivity(Activity):
 
         s = ui.make_screen(0x20301C)
         if leg:
-            ui.label(s, "* LEGENDARISCH *", 0, 44, ui.GOLD, ui.font_label(), w=320, center=True)
+            ui.label(s, "* LEGENDARISCH *", 0, 44, ui.GOLD, ui.font_small(), w=320, center=True)
 
         panel = ui.box(s, 114, 66, 92, 92, 0xE9F1CF, radius=2)
         panel.set_style_border_width(3, 0)
@@ -25,7 +25,7 @@ class WinActivity(Activity):
         sp.align(lv.ALIGN.CENTER, 0, 0)
 
         ui.label(s, c["naam"], 0, 166, ui.CREAM, ui.font_title(), w=320, center=True)
-        ui.label(s, "toegevoegd aan je boek!", 0, 192, 0xBCD0A4, ui.font_label(), w=320, center=True)
+        ui.label(s, "toegevoegd aan je boek!", 0, 192, 0xBCD0A4, ui.font_small(), w=320, center=True)
 
         btn = ui.box(s, 100, 210, 120, 26, ui.GOLD, radius=3)
         btn.set_style_border_width(2, 0)

@@ -62,8 +62,8 @@ class HomeActivity(Activity):
             sp = art.creature_sprite(cell, c, 3, silhouette=not is_caught)
             sp.align(lv.ALIGN.TOP_MID, 0, 3)
 
-            ui.label(cell, c["naam"] if is_caught else "???", 0, 50,
-                     ui.INK if is_caught else 0x8A7D5E, ui.font_label(), w=74, center=True)
+            ui.label(cell, c["naam"] if is_caught else "???", 0, 51,
+                     ui.INK if is_caught else 0x8A7D5E, ui.font_small(), w=74, center=True)
 
             if is_caught:
                 ui.label(cell, "v", 4, 2, ui.GREEN_D, ui.font_label())

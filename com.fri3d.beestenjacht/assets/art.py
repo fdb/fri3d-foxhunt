@@ -65,11 +65,15 @@ PALS = {
 _SIL = 0x2B241D   # silhouette colour for dormant / scanning
 
 
-def draw_sprite(parent, rows, palette, scale, silhouette=False):
+def draw_sprite(parent, rows, palette, scale, silhouette=False, reveal=1.0):
     """Draw a pixel sprite onto a fresh transparent canvas, each source pixel
-    as a scale x scale block. Returns the lv.canvas widget."""
+    as a scale x scale block. Returns the lv.canvas widget.
+
+    reveal (0..1) colours the top fraction of rows and leaves the rest as
+    silhouette — the creature "fills in" as the player types the code."""
     w = len(rows[0]) * scale
     h = len(rows) * scale
+    cutoff = reveal * len(rows)                       # rows above this are colour
     canvas = lv.canvas(parent)
     canvas.set_size(w, h)
     buf = bytearray(w * h * 4)                       # ARGB8888 -> real alpha
@@ -79,11 +83,12 @@ def draw_sprite(parent, rows, palette, scale, silhouette=False):
     cover = lv.OPA.COVER
     for y, row in enumerate(rows):
         by = y * scale
+        row_sil = silhouette or (y >= cutoff)
         for x in range(len(row)):
             ch = row[x]
             if ch == "." or ch == " ":
                 continue
-            col = _SIL if silhouette else palette.get(ch)
+            col = _SIL if row_sil else palette.get(ch)
             if col is None:
                 continue
             color = lv.color_hex(col)
@@ -98,5 +103,5 @@ def draw_sprite(parent, rows, palette, scale, silhouette=False):
     return canvas
 
 
-def creature_sprite(parent, c, scale, silhouette=False):
-    return draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, silhouette)
+def creature_sprite(parent, c, scale, silhouette=False, reveal=1.0):
+    return draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, silhouette, reveal)
