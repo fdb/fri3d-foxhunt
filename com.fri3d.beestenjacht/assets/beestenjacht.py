@@ -19,21 +19,26 @@ _ROWS = (30, 100, 170)
 
 class HomeActivity(Activity):
     def onCreate(self):
-        self._first = True
-        self.build()
+        self._fresh = True
+        self.screen = ui.make_screen(ui.PAPER)
+        self._populate()
+        self.setContentView(self.screen)
 
     def onResume(self, screen):
         super().onResume(screen)
-        if self._first:
-            self._first = False
-        else:
-            self.build()          # refresh counts/catches when returning home
+        # Refresh caught state in place. Do NOT call setContentView again — it
+        # appends a new screen to the stack and leaks the old one (11 canvas
+        # buffers!). clean() frees the previous cells before repopulating.
+        if self._fresh:
+            self._fresh = False
+            return
+        self.screen.clean()
+        self._populate()
 
-    def build(self):
+    def _populate(self):
+        s = self.screen
         awake = set(RADIO.active_foxes())
         caught = set(store.caught_ids())
-
-        s = ui.make_screen(ui.PAPER)
         ui.banner(s, "BEESTENJACHT", ui.GREEN,
                   right="%d/%d" % (len(caught), len(CREATURES)))
 
@@ -69,8 +74,6 @@ class HomeActivity(Activity):
                 ui.label(cell, "v", 4, 2, ui.GREEN_D, ui.font_label())
             elif huntable:
                 ui.focusable(cell, on_click=lambda cc=cid: self._hunt(cc))
-
-        self.setContentView(s)
 
     def _hunt(self, cid):
         sound.play("tap")

@@ -111,10 +111,13 @@ def banner(screen, title, color=GREEN, right=None):
 
 
 def focusable(obj, on_click=None):
-    """Make an obj tap/click/arrow-key activatable and register it in the
-    default LVGL group (where the board's joystick/keyboard indevs deliver).
-    Focus highlight is left to the system theme."""
+    """Make an obj tap/click/arrow-key activatable, give it a gold focus ring
+    (for joystick/arrow nav), and register it in the default LVGL group."""
     obj.add_flag(lv.obj.FLAG.CLICKABLE)
+    obj.set_style_outline_color(hexc(GOLD), lv.STATE.FOCUSED)
+    obj.set_style_outline_width(3, lv.STATE.FOCUSED)
+    obj.set_style_outline_pad(1, lv.STATE.FOCUSED)
+    obj.set_style_outline_opa(lv.OPA.COVER, lv.STATE.FOCUSED)
     g = lv.group_get_default()
     if g:
         g.add_obj(obj)

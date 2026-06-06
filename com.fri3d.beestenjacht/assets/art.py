@@ -117,46 +117,48 @@ def _bare(o):
     o.set_style_radius(0, 0)
     o.set_style_bg_opa(lv.OPA.TRANSP, 0)
     o.remove_flag(lv.obj.FLAG.SCROLLABLE)
+    o.remove_flag(lv.obj.FLAG.CLICKABLE)    # let taps fall through to the cell
 
 
 def _layer(parent, c, scale, silhouette):
-    """One creature image/canvas at (0,0), nominal size 16*scale, full colour
-    or silhouette."""
+    """One creature image/canvas at (0,0), sized 16*scale, full colour or
+    silhouette. Non-clickable so it never steals taps from a clickable cell."""
+    px = 16 * scale
     if c.get("img"):
-        img = lv.image(parent)
-        img.set_src(_CREATURE_DIR + c["img"])
-        img.set_pos(0, 0)
-        img.set_pivot(0, 0)                 # scale from top-left so it fills (0,0)->(px,px)
-        img.set_antialias(False)            # crisp pixels
-        if scale != 1:
-            img.set_scale(256 * scale)      # src is 16px -> 16*scale px
+        w = lv.image(parent)
+        w.set_src(_CREATURE_DIR + c["img"])
+        w.set_pos(0, 0)
+        w.set_size(px, px)
+        w.set_inner_align(lv.image.ALIGN.STRETCH)   # scale src(16) to fill px x px
+        w.set_antialias(False)                       # nearest-neighbour -> crisp
         if silhouette:
-            img.set_style_image_recolor(lv.color_hex(_SIL), 0)
-            img.set_style_image_recolor_opa(lv.OPA.COVER, 0)
-        return img
-    cv = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, silhouette)
-    cv.set_pos(0, 0)
-    return cv
+            w.set_style_image_recolor(lv.color_hex(_SIL), 0)
+            w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
+    else:
+        w = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, silhouette)
+        w.set_pos(0, 0)
+    w.remove_flag(lv.obj.FLAG.CLICKABLE)
+    return w
 
 
 def creature_panel(parent, c, scale, reveal=1.0, silhouette=False):
-    """A 16*scale square wrapper showing the creature full / silhouette /
-    partially revealed (colour fills top-down). Backend-agnostic: PNG art and
-    procedural sprites both go through here, so every screen behaves the same."""
+    """The creature shown full / silhouette / partially revealed (colour fills
+    top-down). Backend-agnostic — PNG art and procedural sprites both come
+    through here. Full/silhouette return the bare sprite (no wrapper, so it
+    never blocks clicks); only the partial-reveal case needs a clip wrapper."""
+    if silhouette or reveal <= 0.0:
+        return _layer(parent, c, scale, True)
+    if reveal >= 1.0:
+        return _layer(parent, c, scale, False)
+    # partial: silhouette base + colour clipped to the top `reveal` fraction
     px = 16 * scale
     wrap = lv.obj(parent)
     _bare(wrap)
     wrap.set_size(px, px)
-    if silhouette or reveal <= 0.0:
-        _layer(wrap, c, scale, True)
-    elif reveal >= 1.0:
-        _layer(wrap, c, scale, False)
-    else:
-        # silhouette base + colour clipped to the top `reveal` fraction
-        _layer(wrap, c, scale, True)
-        clip = lv.obj(wrap)
-        _bare(clip)
-        clip.set_size(px, max(1, int(reveal * px)))
-        clip.set_pos(0, 0)
-        _layer(clip, c, scale, False)
+    _layer(wrap, c, scale, True)
+    clip = lv.obj(wrap)
+    _bare(clip)
+    clip.set_size(px, max(1, int(reveal * px)))
+    clip.set_pos(0, 0)
+    _layer(clip, c, scale, False)
     return wrap
