@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Beestenjacht · Pixel-layout (320×240)</title>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet" />
+<style>
+  /*
+   * PIXEL-EXACT LAYOUT TOOL — NOT the app, just the geometry.
+   *
+   * Every coordinate below is an INTEGER in a logical 320×240 space (the real
+   * framebuffer). Nothing is fractional, nothing uses %/flex/grid auto-sizing.
+   * The whole stage is then multiplied by SCALE for viewing on a desktop.
+   * What you read here is exactly what the MicroPythonOS code must draw.
+   */
+  :root{
+    --ink:#34271a; --ink-soft:#6f6857;
+    --card:#fbf3dd; --paper:#efe0bb;
+    --green:#5a9a3c; --green-d:#3c6b2e;
+    --gold:#e8b23a; --gold-d:#a8761f;
+    --terra:#cf6a3f; --terra-d:#9c4422;
+    --pix:'Pixelify Sans', system-ui, sans-serif;
+    --mono:'VT323', monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:#23201b; color:#e8e0cf; font-family:var(--pix); }
+  body{ padding:24px 24px 80px; }
+  h1{ font-size:22px; font-weight:600; }
+  .sub{ color:#9b9484; font-size:13px; margin:4px 0 18px; max-width:760px; line-height:1.5; }
+  canvas{ image-rendering:pixelated; }
+
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:22px; }
+  .toolbar button{ font-family:var(--pix); font-size:13px; background:#3a352c; color:#e8e0cf;
+    border:1px solid #544d40; border-radius:6px; padding:6px 11px; cursor:pointer; }
+  .toolbar button.on{ background:var(--green); border-color:var(--green-d); color:#fff; }
+  .toolbar .sep{ width:1px; height:22px; background:#544d40; margin:0 4px; }
+  .toolbar label{ font-size:13px; color:#c9c1b0; display:flex; align-items:center; gap:6px; }
+
+  .grid{ display:grid; grid-template-columns:repeat(2, max-content); gap:34px 40px; }
+  .frame{ }
+  .frame h2{ font-size:14px; font-weight:600; margin-bottom:8px; color:#d8cfbb; }
+  .frame h2 small{ color:#8d8676; font-family:var(--mono); font-size:14px; margin-left:6px; }
+
+  /* the 320×240 stage; children are absolutely positioned in logical px×SCALE */
+  .stage{ position:relative; overflow:hidden; outline:2px solid #544d40; }
+  .stage .px{ position:absolute; }            /* a logical rectangle */
+  .stage .lbl{ position:absolute; font-family:var(--pix); white-space:nowrap;
+    overflow:hidden; display:flex; align-items:center; }
+
+  /* overlays toggled on body */
+  .stage .overlay{ position:absolute; inset:0; pointer-events:none; z-index:50; display:none; }
+  body[data-grid="on"]  .overlay.grid8{ display:block; }
+  body[data-grid1="on"] .overlay.grid1{ display:block; }
+  body[data-crt="on"]   .overlay.crt{ display:block; }
+  body[data-ruler="on"] .overlay.ruler{ display:block; }
+</style>
+</head>
+<body data-grid="off" data-grid1="off" data-crt="off" data-ruler="off">
+  <h1>Beestenjacht — pixel-exact layout</h1>
+  <p class="sub">Vier schermen op een échte 320×240 pixelgrid. Elke maat hier is een geheel getal —
+  geen %, geen flex, geen halve pixels. Dit is de bron-of-truth voor de MicroPythonOS-implementatie.
+  Zet het pixelraster aan om te controleren dat alles op de grid valt.</p>
+
+  <div class="toolbar">
+    <label>Schaal:
+      <select id="scaleSel">
+        <option value="2">2×</option>
+        <option value="3" selected>3×</option>
+        <option value="4">4×</option>
+      </select>
+    </label>
+    <span class="sep"></span>
+    <button id="bGrid8">Pixelraster 8px</button>
+    <button id="bGrid1">Raster 1px</button>
+    <button id="bRuler">Liniaal</button>
+    <button id="bCrt">LCD-scanlijnen</button>
+  </div>
+
+  <div class="grid" id="screens"></div>
+
+  <script>
+  // ════════════════════════════════════════════════════════════════════
+  //  SPRITE DATA  (lifted verbatim from the design's pixel.jsx)
+  // ════════════════════════════════════════════════════════════════════
+  const SH = {
+    fox: ['................','..k..........k..','.krk........krk.','.krrk......krrk.','.krrrkk..kkrrrk.','..krrrrkkrrrrk..','..krrrrrrrrrrk..','..krwwrrrrwwrk..','..krweerwweerk..','..krrrrrrrrrrk..','..krrlllllllrk..','..kdrllnnllrdk..','..kdrlllllllrk..','...kddrrrrddk...','....kkddddkk....','......kkkk......'],
+    owl: ['................','...k........k...','..krk......krk..','..krrkkkkkkrrk..','.krrrrrrrrrrrrk.','.krwwwrrrrwwwrk.','.krweewrrweewrk.','.krwwwrbbrwwwrk.','.krrrrrbbrrrrrk.','.krrlllllllllrk.','.krrlrlrlrlrlrk.','..krrlllllllrk..','..kdrrrrrrrrdk..','...kddbbbbddk...','....kkbbbbkk....','......kkkk......'],
+    deer:['..b..b...b..b...','..b..bb.bb..b...','..bb..bbb..bb...','...bb..b..bb....','.....krrrk......','....krrrrrk.....','....krwrwrk.....','....kreererk....','....krrnnrrk....','...krrrrrrrrk...','..krrlrrrrlrrk..','..krrlrrrrlrrk..','..krrrrrrrrrrk..','...kdrrrrrrdk...','...kdk....kdk...','...kk......kk...'],
+    bird:['......bbb.......','.....bkrkb......','......krk.......','.....krrrk......','....krwrwrk.....','....kreererk....','...bbkrrnrrk....','..b..krrrrrk....','.b..krrrrrrrk...','....krrllrrrk...','....krllllrrk...','....krrllrrdk...','....kdrrrrdk....','.....kdrrdk.b...','...b..kkdk.bb...','...bb..kk..b....'],
+  };
+  const HEART = ['.kk...kk.','krrkkkrrk','krrrrrrrk','krrrrrrrk','.krrrrrk.','..krrrk..','...krk...','....k....'];
+  const SPK   = ['..b..','..b..','bbkbb','..b..','..b..'];
+  const PIX_BASE = { k:'#34271a', w:'#fff7e6', e:'#241a12', n:'#cf6a4e', b:'#f0c64a' };
+  const bp=(r,d,l)=>({...PIX_BASE,r,d,l});
+  const PALS = {
+    orange:bp('#e58a3a','#b15f24','#f6cf93'), grey:bp('#9a958c','#6d6860','#d8d3c7'),
+    brown:bp('#a9743f','#7c4f28','#d8ad77'),  cream:bp('#ead9b0','#bda273','#f8eecb'),
+    green:bp('#6aa24a','#467030','#a6cf7e'),   tan:bp('#cda268','#9a7541','#ecd3a0'),
+    bluegrey:bp('#7f93a6','#566677','#bcc9d6'), gold:bp('#ecc24a','#b1841f','#f8e6a0'),
+  };
+  const ROSTER = [
+    { naam:'Vos',         r:'norm', wakker:true,  sh:'fox',  pal:'orange' },
+    { naam:'Egel',        r:'norm', wakker:true,  sh:'owl',  pal:'brown' },
+    { naam:'Uil',         r:'norm', wakker:false, sh:'owl',  pal:'grey' },
+    { naam:'Everzwaan',   r:'rare', wakker:true,  sh:'bird', pal:'cream' },
+    { naam:'Kameleeuw',   r:'rare', wakker:true,  sh:'deer', pal:'green' },
+    { naam:'Tijghert',    r:'rare', wakker:false, sh:'deer', pal:'orange' },
+    { naam:'Konijlpaard', r:'rare', wakker:false, sh:'deer', pal:'tan' },
+    { naam:'Giraptor',    r:'rare', wakker:false, sh:'bird', pal:'green' },
+    { naam:'Koekoekoek',  r:'rare', wakker:false, sh:'bird', pal:'brown' },
+    { naam:'Schaapegaai', r:'rare', wakker:false, sh:'owl',  pal:'bluegrey' },
+    { naam:'Kat',         r:'norm', wakker:false, sh:'fox',  pal:'grey' },
+    { naam:'Paauwpegaai', r:'leg',  wakker:false, sh:'bird', pal:'gold' },
+  ];
+  const rFrame = { norm:null, rare:'var(--terra)', leg:'var(--gold)' };
+
+  // ════════════════════════════════════════════════════════════════════
+  //  RENDER PRIMITIVES — everything snaps to integer logical px × SCALE
+  // ════════════════════════════════════════════════════════════════════
+  let SCALE = 3;
+  const px = n => Math.round(n) * SCALE;        // logical → screen px (guards integers)
+
+  // draw a sprite to a 1:1 canvas, then size it up with pixelated scaling
+  function sprite(rows, palette, spriteScale, {silhouette, silColor='#2b241d'}={}){
+    const w = Math.max(...rows.map(r=>r.length)), h = rows.length;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d');
+    rows.forEach((row,y)=>{ for(let x=0;x<row.length;x++){
+      const ch=row[x]; if(ch==='.'||ch===' ') continue;
+      const col = silhouette ? silColor : palette[ch]; if(!col) continue;
+      ctx.fillStyle=col; ctx.fillRect(x,y,1,1);
+    }});
+    cv.style.width  = (w*spriteScale*SCALE)+'px';
+    cv.style.height = (h*spriteScale*SCALE)+'px';
+    cv.style.imageRendering='pixelated';
+    cv.style.display='block';
+    return cv;
+  }
+  const creature = (c, spriteScale, sil) =>
+    sprite(SH[c.sh], PALS[c.pal], spriteScale, {silhouette:sil});
+
+  // a positioned logical rectangle: box(x,y,w,h,{styles})
+  function box(x,y,w,h,style={}){
+    const d=document.createElement('div'); d.className='px';
+    d.style.left=px(x)+'px'; d.style.top=px(y)+'px';
+    d.style.width=px(w)+'px'; d.style.height=px(h)+'px';
+    Object.assign(d.style, style);
+    return d;
+  }
+  // a text label sitting at x,y with logical height h and a logical font size
+  function text(str,x,y,w,h,{size=10,color='var(--ink)',font='var(--pix)',align='left',weight=400}={}){
+    const d=document.createElement('div'); d.className='lbl';
+    d.style.left=px(x)+'px'; d.style.top=px(y)+'px';
+    d.style.width=px(w)+'px'; d.style.height=px(h)+'px';
+    d.style.fontFamily=font; d.style.fontSize=(size*SCALE)+'px';
+    d.style.color=color; d.style.fontWeight=weight;
+    d.style.justifyContent = align==='center'?'center':align==='right'?'flex-end':'flex-start';
+    d.style.lineHeight=1; d.textContent=str;
+    return d;
+  }
+  // the pixel-panel look (hard 1px ink outline + top highlight + bottom shadow)
+  const panelStyle = (bg='var(--card)', inset=null)=>({
+    background:bg,
+    boxShadow:`0 0 0 ${SCALE}px var(--ink), inset 0 ${SCALE}px 0 rgba(255,255,255,.5),`
+      +`inset 0 ${-2*SCALE}px 0 rgba(0,0,0,.14)`+(inset?`, inset 0 0 0 ${2*SCALE}px ${inset}`:''),
+  });
+
+  // banner bar (full width, logical height 26)
+  function banner(stage, title, {right, back, color='var(--green)', dark='var(--green-d)'}={}){
+    const b = box(0,0,320,26,{ background:color,
+      boxShadow:`inset 0 ${-2*SCALE}px 0 ${dark}, 0 ${2*SCALE}px 0 var(--ink)`, zIndex:3 });
+    stage.appendChild(b);
+    if(back) stage.appendChild(text('◄',7,5,14,16,{size:14,color:'#fff7e6'}));
+    stage.appendChild(text(title, back?22:7, 7, right?230:300, 13,
+      {size:11,weight:600,color:'#fff7e6'}));
+    if(right){
+      const rw = right.length*7+10;
+      stage.appendChild(box(320-rw-7,6,rw,15,{background:'rgba(0,0,0,.18)',
+        boxShadow:`inset 0 0 0 ${SCALE}px rgba(255,255,255,.28)`}));
+      stage.appendChild(text(right,320-rw-7,7,rw,13,{size:11,font:'var(--mono)',color:'#fff7e6',align:'center'}));
+    }
+  }
+
+  function makeStage(){
+    const s=document.createElement('div');
+    s.className='stage';
+    s.style.width=px(320)+'px'; s.style.height=px(240)+'px';
+    // overlays
+    s.insertAdjacentHTML('beforeend',
+      `<div class="overlay grid8"  style="background-image:
+          linear-gradient(rgba(255,255,255,.18) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(255,255,255,.18) 1px,transparent 1px);
+          background-size:${8*SCALE}px ${8*SCALE}px;"></div>
+       <div class="overlay grid1" style="background-image:
+          linear-gradient(rgba(255,255,255,.10) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(255,255,255,.10) 1px,transparent 1px);
+          background-size:${SCALE}px ${SCALE}px;"></div>
+       <div class="overlay crt" style="background:repeating-linear-gradient(0deg,
+          rgba(0,0,0,.18) 0 ${SCALE}px, transparent ${SCALE}px ${3*SCALE}px);"></div>
+       <div class="overlay ruler"></div>`);
+    return s;
+  }
+  function center(child){ // wrap a sprite/element so it centers inside a box
+    const w=document.createElement('div');
+    w.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+    w.appendChild(child); return w;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  SCREEN 1 · HOOFDSCHERM — Pokédex grid
+  //  cells 74×66, gap 4, margins x6/top30. cols x=6,84,162,240 rows y=30,100,170
+  // ════════════════════════════════════════════════════════════════════
+  function scrHome(){
+    const s=makeStage();
+    s.style.background='var(--paper)';
+    banner(s,'BEESTENJACHT',{right:'4/12'});
+    const cols=[6,84,162,240], rows=[30,100,170], CW=74, CH=66;
+    ROSTER.forEach((c,i)=>{
+      const x=cols[i%4], y=rows[(i/4)|0];
+      const cell=box(x,y,CW,CH, panelStyle(c.wakker?'var(--card)':'#d8c9a4', rFrame[c.r]));
+      cell.style.overflow='hidden';
+      // sprite area: top (CH-14)=52 px tall, scale 3 → 48px sprite, centered
+      const spArea=box(0,0,CW,CH-14,{}); spArea.style.left='0'; spArea.style.top='0';
+      spArea.appendChild(center(creature(c,3,!c.wakker)));
+      cell.appendChild(spArea);
+      if(!c.wakker) cell.appendChild(text('zz', CW-16, 4, 14, 10, {size:8,color:'#8a7d5e'}));
+      if(c.r==='leg'){
+        const sp1=sprite(SPK,{k:'#fff7e6',b:'var(--gold)'},1.6);
+        sp1.style.position='absolute'; sp1.style.left=px(3)+'px'; sp1.style.top=px(2)+'px';
+        cell.appendChild(sp1);
+      }
+      // name strip: bottom 14px
+      cell.appendChild(box(0,CH-14,CW,14,{background:c.wakker?'rgba(0,0,0,.05)':'transparent',left:'0'}));
+      cell.appendChild(text(c.wakker?c.naam:'???', 1, CH-14, CW-2, 14,
+        {size:9,align:'center',color:c.wakker?'var(--ink)':'#8a7d5e'}));
+      s.appendChild(cell);
+    });
+    return s;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  SCREEN 2 · JAGEN — scan card (6,34,224,172) + thermo col (240,34,74)
+  //  + hint bar (6,213,308,22)
+  // ════════════════════════════════════════════════════════════════════
+  //  Classic ARDF: thermometer removed — the 5 physical LEDs carry hot/cold.
+  //  Screen = wide silhouette scan card + ♥/bpm + ECG, a 5-LED mirror (emulator
+  //  only), and the "rotate to find" hint.
+  function scrHunt(){
+    const s=makeStage();
+    s.style.background='#cfe2ad';
+    banner(s,'Everzwaan',{back:true,right:'zeldzaam',color:'var(--terra)',dark:'var(--terra-d)'});
+    const c=ROSTER[3];
+    // wide scan card: 6,30 → 308×146
+    const card=box(6,30,308,146, panelStyle('#e9f1cf','var(--terra)'));
+    card.style.overflow='hidden';
+    const cx=154, cy=66;                 // card-local centre of the scan
+    [150,108,68].forEach(d=>{
+      card.appendChild(box(cx-d/2,cy-d/2,d,d,{borderRadius:'50%',
+        boxShadow:`0 0 0 ${2*SCALE}px rgba(95,138,53,.18)`}));
+    });
+    card.appendChild(text('silhouet',7,5,60,13,{size:10,font:'var(--mono)',color:'#8a9a6a'}));
+    // silhouette sprite, scale 6 → 96px, centred on (cx,cy)
+    const sil=center(creature(c,6,true));
+    sil.style.left=px(cx-48)+'px'; sil.style.top=px(cy-48)+'px';
+    sil.style.right='auto'; sil.style.bottom='auto';
+    sil.style.width=px(96)+'px'; sil.style.height=px(96)+'px';
+    card.appendChild(sil);
+    // heart + bpm top-right
+    const heart=sprite(HEART,{k:'#7a1f12',r:'#e0463a'},2.4);
+    heart.style.position='absolute'; heart.style.right=px(40)+'px'; heart.style.top=px(7)+'px';
+    card.appendChild(heart);
+    card.appendChild(text('96',308-34,5,28,18,{size:16,font:'var(--mono)',color:'var(--terra)',align:'left'}));
+    // ECG strip along the card bottom: card-local (6,118,296,22)
+    card.appendChild(box(6,118,296,22,{background:'rgba(207,106,63,.10)'}));
+    card.appendChild(ecgEl(296,22,6,118));
+    s.appendChild(card);
+
+    // 5-LED mirror (emulator only; the real badge uses the physical NeoPixels).
+    // cells 52×16, gap 5 → 5*52+4*5=280, margin 20. index 0 = leftmost (mpos.lights).
+    // lit=2 here is an example reading; more lit = warmer/closer.
+    const lit=2, LW=52, LH=16, LG=5, lx0=20, ly=180;
+    for(let i=0;i<5;i++){
+      const on=i<lit;
+      const col = i>=4?'var(--terra)':i>=2?'var(--gold)':'var(--green)';
+      s.appendChild(box(lx0+i*(LW+LG),ly,LW,LH,{
+        background:on?col:'rgba(0,0,0,.10)',
+        boxShadow:`0 0 0 ${SCALE}px var(--ink), inset 0 ${SCALE}px 0 rgba(255,255,255,${on?.45:.15})`}));
+    }
+    s.appendChild(text('koud',lx0,ly+LH+1,52,11,{size:9,color:'var(--green-d)'}));
+    s.appendChild(text('warm',320-lx0-52,ly+LH+1,52,11,{size:9,color:'var(--terra)',align:'right'}));
+    s.appendChild(text('= 5 LEDs',0,ly+LH+1,320,11,{size:9,font:'var(--mono)',color:'#6c7a52',align:'center'}));
+
+    // hint bar
+    s.appendChild(box(6,212,308,22, {background:'rgba(255,255,255,.55)',
+      boxShadow:`0 0 0 ${SCALE}px var(--ink)`}));
+    s.appendChild(text('draai rond om te zoeken',6,212,308,22,
+      {size:12,font:'var(--mono)',align:'center'}));
+    return s;
+  }
+
+  // animated scrolling ECG (canvas), positioned at card-local logical (x,y)
+  function ecgEl(w,h,x,y){
+    const cv=document.createElement('canvas');
+    cv.width=w; cv.height=h;
+    cv.style.position='absolute'; cv.style.left=px(x)+'px'; cv.style.top=px(y)+'px';
+    cv.style.width=(w*SCALE)+'px'; cv.style.height=(h*SCALE)+'px';
+    cv.style.imageRendering='pixelated';
+    const ctx=cv.getContext('2d'), mid=Math.round(h/2);
+    const beat=x=>{const p=x%46;
+      if(p===12)return -2; if(p===14)return -7; if(p===16)return mid-3;
+      if(p===18)return -(mid-4); if(p===20)return -3; if(p===22)return 0; return 0;};
+    let off=0;
+    (function draw(){
+      ctx.clearRect(0,0,w,h); ctx.fillStyle='#cf6a3f';
+      for(let x=0;x<w;x++){const y=mid+beat(x+off);
+        ctx.fillRect(x,Math.max(1,Math.min(h-2,y)),1,2);}
+      off=(off+1)%46; cv._raf=requestAnimationFrame(draw);
+    })();
+    return cv;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  SCREEN 3 · CODE INVOEREN — keypad (6,34,186,198) keys 58×45 gap6
+  //  + reveal column (198,34,116,200)
+  // ════════════════════════════════════════════════════════════════════
+  function scrCode(){
+    const s=makeStage();
+    s.style.background='#dfeebf';
+    banner(s,'VOER DE CODE IN',{back:true});
+    const c=ROSTER[3];
+    const keys=['1','2','3','4','5','6','7','8','9','⌫','0','✓'];
+    const KX=6, KY=34, KW=58, KH=45, KG=6;
+    keys.forEach((k,i)=>{
+      const cx=KX+(i%3)*(KW+KG), cy=KY+((i/3)|0)*(KH+KG);
+      const accent = k==='✓';
+      const b=box(cx,cy,KW,KH, panelStyle(accent?'var(--green)':'var(--card)'));
+      b.style.boxShadow=`0 0 0 ${SCALE}px var(--ink), 0 ${3*SCALE}px 0 var(--ink), `
+        +`inset 0 ${2*SCALE}px 0 ${accent?'rgba(255,255,255,.35)':'rgba(255,255,255,.6)'}`;
+      b.appendChild(text(k,0,0,KW,KH,{size:16,weight:600,align:'center',
+        color:accent?'#fff7e6':'var(--ink)'}));
+      s.appendChild(b);
+    });
+    // reveal column
+    const RX=198, RY=34;
+    // 4 code dots: 20×24, gap5, centered in 116 → start RX+10
+    const dotsW=4*20+3*5, dx=RX+Math.round((116-dotsW)/2);
+    for(let i=0;i<4;i++){
+      const d=box(dx+i*25,RY,20,24, panelStyle(i===0?'#fff':'var(--card)'));
+      if(i===0) d.appendChild(box(6,8,8,8,{background:'var(--ink)'}));
+      s.appendChild(d);
+    }
+    // filling silhouette panel 92×96 centered in column
+    const px0=RX+Math.round((116-92)/2), py0=RY+32;
+    const fp=box(px0,py0,92,96, panelStyle('#eef4d6','var(--terra)'));
+    fp.style.overflow='hidden';
+    fp.appendChild(center(creature(c,4,false)));        // scale 4 → 64px
+    fp.appendChild(box(0,Math.round(96*.28),92,3,{background:'var(--gold)',left:'0'}));
+    fp.appendChild(box(0,Math.round(96*.28)+3,92,96-(Math.round(96*.28)+3),
+      {background:'repeating-linear-gradient(45deg,rgba(40,32,20,.82) 0 3px,rgba(40,32,20,.7) 3px 6px)',left:'0'}));
+    fp.appendChild(text('1/4',0,96-16,92,13,{size:11,font:'var(--mono)',color:'#fff7e6',align:'center'}));
+    s.appendChild(fp);
+    s.appendChild(text('vult zich op terwijl je typt',RX,py0+100,116,12,
+      {size:9,font:'var(--mono)',color:'#5e6b44',align:'center'}));
+    return s;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  SCREEN 4 · GEVANGEN! — centered payoff splash on night bg
+  // ════════════════════════════════════════════════════════════════════
+  function scrCaught(){
+    const s=makeStage();
+    s.style.background='#20301c';
+    s.appendChild(box(0,0,320,240,{
+      background:'repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px)',left:'0',top:'0'}));
+    // stars
+    [[18,40],[292,30],[40,150],[280,160],[150,18],[60,200],[250,205],[200,50]].forEach(([l,t],i)=>{
+      const sp=sprite(SPK,{k:'#fff7e6',b:'var(--gold)'},i%3===0?2.2:1.5);
+      sp.style.position='absolute'; sp.style.left=px(l)+'px'; sp.style.top=px(t)+'px';
+      s.appendChild(sp);
+    });
+    // spotlight (decorative, centered ~ (160,159))
+    s.appendChild(box(160-75,84,150,150,{borderRadius:'50%',
+      background:'radial-gradient(circle, rgba(232,178,58,.35), transparent 68%)'}));
+    const c=ROSTER[11];
+    // LEGENDARISCH label centered at y=46
+    s.appendChild(text('★ LEGENDARISCH ★',0,46,320,12,
+      {size:11,weight:700,color:'var(--gold)',align:'center'}));
+    // creature panel: scale 5 → 80px sprite + 6 pad → 92×92, centered x, y=66
+    const fp=box(160-46,66,92,92,{...panelStyle('#e9f1cf','var(--gold)')});
+    fp.style.boxShadow=`0 0 0 ${SCALE}px var(--ink), 0 0 0 ${5*SCALE}px var(--gold), 0 0 ${24}px rgba(232,178,58,.5)`;
+    fp.appendChild(center(creature(c,5,false)));
+    s.appendChild(fp);
+    s.appendChild(text('Paauwpegaai',0,166,320,20,{size:18,weight:600,color:'#fff7e6',align:'center'}));
+    s.appendChild(text('toegevoegd aan je boek!',0,190,320,13,
+      {size:11,font:'var(--mono)',color:'#bcd0a4',align:'center'}));
+    // single centered button → back to Home (Home IS the book). width 120, y=210
+    const bw=120, bx=160-bw/2;
+    const b1=box(bx,210,bw,26,{background:'var(--gold)'});
+    b1.style.boxShadow=`0 0 0 ${SCALE}px var(--ink), 0 ${3*SCALE}px 0 var(--ink)`;
+    b1.appendChild(text('VERDER',0,0,bw,26,{size:14,weight:600,align:'center',color:'#3a2a0c'}));
+    s.appendChild(b1);
+    return s;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  MOUNT
+  // ════════════════════════════════════════════════════════════════════
+  const SCREENS = [
+    ['home','Hoofdscherm · Pokédex-raster', scrHome],
+    ['hunt','Jagen · klassieke ARDF (5 LEDs = warm/koud)', scrHunt],
+    ['code','Code invoeren · keypad + live onthulling', scrCode],
+    ['win','Gevangen! · payoff, één knop → home', scrCaught],
+  ];
+  function render(){
+    const root=document.getElementById('screens'); root.innerHTML='';
+    SCREENS.forEach(([title,sub,fn])=>{
+      const f=document.createElement('div'); f.className='frame';
+      f.innerHTML=`<h2>${title} <small>${sub} · 320×240</small></h2>`;
+      f.appendChild(fn());
+      root.appendChild(f);
+    });
+  }
+  render();
+
+  // toolbar wiring
+  const toggle=(id,attr)=>document.getElementById(id).addEventListener('click',e=>{
+    const on=document.body.getAttribute(attr)!=='on';
+    document.body.setAttribute(attr,on?'on':'off'); e.target.classList.toggle('on',on);
+  });
+  toggle('bGrid8','data-grid'); toggle('bGrid1','data-grid1');
+  toggle('bRuler','data-ruler'); toggle('bCrt','data-crt');
+  document.getElementById('scaleSel').addEventListener('change',e=>{
+    SCALE=parseInt(e.target.value,10); render();
+  });
+  </script>
+</body>
+</html>
