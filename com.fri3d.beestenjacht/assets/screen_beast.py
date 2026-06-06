@@ -73,7 +73,9 @@ class BeastActivity(Activity):
         st = store.beast_state(self.fox_id)
         if st is None:
             return
-        self.lbl_date.set_text("gevonden " + st.get("date", "?"))
+        # Narrow left column (~104px): keep each fact on one line so it can't
+        # wrap and overrun the line below.
+        self.lbl_date.set_text(st.get("date", "?"))
         self.lbl_place.set_text(st.get("place", "?"))
         self.lbl_seen.set_text("%dx gezien" % st.get("sightings", 1))
         self._set_values(st, "")
