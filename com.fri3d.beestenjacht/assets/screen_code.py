@@ -22,12 +22,12 @@ class CodeActivity(Activity):
         s = ui.make_screen(0xDFEEBF)
         ui.banner(s, "VOER DE CODE IN", ui.GREEN)
 
-        kx, ky, kw, kh, kg = 6, 34, 58, 45, 6
-        for i, k in enumerate(KEYS):
-            x = kx + (i % 3) * (kw + kg)
-            y = ky + (i // 3) * (kh + kg)
+        kw, kh, kg = 58, 45, 6
+        # 3 keys per row; +4px slack so the exact-fit 3rd column never wraps early
+        pad = ui.row(s, 6, 34, 3 * kw + 2 * kg + 4, 4 * kh + 3 * kg, gap=kg, wrap=True)
+        for k in KEYS:
             accent = (k == "OK")
-            b = ui.box(s, x, y, kw, kh, ui.GREEN if accent else ui.CARD, radius=3)
+            b = ui.box(pad, 0, 0, kw, kh, ui.GREEN if accent else ui.CARD, radius=3)
             b.set_style_border_width(2, 0)
             b.set_style_border_color(ui.hexc(ui.INK), 0)
             kl = ui.label(b, k, 0, 0, ui.CREAM if accent else ui.INK, ui.font_title(), w=kw, center=True)

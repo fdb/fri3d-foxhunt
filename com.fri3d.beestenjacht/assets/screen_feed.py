@@ -42,10 +42,11 @@ class FeedActivity(Activity):
         ui.label(stage, "favoriet = +band", 188, 52, ui.TEXT_MUTED, ui.font_small(), w=108, center=True)
 
         # ── food picker ──────────────────────────────────────────────────
-        fw, gap = 97, 6
-        for i, (ic, lab, food) in enumerate(_FOODS):
+        fw = 97
+        picker = ui.row(s, 8, 154, 3 * fw + 2 * 6, 50, gap=6)
+        for ic, lab, food in _FOODS:
             fav = (food == self.c.get("favoriet"))
-            p = ui.panel(s, 8 + i * (fw + gap), 154, fw, 50, ui.CARD)
+            p = ui.panel(picker, 0, 0, fw, 50, ui.CARD)
             art.icon(p, ic, 2).align(lv.ALIGN.TOP_MID, 0, 5)
             ui.label(p, lab, 0, 32, ui.INK, ui.font_small(), w=fw, center=True)
             if fav:

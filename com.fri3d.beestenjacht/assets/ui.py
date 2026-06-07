@@ -189,14 +189,27 @@ def panel(parent, x, y, w, h, bg=CARD, radius=RADIUS, border=INK, bw=BORDER):
     return o
 
 
+def row(parent, x, y, w, h, gap=GAP_M, wrap=False, bg=None):
+    """A flex container laying children left-to-right with `gap` between them,
+    so callers stop computing `x = base + i*(w+gap)`. wrap=True flows onto
+    multiple lines (a grid). Children are added with pos (0,0) — flex places
+    them. Give a wrap container a few px of slack so an exact-fit last column
+    doesn't wrap early."""
+    o = box(parent, x, y, w, h, bg)
+    o.set_flex_flow(lv.FLEX_FLOW.ROW_WRAP if wrap else lv.FLEX_FLOW.ROW)
+    o.set_style_pad_column(gap, 0)
+    o.set_style_pad_row(gap, 0)
+    return o
+
+
 def seg_bar(parent, x, y, text, lit, color, total=5, seg_w=16, seg_h=11, gap=GAP_S, label_w=56):
     """Label + a row of `total` segment cells, `lit` of them coloured. Mirrors
     the device's 5-LED look. Returns the list of cells for live updates."""
     label(parent, text, x, y, INK, font_small())
-    sx = x + label_w
+    track = row(parent, x + label_w, y, total * seg_w + (total - 1) * gap, seg_h, gap=gap)
     cells = []
     for i in range(total):
-        c = box(parent, sx + i * (seg_w + gap), y, seg_w, seg_h, color if i < lit else _TRACK)
+        c = box(track, 0, 0, seg_w, seg_h, color if i < lit else _TRACK)
         c.add_style(_SEG_CELL, 0)           # shared 1px ink hairline
         cells.append(c)
     return cells
@@ -207,15 +220,14 @@ def set_segments(cells, lit, color):
         c.set_style_bg_color(hexc(color if i < lit else _TRACK), 0)
 
 
-def heart_row(parent, x, y, filled, total=5, scale=2, gap=3):
+def heart_row(parent, x, y, filled, total=5, scale=2, gap=GAP_S):
     """A row of pixel hearts, `filled` red and the rest greyed out."""
     hw = 9 * scale
+    track = row(parent, x, y, total * hw + (total - 1) * gap, 8 * scale, gap=gap)
     hearts = []
     for i in range(total):
         pal = {"k": 0x7A1F12, "r": 0xE0463A} if i < filled else {"k": 0xB0A07E, "r": 0xECE0C2}
-        h = art.draw_sprite(parent, art.HEART, pal, scale)
-        h.set_pos(x + i * (hw + gap), y)
-        hearts.append(h)
+        hearts.append(art.draw_sprite(track, art.HEART, pal, scale))
     return hearts
 
 

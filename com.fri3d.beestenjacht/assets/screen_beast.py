@@ -47,10 +47,11 @@ class BeastActivity(Activity):
         self.stats = ui.box(s, 150, 34, 164, 148)
 
         # ── action bar ──────────────────────────────────────────────────
-        bw, gap = 73, 5
+        bw = 73
+        bar = ui.row(s, 6, 198, 4 * bw + 3 * 5, 36, gap=5)
         for i, (ic, lab, kind) in enumerate(_ACTS):
             accent = (i == 0)
-            b = ui.panel(s, 6 + i * (bw + gap), 198, bw, 36, ui.GREEN if accent else ui.CARD)
+            b = ui.panel(bar, 0, 0, bw, 36, ui.GREEN if accent else ui.CARD)
             art.icon(b, ic, 2).align(lv.ALIGN.TOP_MID, 0, 3)
             ui.label(b, lab, 0, 22, ui.CREAM if accent else ui.INK, ui.font_small(), w=bw, center=True)
             ui.focusable(b, on_click=lambda k=kind: self._press(k))
