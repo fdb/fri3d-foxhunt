@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beestenjacht — how a fox-hunt fits in 320×240 pixels</title>
+<!--
+  CONCEPT-DEPENDENCY MAP (the spine — each section unlocks the next)
+   1. The premise: ARDF fox hunt + Pokédex collecting        (deps: none)
+   2. One app, two machines: the board layer + hardware gating(deps: 1)
+   3. Everything lands on a whole pixel: the 320×240 grid     (deps: 1)
+   4. Tokens & shared styles: the look in one place           (deps: 3, LVGL)
+   5. A creature from a string: sprite canvas + palette swap  (deps: 3)
+   6. The catch IS the reveal: silhouette -> partial -> full  (deps: 5)
+   7. Screens are Activities; the catch loop + back-stack     (deps: 4)
+   8. A seam for the real radio: interface + fake             (deps: 1)
+   9. The hunt, live: strength -> bpm + LEDs + heartbeat      (deps: 5, 8, board layer)
+  10. Catching it & keeping it: verify + SharedPreferences    (deps: 6, 8)
+  11. A creature that keeps living: pet.py decay + actions    (deps: 10)
+  12. The whole map + where to go next                        (deps: all)
+-->
+<style>
+:root{
+  --bg:oklch(0.97 0 0); --surface:oklch(0.94 0 0); --surface-2:oklch(0.91 0 0);
+  --rule:oklch(0.40 0 0);
+  --ink:oklch(0.32 0 0); --ink-muted:oklch(0.50 0 0); --ink-faint:oklch(0.62 0 0);
+  --accent:oklch(0.55 0.20 28); --accent-bg:oklch(0.93 0.06 28);
+  --secondary:oklch(0.50 0.12 215); --secondary-bg:oklch(0.93 0.04 215);
+  --tertiary:oklch(0.65 0.16 90);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,Roboto,Helvetica,Arial,sans-serif;
+  font-size:1.18em; line-height:1.62; color:var(--ink); background:var(--bg);
+  margin:0; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.wrap{max-width:68ch; margin:0 auto; padding:0 1.2rem}
+h1,h2,h3{font-family:'Inter Tight','Inter',-apple-system,system-ui,Helvetica,Arial,sans-serif;
+  font-weight:600; letter-spacing:-0.015em; line-height:1.2}
+h1{font-size:clamp(2rem,4vw + 1rem,2.75rem); line-height:1.15; margin:0 0 .6rem}
+h2{font-size:1.6rem; margin:0 0 .8rem}
+h3{font-size:1.15rem; margin:1.6rem 0 .5rem}
+p{margin:0 0 1rem}
+a{color:var(--secondary)}
+code{font-family:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace; font-size:.9em;
+  background:var(--surface-2); padding:.05em .35em; border-radius:2px}
+strong{font-weight:650}
+.kicker{font-family:ui-monospace,monospace; font-size:12px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.12em; color:var(--ink-faint)}
+header.page{padding:4rem 0 1rem}
+.lede{font-size:1.15rem; color:var(--ink-muted)}
+nav.toc{margin:2rem 0 1rem; padding:1.2rem 1.4rem; background:var(--surface); border:1px solid var(--rule)}
+nav.toc ol{margin:.3rem 0 0; padding-left:1.4rem; columns:2; column-gap:2rem}
+nav.toc li{margin:.15rem 0}
+nav.toc a{text-decoration:none; color:var(--ink)}
+nav.toc a:hover{color:var(--accent)}
+section{margin:4.5rem 0}
+hr.rule{border:none; border-top:1px solid var(--rule); margin:3rem 0}
+figure{margin:1.6rem 0; max-width:84ch}
+.fig-stage{background:var(--surface); border:1px solid var(--rule); padding:1rem}
+.fig-controls{display:flex; flex-wrap:wrap; gap:1rem 1.6rem; align-items:center;
+  margin-top:.7rem; font-size:.85rem; color:var(--ink-muted)}
+.fig-controls label{display:flex; flex-direction:column; gap:.25rem; font-family:ui-monospace,monospace; font-size:12px}
+.fig-controls .inline{flex-direction:row; align-items:center; gap:.5rem}
+figcaption{font-size:14px; font-style:italic; color:var(--ink-faint); margin-top:.6rem}
+input[type=range]{accent-color:var(--accent); width:160px}
+button{font-family:ui-monospace,monospace; font-size:12px; font-weight:600; color:var(--ink);
+  background:var(--surface-2); border:1px solid var(--rule); padding:.4rem .8rem; cursor:pointer}
+button:hover{background:var(--bg)}
+button.on{background:var(--accent); color:var(--bg); border-color:var(--accent)}
+select{font-family:ui-monospace,monospace; font-size:12px; padding:.25rem; border:1px solid var(--rule); background:var(--bg); color:var(--ink)}
+svg{display:block; max-width:100%; height:auto}
+.svg-label{font-family:ui-monospace,monospace; font-size:11px; fill:var(--ink)}
+.svg-small{font-size:9px}
+.svg-faint{fill:var(--ink-faint)}
+.svg-muted{fill:var(--ink-muted)}
+canvas{image-rendering:pixelated; display:block}
+.callout{background:var(--accent-bg); border-left:3px solid var(--accent); padding:.8rem 1.1rem; margin:1.4rem 0}
+.callout.blue{background:var(--secondary-bg); border-left-color:var(--secondary)}
+figure.listing{background:var(--surface-2); border-left:3px solid var(--ink); padding:.9rem 1.1rem; margin:1.4rem 0}
+.listing pre{font-family:ui-monospace,monospace; font-size:13px; line-height:1.55; margin:0; overflow-x:auto}
+.listing .kw{color:var(--accent); font-weight:600}
+.listing .cm{color:var(--ink-faint); font-style:italic}
+.listing .st{color:oklch(0.55 0.14 145)}
+.listing .fn{font-weight:600}
+.swatches{display:flex; flex-wrap:wrap; gap:.5rem; margin:.4rem 0}
+.sw{display:flex; flex-direction:column; align-items:center; font-family:ui-monospace,monospace; font-size:9px; color:var(--ink-faint)}
+.sw i{width:42px; height:28px; border:1px solid var(--rule); display:block; margin-bottom:2px}
+.readout{font-family:ui-monospace,monospace; font-size:13px; color:var(--ink)}
+.readout b{color:var(--accent)}
+footer{margin:5rem 0 3rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-size:.85rem; color:var(--ink-faint)}
+.two{display:flex; gap:1.2rem; flex-wrap:wrap; align-items:center; justify-content:center}
+@media (max-width:560px){nav.toc ol{columns:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none !important; transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <div class="kicker">Fri3d Camp 2026 badge · MicroPythonOS + LVGL · June 2026</div>
+  <h1>How a fox-hunt fits in 320×240 pixels</h1>
+  <p class="lede">Beestenjacht is a creature-catching game for the Fri3d 2026 badge — kids
+  hunt hidden radio beacons in a forest with a directional antenna and collect them in a
+  Pokédex-style book. One Python codebase runs on the badge hardware <em>and</em> on a
+  macOS emulator. This page builds up how it works, one primitive at a time, with figures
+  you can poke at.</p>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <div class="kicker">Contents</div>
+  <ol>
+    <li><a href="#premise">The premise</a></li>
+    <li><a href="#twomachines">One app, two machines</a></li>
+    <li><a href="#grid">Everything lands on a whole pixel</a></li>
+    <li><a href="#tokens">Tokens &amp; shared styles</a></li>
+    <li><a href="#sprite">A creature from a string</a></li>
+    <li><a href="#reveal">The catch <em>is</em> the reveal</a></li>
+    <li><a href="#activities">Screens, and the catch loop</a></li>
+    <li><a href="#seam">A seam for the real radio</a></li>
+    <li><a href="#hunt">The hunt, live</a></li>
+    <li><a href="#keeping">Catching it, keeping it</a></li>
+    <li><a href="#pet">A creature that keeps living</a></li>
+    <li><a href="#whole">The whole map</a></li>
+  </ol>
+</nav>
+
+<!-- ───────────────────────────── 1 ───────────────────────────── -->
+<section id="premise">
+  <h2>1. What is the player actually doing?</h2>
+  <p>The game restages a real radio sport. In <em>ARDF</em> — amateur radio direction
+  finding, the "fox hunt" — small transmitters are hidden over a field, and you carry a
+  directional antenna to home in on them. Beestenjacht dresses each transmitter as a
+  cartoon "beest" (Dutch for beast). You can't see the beasts; you can only <em>feel</em>
+  them through signal strength: turn until the signal peaks, walk until it grows, and when
+  you reach the box you read a 4-digit code off its back and type it into the badge to
+  catch the creature.</p>
+
+  <p>There is no map and no compass on screen — that's the whole sport. The only feedback
+  is "warmer / colder." Drag the badge around the field below and watch the meter.</p>
+
+  <figure>
+    <div class="fig-stage">
+      <svg viewBox="0 0 560 300" id="fieldFig" role="img" aria-label="A field with a hidden beacon; drag the badge to feel signal strength.">
+        <rect x="0" y="0" width="560" height="300" fill="oklch(0.95 0.02 145)"/>
+        <!-- trees -->
+        <g class="svg-faint" fill="oklch(0.75 0.05 145)" stroke="none">
+          <circle cx="70" cy="60" r="14"/><circle cx="150" cy="220" r="16"/>
+          <circle cx="480" cy="90" r="15"/><circle cx="420" cy="240" r="13"/>
+          <circle cx="250" cy="50" r="12"/><circle cx="520" cy="200" r="14"/>
+        </g>
+        <!-- the hidden fox -->
+        <g id="foxMark">
+          <circle cx="400" cy="160" r="9" fill="var(--accent)"/>
+          <text x="400" y="186" text-anchor="middle" class="svg-label svg-faint">verstopte zender</text>
+        </g>
+        <!-- range rings (drawn from JS) -->
+        <g id="rings"></g>
+        <!-- the badge -->
+        <g id="badge" style="cursor:grab">
+          <rect x="-16" y="-12" width="32" height="24" rx="3" fill="var(--ink)" stroke="var(--bg)" stroke-width="1.5"/>
+          <rect x="-12" y="-9" width="24" height="13" fill="oklch(0.6 0.12 215)"/>
+          <line x1="0" y1="-12" x2="0" y2="-26" stroke="var(--ink)" stroke-width="2"/>
+          <circle cx="0" cy="-26" r="2.5" fill="var(--ink)"/>
+        </g>
+        <!-- meter -->
+        <g id="meterG" transform="translate(20,250)"></g>
+      </svg>
+    </div>
+    <figcaption>Drag the badge. The five-segment meter is the only clue to where the
+    hidden transmitter (red) is — closer means more segments and a faster heartbeat.</figcaption>
+  </figure>
+
+  <p>That "warmer / colder" loop is the spine of the whole app. Everything that follows —
+  the silhouette you chase, the heartbeat that races, the five LEDs that fill — exists to
+  communicate that one scalar: <strong>how close are you?</strong> The catch itself is a
+  reward screen. The hunt is the game.</p>
+</section>
+
+<!-- ───────────────────────────── 2 ───────────────────────────── -->
+<section id="twomachines">
+  <h2>2. The same code runs on a badge and on your laptop</h2>
+  <p>An ESP32-S3 badge with a soldered antenna is a poor place to iterate on UI. So the
+  app is written once and runs unchanged in two places: on the badge, and on a macOS SDL
+  emulator of MicroPythonOS. The trick is that the app <strong>never touches a pin
+  directly.</strong> Hardware lives behind a <em>board layer</em> — <code>board/fri3d_2026.py</code>
+  on the badge, <code>board/linux.py</code> on the desktop — that brings up the 320×240
+  display, input, LEDs and audio for whichever machine you're on.</p>
+
+  <p>Where a feature only exists on real hardware — the five NeoPixels, the piezo buzzer —
+  the app <em>calls anyway</em>, checks whether the manager is available, and falls back.
+  Flip the target below to see which calls light up real hardware and which quietly no-op.</p>
+
+  <figure>
+    <div class="fig-stage">
+      <svg viewBox="0 0 560 250" id="boardFig" role="img" aria-label="The app calls hardware managers that resolve differently on badge versus desktop.">
+        <!-- app box -->
+        <rect x="200" y="14" width="160" height="40" fill="none" stroke="var(--ink)" stroke-width="2"/>
+        <text x="280" y="38" text-anchor="middle" class="svg-label" font-weight="600">app (one codebase)</text>
+        <!-- managers -->
+        <g id="mgrs"></g>
+        <!-- target outcomes -->
+        <g id="outs"></g>
+      </svg>
+    </div>
+    <div class="fig-controls">
+      <div class="inline">
+        <span>target:</span>
+        <button id="tgtBadge" class="on">Fri3d badge</button>
+        <button id="tgtDesk">macOS desktop</button>
+      </div>
+    </div>
+    <figcaption>The same three calls — <code>lights</code>, <code>AudioManager</code>,
+    the display — resolve to real hardware on the badge and to a fallback on the desktop.</figcaption>
+  </figure>
+
+  <p>As you can see, on the desktop the LED call simply returns <code>False</code> and the
+  buzzer find returns nothing, so <code>play()</code> stays silent — and the hunt screen's
+  on-screen five-LED <em>mirror</em> takes over the job the physical strip would have done.
+  That mirror isn't a debug crutch; it ships on the badge too, so a player whose eyes are
+  on the screen still sees the hot/cold meter. One call site, two honest outcomes.</p>
+
+  <div class="callout">This "call, check, fall back" rule appears three times in the
+  codebase — for LEDs, for sound, and (as we'll see) for the radio itself. It's the single
+  idea that lets one file tree target two machines.</div>
+</section>
+
+<!-- ───────────────────────────── 3 ───────────────────────────── -->
+<section id="grid">
+  <h2>3. Why every coordinate is a whole number</h2>
+  <p>A web mockup can say "this column is 46% wide" and the browser will happily paint half
+  a pixel. A 320×240 framebuffer cannot — each element must land on an integer pixel or it
+  smears. So the project's source of truth for geometry isn't the code; it's
+  <code>layout/beestenjacht-layout.html</code>, a pixel-exact mock snapped to a grid where
+  every size is a whole number. Those integers become the <em>literal</em> arguments to
+  LVGL's <code>set_pos(x, y)</code> and <code>set_size(w, h)</code>.</p>
+
+  <p>The home grid is the clearest case: a 4×3 book of creatures, each cell 74×66 px with a
+  4 px gap and 6 px side margins. Toggle the 8-pixel raster and the column math below.</p>
+
+  <figure>
+    <div class="fig-stage">
+      <svg viewBox="0 0 320 240" id="gridFig" width="100%" style="max-width:480px; margin:0 auto; border:1px solid var(--rule); background:oklch(0.93 0.03 85)">
+        <g id="rasterG"></g>
+        <rect x="0" y="0" width="320" height="26" fill="oklch(0.6 0.12 145)"/>
+        <text x="8" y="18" class="svg-label" fill="oklch(0.97 0.02 85)" font-weight="600">BEESTENJACHT</text>
+        <g id="cellsG"></g>
+        <g id="dimG"></g>
+      </svg>
+    </div>
+    <div class="fig-controls">
+      <div class="inline"><button id="rasterBtn">show 8px raster</button></div>
+      <div class="inline"><button id="dimBtn">show the column math</button></div>
+    </div>
+    <figcaption>The real home screen at its true 320×240 size. Cell columns sit at
+    x = 6, 84, 162, 240; the arithmetic <code>4·74 + 3·4 + 2·6 = 320</code> closes the row exactly.</figcaption>
+  </figure>
+
+  <p>Turn on the math and you can see why the numbers aren't arbitrary: four 74-px cells,
+  three 4-px gaps, two 6-px margins sum to exactly 320. Nothing is fractional, so nothing
+  blurs. This is also why the plan insists on doing the layout <em>first</em> — you compute
+  the snapped integers in the mock, then transcribe them, rather than nudging
+  <code>set_pos</code> by eye on the device.</p>
+
+  <p>The trade-off is rigidity: change one cell width and you re-do the arithmetic for the
+  whole row. The app accepts that, because for repeated rows it doesn't hand-place at all —
+  which is the next idea.</p>
+</section>
+
+<!-- ───────────────────────────── 4 ───────────────────────────── -->
+<section id="tokens">
+  <h2>4. The look lives in one place</h2>
+  <p>Two disciplines keep the UI consistent and the badge's RAM happy. First, every colour
+  and spacing value is a <em>named token</em> in <code>ui.py</code> — never a raw
+  <code>0x…</code> in a screen. Here is the actual palette:</p>
+
+  <figure>
+    <div class="fig-stage">
+      <div class="swatches" id="swatchG"></div>
+    </div>
+    <figcaption>The design tokens from <code>ui.py</code>. A screen that wants "the green"
+    writes <code>ui.GREEN</code>; change the hex once and every screen follows.</figcaption>
+  </figure>
+
+  <p>Second — and this is the part specific to LVGL — repeated visual properties go into a
+  <em>shared style object</em>, not onto each widget. In LVGL, every time you call a
+  <code>set_style_*</code> setter inline, the property is stored in that one widget's
+  private local-style store. Do it on a hundred widgets and you've paid for a hundred copies
+  of the same fact. Define one <code>lv.style_t</code> and <code>add_style()</code> it
+  instead, and all hundred widgets point at a single shared record.</p>
+
+  <p>Drag the slider to add widgets and watch the cost diverge.</p>
+
+  <figure>
+    <div class="fig-stage">
+      <svg viewBox="0 0 560 220" id="styleFig" role="img" aria-label="Inline style cost grows per widget; shared style stays flat.">
+        <line x1="60" y1="180" x2="540" y2="180" stroke="var(--rule)"/>
+        <line x1="60" y1="20" x2="60" y2="180" stroke="var(--rule)"/>
+        <text x="60" y="200" class="svg-label svg-faint" text-anchor="middle" id="xlab">0 widgets</text>
+        <text x="14" y="100" class="svg-label svg-faint" transform="rotate(-90 14 100)" text-anchor="middle">style records stored</text>
+        <rect id="barInline" x="150" y="180" width="80" height="0" fill="var(--accent)"/>
+        <rect id="barShared" x="330" y="180" width="80" height="0" fill="var(--secondary)"/>
+        <text x="190" y="196" class="svg-label" text-anchor="middle" fill="var(--accent)">inline setters</text>
+        <text x="370" y="196" class="svg-label" text-anchor="middle" fill="var(--secondary)">shared lv.style_t</text>
+        <text id="lblInline" x="190" class="svg-label" text-anchor="middle" font-weight="600" y="170">0</text>
+        <text id="lblShared" x="370" class="svg-label" text-anchor="middle" font-weight="600" y="170">1</text>
+      </svg>
+    </div>
+    <div class="fig-controls">
+      <label>widgets on screen
+        <input type="range" id="styleSlider" min="1" max="60" value="12">
+      </label>
+      <span class="readout" id="styleReadout"></span>
+    </div>
+    <figcaption>Each inline-styled widget stores its own copy of the property (red);
+    every widget sharing one <code>lv.style_t</code> adds nothing (blue, flat at one record).</figcaption>
+  </figure>
+
+  <p>Notice how the red bar climbs linearly while the blue stays flat at one. On a desktop
+  that's noise; on an ESP32-S3 with a screen full of pixel sprites it's the difference
+  between fitting in RAM and not. The five shared styles in <code>ui.py</code> —
+  <code>_RESET</code>, <code>_PANEL</code>, <code>_SEG_CELL</code>, <code>_FOCUS</code>,
+  <code>_PRESSED</code> — carry the reset, the ink outline, the hairline, the gold focus
+  ring and the press-nudge for every widget that wants them. Only genuinely per-widget
+  values (one cell's background colour) stay inline.</p>
+</section>
+
+<!-- ───────────────────────────── 5 ───────────────────────────── -->
+<section id="sprite">
+  <h2>5. A creature drawn from a string</h2>
+  <p>There are twelve beasts, but not twelve image files. Each creature is one of four
+  16×16 shapes — fox, owl, deer, bird — written as a grid of characters, recoloured by one
+  of eight palettes. Four shapes × eight palettes covers all twelve with no art assets at
+  all. Here is the fox, exactly as it appears in <code>art.py</code>:</p>
+
+  <figure class="listing"><pre><span class="cm"># art.py — chars: '.' transparent · k outline · r body · d dark · l light · w white · e eye · n nose</span>
+"..k..........k.."   <span class="cm"># the ears</span>
+".krk........krk."
+".krrk......krrk."
+".krrrkk..kkrrrk."
+"..krrrrkkrrrrk.."
+"..krrrrrrrrrrk.."
+"..krwwrrrrwwrk.."   <span class="cm"># white cheeks</span>
+"..krweerwweerk.."   <span class="cm"># eyes</span></pre></figure>
+
+  <p>To draw it, the renderer walks the grid and, for each character that isn't a dot,
+  looks up a colour in the palette and paints a <code>scale × scale</code> block onto an
+  LVGL canvas. The palette is where the magic happens: only <code>r</code> (body),
+  <code>d</code> (dark) and <code>l</code> (light) change per creature; outline, eyes and
+  nose are shared. Pick a shape, a palette and a scale below — this canvas runs the same
+  block-fill the badge does.</p>
+
+  <figure>
+    <div class="fig-stage two">
+      <canvas id="spriteCanvas" width="320" height="320" style="background:var(--surface-2); border:1px solid var(--rule)"></canvas>
+    </div>
+    <div class="fig-controls">
+      <label>shape
+        <select id="spShape"><option>fox</option><option>owl</option><option>deer</option><option>bird</option></select>
+      </label>
+      <label>palette
+        <select id="spPal"></select>
+      </label>
+      <label>scale ×<span id="spScaleN">8</span>
+        <input type="range" id="spScale" min="3" max="14" value="8">
+      </label>
+      <div class="inline"><button id="spSil">silhouette</button></div>
+    </div>
+    <figcaption>The procedural renderer: every visible character becomes a solid block of
+    its palette colour. Swap the palette and only the body tones change.</figcaption>
+  </figure>
+
+  <p>Drag the scale and the sprite stays razor-sharp at every size — because each source
+  pixel is a whole block, never interpolated. Flip on <em>silhouette</em> and every visible
+  block collapses to one dark colour: that's how an un-caught creature hides while keeping
+  its exact outline. The whole module is deliberately the "art swap point" — a creature can
+  opt into a real 16×16 PNG by naming an <code>"img"</code> field, and every screen picks it
+  up unchanged, drawn with antialiasing off so the pixels stay crisp.</p>
+</section>
+
+<!-- ───────────────────────────── 6 ───────────────────────────── -->
+<section id="reveal">
+  <h2>6. The catch <em>is</em> the reveal</h2>
+  <p>A design rule runs through the whole game: you never see a creature in full until you
+  catch it. On the home book it's a silhouette labelled <code>???</code>; while you type the
+  code it <em>fills in</em> from the top, a quarter per digit; on the win screen it's finally
+  whole. One parameter drives all of that — a <code>reveal</code> fraction from 0 to 1. Rows
+  above the cutoff get their real colour; rows below stay silhouette.</p>
+
+  <figure>
+    <div class="fig-stage two">
+      <canvas id="revealCanvas" width="256" height="256" style="background:var(--surface-2); border:1px solid var(--rule)"></canvas>
+    </div>
+    <div class="fig-controls">
+      <label>reveal (code digits entered)
+        <input type="range" id="revealSlider" min="0" max="4" value="0">
+      </label>
+      <span class="readout" id="revealReadout"></span>
+    </div>
+    <figcaption>The same <code>creature_panel(reveal=…)</code> call the code screen uses.
+    Zero digits is a pure silhouette; four digits reveals the whole creature.</figcaption>
+  </figure>
+
+  <p>Slide it from 0 to 4 and watch the colour pour down. Mechanically this is cheap: the
+  renderer draws the silhouette base, then a colour copy clipped to the top
+  <code>reveal</code> fraction. Emotionally it's the entire payoff — the creature you've been
+  chasing as a featureless shadow resolves into itself exactly as you finish entering its
+  code. The reveal isn't decoration layered on top of the catch; <strong>the reveal is what
+  catching looks like.</strong></p>
+</section>
+
+<!-- ───────────────────────────── 7 ───────────────────────────── -->
+<section id="activities">
+  <h2>7. Screens are Activities, and they form a loop</h2>
+  <p>MicroPythonOS borrows Android's model: each screen is an <em>Activity</em> with
+  lifecycle hooks (<code>onCreate</code>, <code>onResume</code>, <code>onPause</code>), and
+  you move between them by firing an <em>Intent</em> that names the next Activity class plus
+  some <code>extras</code> — here, almost always <code>{"fox_id": …}</code>. Activities stack:
+  starting one pushes it on top; going back pops it.</p>
+
+  <p>There are two journeys through that stack. The <strong>catch loop</strong> —
+  Home → Hunt → Code → Win — and the <strong>care loop</strong> a caught creature unlocks —
+  Home → Beest → Feed / Dossier. Step through the figure to watch the stack grow and shrink.</p>
+
+  <figure>
+    <div class="fig-stage">
+      <svg viewBox="0 0 560 300" id="navFig" role="img" aria-label="The activity stack as the player moves through the catch loop.">
+        <g id="navNodes"></g>
+        <g id="navStack"></g>
+        <text x="20" y="288" class="svg-label svg-muted" id="navMsg"></text>
+      </svg>
+    </div>
+    <div class="fig-controls">
+      <div class="inline">
+        <button id="navStep">step ▶</button>
+        <button id="navReset">reset</button>
+      </div>
+      <span class="readout" id="navReadout"></span>
+    </div>
+    <figcaption>Each <code>startActivity</code> pushes a screen; the system back-swipe pops
+    one. The win screen pops three at once to land you back on Home.</figcaption>
+  </figure>
+
+  <p>Notice the asymmetry at the end. The hunt and code screens are reached one push at a
+  time, but the win screen doesn't want you walking <em>back</em> through "enter the code"
+  for a creature you've already caught — so <code>go_home()</code> pops the three screens in
+  one move (<code>for _ in range(3): back_screen()</code>) and drops you on the book. There's
+  also no app-drawn back button anywhere: the system owns "back" via the left-edge swipe, Esc,
+  or the joystick, and every app honours that. One more subtlety — Home's
+  <code>onResume</code> rebuilds its tiles with <code>clean()</code> rather than a second
+  <code>setContentView</code>, because re-setting the view would leak the old screen and all
+  eleven of its canvas buffers.</p>
+</section>
+
+<!-- ───────────────────────────── 8 ───────────────────────────── -->
+<section id="seam">
+  <h2>8. A seam where the real radio will land</h2>
+  <p>The actual LoRa direction-finding is someone else's job. The app programs against an
+  <em>interface</em> — <code>FoxRadio</code>, with three methods: which beacons are
+  transmitting, what's the current reading for one, and does this code match. Today a
+  <code>FakeFoxRadio</code> implements it and drives the whole UI with no hardware; when the
+  real radio arrives it implements the same three methods and one line swaps the
+  <code>RADIO</code> singleton.</p>
+
+  <figure>
+    <div class="fig-stage">
+      <svg viewBox="0 0 560 230" id="seamFig" role="img" aria-label="FoxRadio interface implemented by a fake today and a real radio later.">
+        <rect x="200" y="14" width="160" height="50" fill="none" stroke="var(--ink)" stroke-width="2"/>
+        <text x="280" y="34" text-anchor="middle" class="svg-label" font-weight="600">FoxRadio</text>
+        <text x="280" y="50" text-anchor="middle" class="svg-label svg-faint">active_foxes · reading · verify_code</text>
+
+        <rect x="70" y="140" width="170" height="64" fill="var(--secondary-bg)" stroke="var(--secondary)" stroke-width="2"/>
+        <text x="155" y="162" text-anchor="middle" class="svg-label" font-weight="600">FakeFoxRadio</text>
+        <text x="155" y="178" text-anchor="middle" class="svg-label svg-faint">drifts strength upward</text>
+        <text x="155" y="192" text-anchor="middle" class="svg-label svg-faint">ships today ✓</text>
+
+        <rect x="320" y="140" width="170" height="64" fill="none" stroke="var(--rule)" stroke-width="2" stroke-dasharray="5 4"/>
+        <text x="405" y="162" text-anchor="middle" class="svg-label svg-muted" font-weight="600">RealFoxRadio</text>
+        <text x="405" y="178" text-anchor="middle" class="svg-label svg-faint">reads LoRa RSSI</text>
+        <text x="405" y="192" text-anchor="middle" class="svg-label svg-faint">someday</text>
+
+        <line x1="155" y1="140" x2="250" y2="64" stroke="var(--secondary)" stroke-width="1.5"/>
+        <line x1="405" y1="140" x2="310" y2="64" stroke="var(--rule)" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="118" y="108" class="svg-label svg-faint">implements</text>
+        <text x="350" y="108" class="svg-label svg-faint">implements</text>
+      </svg>
+    </div>
+    <figcaption>Same shape as the art swap (PNG vs. procedural) and the hardware fallbacks
+    (badge vs. no-op): program against the interface, ship a stand-in, swap later.</figcaption>
+  </figure>
+
+  <p>The fake earns its keep with one honest design choice: <strong>there is no "found"
+  flag.</strong> Radio signal strength can tell you you're close, but it can't tell you
+  you've physically reached the box — so the reading reports only a continuous strength and a
+  discrete 0–5 level, and the <em>player</em> decides when to enter the code. The fake's
+  strength drifts upward with noise the longer you search, so on the desktop a hunt "warms
+  up" on its own in a few seconds, exercising every screen without a single radio packet.</p>
+</section>
+
+<!-- ───────────────────────────── 9 ───────────────────────────── -->
+<section id="hunt">
+  <h2>9. The hunt, assembled and live</h2>
+  <p>Now the pieces combine. Every 250 ms the hunt screen asks the radio for a reading and
+  turns that one number into three synchronised cues: a beats-per-minute readout
+  (<code>60 + strength·100</code>), the count of lit LEDs (<code>round(strength·5)</code>),
+  and a heart that nudges up and down each tick so it visibly throbs. Below is the hunt
+  screen rebuilt from the real layout. Drag the strength, or press play to let the fake
+  radio drift the way it does on the desktop.</p>
+
+  <figure>
+    <div class="fig-stage two">
+      <svg viewBox="0 0 320 240" id="huntFig" width="100%" style="max-width:420px; border:1px solid var(--rule)"></svg>
+    </div>
+    <div class="fig-controls">
+      <label>signal strength
+        <input type="range" id="huntSlider" min="0" max="100" value="12">
+      </label>
+      <div class="inline"><button id="huntPlay">play ▶</button></div>
+      <span class="readout" id="huntReadout"></span>
+    </div>
+    <figcaption>The real hunt screen, driven by one scalar. The five-LED mirror uses the
+    same <code>colors_for_level</code> table as the physical NeoPixels: green when cold,
+    gold in the middle, terra when hot.</figcaption>
+  </figure>
+
+  <p>Press play and watch all three cues move together as the strength climbs — bpm rises,
+  LEDs fill left-to-right, the heart speeds up. That single-source-of-truth design is why
+  the on-screen mirror and the physical strip can never disagree: both read
+  <code>colors_for_level(level)</code>, so the colour of LED #3 is decided in exactly one
+  place. The screen deliberately never declares "found"; it just keeps reporting closeness
+  until you tap <em>VOER DE CODE IN</em> yourself.</p>
+</section>
+
+<!-- ───────────────────────────── 10 ───────────────────────────── -->
+<section id="keeping">
+  <h2>10. Catching it, and keeping it after a reboot</h2>
+  <p>The code screen is where the reveal from §6 and the radio seam from §8 meet. Each key
+  fills another quarter of the creature; on the fourth digit (or on <em>OK</em>) the entry
+  is checked with <code>RADIO.verify_code</code>. Right code: the creature is written to
+  persistent storage and you advance to the win screen. Wrong code: the entry clears, the
+  creature re-hides, and you try again — forgiving, never punishing. Try it on the live
+  keypad (the Vos's code is <code>1234</code>).</p>
+
+  <figure>
+    <div class="fig-stage two" style="align-items:flex-start">
+      <div>
+        <canvas id="keyRevealCanvas" width="160" height="160" style="background:var(--surface-2); border:1px solid var(--rule)"></canvas>
+        <div class="readout" id="keyDots" style="text-align:center; margin-top:.5rem; letter-spacing:.4em; font-size:22px">____</div>
+      </div>
+      <div id="keypadG" style="display:grid; grid-template-columns:repeat(3,52px); gap:6px"></div>
+    </div>
+    <div class="fig-controls">
+      <span class="readout" id="keyMsg">type the Vos's code: 1234</span>
+    </div>
+    <figcaption>The keypad, reveal and verify, wired exactly as <code>screen_code.py</code>.
+    A correct code appends the creature id to a list in <code>config.json</code>.</figcaption>
+  </figure>
+
+  <p>Persistence is deliberately tiny. <code>store.py</code> keeps a single list under the
+  key <code>caught</code> in a per-app <code>SharedPreferences</code> file
+  (<code>data/com.fri3d.beestenjacht/config.json</code>) — the same path on badge and
+  desktop. Catching appends an id; the home book reads the list back to decide which tiles
+  are revealed and to draw its <code>4/12</code> counter. No network is needed for the save,
+  and a re-catch never duplicates an id. That JSON file is also where each creature's
+  <em>living</em> state goes — which is the last idea.</p>
+</section>
+
+<!-- ───────────────────────────── 11 ───────────────────────────── -->
+<section id="pet">
+  <h2>11. A creature that keeps living while you're away</h2>
+  <p>A caught creature isn't a trophy; it's a small Tamagotchi. It has four living stats —
+  binding (loyalty), mood, energy, hunger — and they drift while the badge is off. The rules
+  are a single <em>pure</em> module, <code>pet.py</code>: no LVGL, no hardware, just maths,
+  so it can be unit-tested with <code>uv run pet.py</code>. The store stamps the wall-clock;
+  <code>pet.py</code> ages the stats by however many real hours have passed.</p>
+
+  <p>Drag "hours away" to age a freshly-caught creature, then act on it. Some actions are
+  refused for personality — a full creature won't eat, a tired one won't play — so the stats
+  genuinely constrain what you can do.</p>
+
+  <figure>
+    <div class="fig-stage">
+      <svg viewBox="0 0 560 220" id="petFig" role="img" aria-label="Living stats decay over hours away and respond to actions."></svg>
+    </div>
+    <div class="fig-controls">
+      <label>hours away
+        <input type="range" id="petHours" min="0" max="24" value="0">
+      </label>
+      <div class="inline">
+        <button id="actFeed">voeren</button>
+        <button id="actPet">aaien</button>
+        <button id="actPlay">spelen</button>
+        <button id="petReset">reset catch</button>
+      </div>
+      <span class="readout" id="petMsg"></span>
+    </div>
+    <figcaption>The real <code>pet.py</code> rules: hunger climbs +6/hour, energy falls
+    −4/hour, mood −3/hour, binding never decays. Feeding drops hunger 35; playing costs
+    energy but lifts mood and bond.</figcaption>
+  </figure>
+
+  <p>Watch hunger climb and energy drain as the hours pass, then feed it and see hunger
+  fall back. The one stat that never decays is binding — loyalty is permanent, which is what
+  turns levels (every 20 points of binding is a level) into a long-game reward. Push energy
+  below 20 and try <em>spelen</em>: it refuses with "te moe om te spelen." Because the module
+  is pure, those refusal rules are checked by the self-test at the bottom of the file — the
+  game's personality is the part that's actually verified.</p>
+</section>
+
+<!-- ───────────────────────────── 12 ───────────────────────────── -->
+<section id="whole">
+  <h2>12. The whole map</h2>
+  <p>Every primitive is now in hand, so the full architecture reads cleanly. At the centre
+  is a <strong>pure core</strong> — <code>creatures.py</code> (the roster) and
+  <code>pet.py</code> (the rules) — that depends on nothing and runs anywhere. A
+  <strong>UI layer</strong> (<code>ui.py</code>, <code>art.py</code>) turns LVGL into the
+  app's vocabulary. <strong>Screens</strong> compose both. And four <strong>backend
+  seams</strong> — radio, LEDs, sound, store — each hide a machine difference behind an
+  interface, exactly the pattern from §2 and §8.</p>
+
+  <figure>
+    <div class="fig-stage">
+      <svg viewBox="0 0 560 420" id="mapFig" role="img" aria-label="Module dependency map of the whole app."></svg>
+    </div>
+    <figcaption>The dependency map. Arrows point from a module to what it relies on. The pure
+    core (centre) has no arrows out; the seams (right) are the only modules that know which
+    machine they're on.</figcaption>
+  </figure>
+
+  <p>The shape that recurs at every scale is the same: <em>decide a thing in exactly one
+  place.</em> One layout mock owns the geometry; one token owns each colour; one shared style
+  owns each repeated property; one <code>colors_for_level</code> owns the LED colours; one
+  interface owns each hardware difference. That discipline is what lets a game with twelve
+  creatures, six screens and a living-companion system fit on a microcontroller and still run
+  on your laptop from the same source.</p>
+
+  <h3>Where to go next</h3>
+  <p>The code is small and readable end to end. Good entry points: <code>beestenjacht.py</code>
+  (the home grid and the <code>clean()</code>-on-resume rebuild), <code>art.py</code> (the
+  procedural renderer and the PNG swap), <code>fox_radio.py</code> (the seam and the fake),
+  and <code>pet.py</code> (the pure rules with its self-test). The geometry lives in
+  <code>layout/beestenjacht-layout.html</code>; the house rules for adding a screen are in
+  <code>DESIGN.md</code>; the architecture and open questions are in <code>PLAN.md</code>.</p>
+</section>
+
+<footer>
+  <p>Interactive explainer for <strong>Beestenjacht</strong> — the Fri3d Camp 2026 badge
+  fox-hunt app. Generated 7 June 2026. All figures use real values from the source:
+  sprite grids and palettes from <code>art.py</code>, the LED colour table from
+  <code>leds.py</code>, the decay and action maths from <code>pet.py</code>.</p>
+  <p>Source: the <code>com.fri3d.beestenjacht/</code> app tree, with <code>PLAN.md</code>,
+  <code>DESIGN.md</code> and <code>README.md</code> as companion documents.</p>
+</footer>
+
+</div>
+
+<script>
+/* ============================================================================
+   Real data lifted verbatim from the source.
+   ============================================================================ */
+const SH = {
+  fox:["................","..k..........k..",".krk........krk.",".krrk......krrk.",
+       ".krrrkk..kkrrrk.","..krrrrkkrrrrk..","..krrrrrrrrrrk..","..krwwrrrrwwrk..",
+       "..krweerwweerk..","..krrrrrrrrrrk..","..krrlllllllrk..","..kdrllnnllrdk..",
+       "..kdrlllllllrk..","...kddrrrrddk...","....kkddddkk....","......kkkk......"],
+  owl:["................","...k........k...","..krk......krk..","..krrkkkkkkrrk..",
+       ".krrrrrrrrrrrrk.",".krwwwrrrrwwwrk.",".krweewrrweewrk.",".krwwwrbbrwwwrk.",
+       ".krrrrrbbrrrrrk.",".krrlllllllllrk.",".krrlrlrlrlrlrk.","..krrlllllllrk..",
+       "..kdrrrrrrrrdk..","...kddbbbbddk...","....kkbbbbkk....","......kkkk......"],
+  deer:["..b..b...b..b...","..b..bb.bb..b...","..bb..bbb..bb...","...bb..b..bb....",
+        ".....krrrk......","....krrrrrk.....","....krwrwrk.....","....kreererk....",
+        "....krrnnrrk....","...krrrrrrrrk...","..krrlrrrrlrrk..","..krrlrrrrlrrk..",
+        "..krrrrrrrrrrk..","...kdrrrrrrdk...","...kdk....kdk...","...kk......kk..."],
+  bird:["......bbb.......",".....bkrkb......","......krk.......",".....krrrk......",
+        "....krwrwrk.....","....kreererk....","...bbkrrnrrk....","..b..krrrrrk....",
+        ".b..krrrrrrrk...","....krrllrrrk...","....krllllrrk...","....krrllrrdk...",
+        "....kdrrrrdk....",".....kdrrdk.b...","...b..kkdk.bb...","...bb..kk..b...."],
+};
+const HEART=[".kk...kk.","krrkkkrrk","krrrrrrrk","krrrrrrrk",".krrrrrk.","..krrrk..","...krk...","....k...."];
+const BASE={k:0x34271A,w:0xFFF7E6,e:0x241A12,n:0xCF6A4E,b:0xF0C64A};
+function mkPal(r,d,l){return Object.assign({},BASE,{r,d,l});}
+const PALS={
+  orange:mkPal(0xE58A3A,0xB15F24,0xF6CF93), grey:mkPal(0x9A958C,0x6D6860,0xD8D3C7),
+  brown:mkPal(0xA9743F,0x7C4F28,0xD8AD77),  cream:mkPal(0xEAD9B0,0xBDA273,0xF8EECB),
+  green:mkPal(0x6AA24A,0x467030,0xA6CF7E),  tan:mkPal(0xCDA268,0x9A7541,0xECD3A0),
+  bluegrey:mkPal(0x7F93A6,0x566677,0xBCC9D6),gold:mkPal(0xECC24A,0xB1841F,0xF8E6A0),
+};
+const SIL=0x2B241D;
+const hx=v=>'#'+v.toString(16).padStart(6,'0');
+
+/* tokens for the swatch board */
+const TOKENS=[["INK",0x34271A],["PAPER",0xEFE0BB],["CARD",0xFBF3DD],["GREEN",0x5A9A3C],
+  ["GREEN_D",0x3C6B2E],["GOLD",0xE8B23A],["TERRA",0xCF6A3F],["TERRA_D",0x9C4422],
+  ["CREAM",0xFFF7E6],["SURFACE_SOFT",0xE9F1CF],["DORMANT",0xD8C9A4],["MYSTERY",0x8A7D5E]];
+
+/* LED colour table, verbatim from leds.py */
+function segColor(i){ if(i>=4)return[0xCF,0x6A,0x3F]; if(i>=2)return[0xE8,0xB2,0x3A]; return[0x5A,0x9A,0x3C]; }
+const LED_OFF=[34,34,34]; // hunt screen mirror uses 0x222222
+
+/* ---- shared sprite renderer (mirrors art.draw_sprite) ---- */
+function drawSprite(ctx,rows,pal,scale,{silhouette=false,reveal=1,ox=0,oy=0}={}){
+  const cutoff=reveal*rows.length;
+  for(let y=0;y<rows.length;y++){
+    const rowSil=silhouette||(y>=cutoff);
+    const row=rows[y];
+    for(let x=0;x<row.length;x++){
+      const ch=row[x];
+      if(ch==='.'||ch===' ')continue;
+      let col=rowSil?SIL:pal[ch];
+      if(col===undefined)continue;
+      ctx.fillStyle=hx(col);
+      ctx.fillRect(ox+x*scale,oy+y*scale,scale,scale);
+    }
+  }
+}
+function spriteExtent(rows){return {w:rows[0].length,h:rows.length};}
+
+/* ============================================================================
+   1. FIELD — drag the badge, signal strength shows
+   ============================================================================ */
+(function(){
+  const svg=document.getElementById('fieldFig');
+  const badge=document.getElementById('badge');
+  const fox={x:400,y:160};
+  let pos={x:120,y:120};
+  const NS='http://www.w3.org/2000/svg';
+  function strength(){
+    const d=Math.hypot(pos.x-fox.x,pos.y-fox.y);
+    const max=520;
+    return Math.max(0,Math.min(1,1-d/max));
+  }
+  function render(){
+    badge.setAttribute('transform',`translate(${pos.x},${pos.y})`);
+    const s=strength();
+    const lit=Math.round(s*5);
+    // range rings
+    const rings=document.getElementById('rings');
+    rings.innerHTML='';
+    for(let i=1;i<=3;i++){
+      const c=document.createElementNS(NS,'circle');
+      c.setAttribute('cx',fox.x);c.setAttribute('cy',fox.y);
+      c.setAttribute('r',60*i);c.setAttribute('fill','none');
+      c.setAttribute('stroke','var(--accent)');c.setAttribute('stroke-opacity',0.18);
+      rings.appendChild(c);
+    }
+    // meter
+    const g=document.getElementById('meterG');
+    g.innerHTML='';
+    for(let i=0;i<5;i++){
+      const r=document.createElementNS(NS,'rect');
+      r.setAttribute('x',i*30);r.setAttribute('y',0);
+      r.setAttribute('width',24);r.setAttribute('height',18);
+      r.setAttribute('stroke','var(--ink)');r.setAttribute('stroke-width','1');
+      let fill='var(--surface-2)';
+      if(i<lit){const c=segColor(i);fill=`rgb(${c[0]},${c[1]},${c[2]})`;}
+      r.setAttribute('fill',fill);
+      g.appendChild(r);
+    }
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',0);t.setAttribute('y',36);t.setAttribute('class','svg-label');
+    t.textContent=`${lit===5?'WARM!':lit>=3?'warmer':lit>=1?'koud':'geen signaal'} · ${Math.round(60+s*100)} bpm`;
+    g.appendChild(t);
+  }
+  function pt(e){
+    const r=svg.getBoundingClientRect();
+    const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    return {x:cx/r.width*560,y:cy/r.height*300};
+  }
+  let drag=false;
+  const start=e=>{drag=true;badge.style.cursor='grabbing';e.preventDefault();};
+  const move=e=>{if(!drag)return;const p=pt(e);pos.x=Math.max(20,Math.min(540,p.x));pos.y=Math.max(20,Math.min(230,p.y));render();e.preventDefault();};
+  const end=()=>{drag=false;badge.style.cursor='grab';};
+  badge.addEventListener('mousedown',start);badge.addEventListener('touchstart',start,{passive:false});
+  window.addEventListener('mousemove',move);window.addEventListener('touchmove',move,{passive:false});
+  window.addEventListener('mouseup',end);window.addEventListener('touchend',end);
+  render();
+})();
+
+/* ============================================================================
+   2. BOARD LAYER toggle
+   ============================================================================ */
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const mgrs=document.getElementById('mgrs');
+  const outs=document.getElementById('outs');
+  const rows=[
+    {label:'lights.set_led(...)',badge:'5 NeoPixels light',desk:'returns False → no-op'},
+    {label:'AudioManager buzzer',badge:'RTTTL jingle plays',desk:'no output → silent'},
+    {label:'display 320×240',badge:'badge LCD',desk:'SDL window'},
+  ];
+  let target='badge';
+  function render(){
+    mgrs.innerHTML='';outs.innerHTML='';
+    rows.forEach((r,i)=>{
+      const y=80+i*52;
+      // line from app
+      const ln=document.createElementNS(NS,'line');
+      ln.setAttribute('x1',280);ln.setAttribute('y1',54);
+      ln.setAttribute('x2',150);ln.setAttribute('y2',y+16);
+      ln.setAttribute('stroke','var(--rule)');mgrs.appendChild(ln);
+      // manager box
+      const box=document.createElementNS(NS,'rect');
+      box.setAttribute('x',40);box.setAttribute('y',y);box.setAttribute('width',220);box.setAttribute('height',32);
+      box.setAttribute('fill','var(--surface-2)');box.setAttribute('stroke','var(--ink)');
+      mgrs.appendChild(box);
+      const t=document.createElementNS(NS,'text');
+      t.setAttribute('x',150);t.setAttribute('y',y+20);t.setAttribute('text-anchor','middle');
+      t.setAttribute('class','svg-label');t.textContent=r.label;mgrs.appendChild(t);
+      // arrow to outcome
+      const ar=document.createElementNS(NS,'line');
+      ar.setAttribute('x1',260);ar.setAttribute('y1',y+16);
+      ar.setAttribute('x2',310);ar.setAttribute('y2',y+16);
+      ar.setAttribute('stroke','var(--rule)');outs.appendChild(ar);
+      // outcome box
+      const active=target==='badge';
+      const ob=document.createElementNS(NS,'rect');
+      ob.setAttribute('x',310);ob.setAttribute('y',y);ob.setAttribute('width',230);ob.setAttribute('height',32);
+      ob.setAttribute('fill',active?'var(--accent-bg)':'var(--surface)');
+      ob.setAttribute('stroke',active?'var(--accent)':'var(--rule)');
+      if(!active)ob.setAttribute('stroke-dasharray','4 3');
+      outs.appendChild(ob);
+      const ot=document.createElementNS(NS,'text');
+      ot.setAttribute('x',425);ot.setAttribute('y',y+20);ot.setAttribute('text-anchor','middle');
+      ot.setAttribute('class','svg-label');ot.textContent=active?r.badge:r.desk;outs.appendChild(ot);
+    });
+  }
+  document.getElementById('tgtBadge').onclick=()=>{target='badge';tb.classList.add('on');td.classList.remove('on');render();};
+  document.getElementById('tgtDesk').onclick=()=>{target='desk';td.classList.add('on');tb.classList.remove('on');render();};
+  const tb=document.getElementById('tgtBadge'),td=document.getElementById('tgtDesk');
+  render();
+})();
+
+/* ============================================================================
+   3. PIXEL GRID
+   ============================================================================ */
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const cells=document.getElementById('cellsG');
+  const cols=[6,84,162,240],rowsY=[30,100,170];
+  cols.forEach(x=>rowsY.forEach(y=>{
+    const r=document.createElementNS(NS,'rect');
+    r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',74);r.setAttribute('height',66);
+    r.setAttribute('fill','oklch(0.85 0.06 85)');r.setAttribute('stroke','#34271A');r.setAttribute('stroke-width','1');
+    cells.appendChild(r);
+  }));
+  // raster
+  const rg=document.getElementById('rasterG');let rasterOn=false;
+  function drawRaster(){
+    rg.innerHTML='';if(!rasterOn)return;
+    for(let x=0;x<=320;x+=8){const l=document.createElementNS(NS,'line');
+      l.setAttribute('x1',x);l.setAttribute('y1',0);l.setAttribute('x2',x);l.setAttribute('y2',240);
+      l.setAttribute('stroke','#34271A');l.setAttribute('stroke-opacity',0.12);rg.appendChild(l);}
+    for(let y=0;y<=240;y+=8){const l=document.createElementNS(NS,'line');
+      l.setAttribute('x1',0);l.setAttribute('y1',y);l.setAttribute('x2',320);l.setAttribute('y2',y);
+      l.setAttribute('stroke','#34271A');l.setAttribute('stroke-opacity',0.12);rg.appendChild(l);}
+  }
+  // dimension annotations
+  const dg=document.getElementById('dimG');let dimOn=false;
+  function drawDim(){
+    dg.innerHTML='';if(!dimOn)return;
+    const items=[[6,'6'],[84,'74'],[162,'74'],[240,'74']];
+    // show widths/gaps along the top
+    const y=24;
+    const annot=(x,w,txt,col)=>{
+      const l=document.createElementNS(NS,'line');
+      l.setAttribute('x1',x);l.setAttribute('y1',y);l.setAttribute('x2',x+w);l.setAttribute('y2',y);
+      l.setAttribute('stroke',col);l.setAttribute('stroke-width','1.5');dg.appendChild(l);
+      const t=document.createElementNS(NS,'text');
+      t.setAttribute('x',x+w/2);t.setAttribute('y',y-2);t.setAttribute('text-anchor','middle');
+      t.setAttribute('class','svg-label svg-small');t.setAttribute('fill',col);t.textContent=txt;dg.appendChild(t);
+    };
+    annot(0,6,'6','var(--secondary)');
+    cols.forEach((x)=>annot(x,74,'74','var(--accent)'));
+    [80,158,236].forEach(x=>annot(x,4,'4','var(--secondary)'));
+    annot(314,6,'6','var(--secondary)');
+    const sum=document.createElementNS(NS,'text');
+    sum.setAttribute('x',160);sum.setAttribute('y',236);sum.setAttribute('text-anchor','middle');
+    sum.setAttribute('class','svg-label');sum.setAttribute('fill','var(--accent)');
+    sum.textContent='4·74 + 3·4 + 2·6 = 320 ✓';dg.appendChild(sum);
+  }
+  document.getElementById('rasterBtn').onclick=function(){rasterOn=!rasterOn;this.classList.toggle('on',rasterOn);drawRaster();};
+  document.getElementById('dimBtn').onclick=function(){dimOn=!dimOn;this.classList.toggle('on',dimOn);drawDim();};
+})();
+
+/* ============================================================================
+   4. TOKENS + SHARED STYLE COST
+   ============================================================================ */
+(function(){
+  const g=document.getElementById('swatchG');
+  TOKENS.forEach(([name,v])=>{
+    const d=document.createElement('div');d.className='sw';
+    const i=document.createElement('i');i.style.background=hx(v);
+    d.appendChild(i);d.appendChild(document.createTextNode(name));
+    g.appendChild(d);
+  });
+  const sl=document.getElementById('styleSlider');
+  const readout=document.getElementById('styleReadout');
+  const bi=document.getElementById('barInline'),bs=document.getElementById('barShared');
+  const li=document.getElementById('lblInline'),ls=document.getElementById('lblShared');
+  const xl=document.getElementById('xlab');
+  function render(){
+    const n=+sl.value;
+    const maxH=150;
+    const hi=Math.min(maxH,n/60*maxH);
+    bi.setAttribute('y',180-hi);bi.setAttribute('height',hi);
+    li.setAttribute('y',180-hi-4);li.textContent=n;
+    const hs=2;
+    bs.setAttribute('y',180-hs);bs.setAttribute('height',hs);
+    ls.setAttribute('y',180-hs-4);ls.textContent='1';
+    xl.textContent=n+' widgets';
+    readout.innerHTML=`inline: <b>${n}</b> style records · shared: <b>1</b>`;
+  }
+  sl.oninput=render;render();
+})();
+
+/* ============================================================================
+   5. SPRITE BUILDER
+   ============================================================================ */
+(function(){
+  const cv=document.getElementById('spriteCanvas'),ctx=cv.getContext('2d');
+  const selShape=document.getElementById('spShape'),selPal=document.getElementById('spPal');
+  const sc=document.getElementById('spScale'),scN=document.getElementById('spScaleN');
+  Object.keys(PALS).forEach(k=>{const o=document.createElement('option');o.textContent=k;selPal.appendChild(o);});
+  let sil=false;
+  const silBtn=document.getElementById('spSil');
+  silBtn.onclick=function(){sil=!sil;this.classList.toggle('on',sil);render();};
+  function render(){
+    const scale=+sc.value;scN.textContent=scale;
+    const rows=SH[selShape.value],pal=PALS[selPal.value];
+    cv.width=16*scale;cv.height=16*scale;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    drawSprite(ctx,rows,pal,scale,{silhouette:sil});
+  }
+  [selShape,selPal,sc].forEach(el=>el.oninput=render);render();
+})();
+
+/* ============================================================================
+   6. REVEAL
+   ============================================================================ */
+(function(){
+  const cv=document.getElementById('revealCanvas'),ctx=cv.getContext('2d');
+  const sl=document.getElementById('revealSlider'),ro=document.getElementById('revealReadout');
+  const scale=16,rows=SH.fox,pal=PALS.orange;
+  cv.width=16*scale;cv.height=16*scale;
+  function render(){
+    const digits=+sl.value;const reveal=digits/4;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    drawSprite(ctx,rows,pal,scale,{reveal});
+    ro.innerHTML=`reveal = <b>${digits}/4</b> = ${reveal.toFixed(2)}`;
+  }
+  sl.oninput=render;render();
+})();
+
+/* ============================================================================
+   7. ACTIVITY STACK
+   ============================================================================ */
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const nodes=document.getElementById('navNodes');
+  const stackG=document.getElementById('navStack');
+  const msg=document.getElementById('navMsg');
+  const readout=document.getElementById('navReadout');
+  // steps: action + resulting stack (bottom..top)
+  const steps=[
+    {act:'start: HomeActivity',stack:['Home']},
+    {act:'tap a huntable tile → startActivity(Hunt)',stack:['Home','Hunt']},
+    {act:'tap "VOER DE CODE IN" → startActivity(Code)',stack:['Home','Hunt','Code']},
+    {act:'correct code → startActivity(Win)',stack:['Home','Hunt','Code','Win']},
+    {act:'VERDER → back_screen() ×3 → land on Home',stack:['Home']},
+  ];
+  const colors={Home:'var(--secondary)',Hunt:'var(--tertiary)',Code:'oklch(0.55 0.14 145)',Win:'var(--accent)'};
+  let i=0;
+  function render(){
+    const s=steps[i];
+    // stack drawing (top of array = top of stack, drawn highest)
+    stackG.innerHTML='';nodes.innerHTML='';
+    const baseY=240,h=34,w=150,x=200;
+    s.stack.forEach((name,idx)=>{
+      const y=baseY-idx*(h+6);
+      const r=document.createElementNS(NS,'rect');
+      r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',w);r.setAttribute('height',h);
+      r.setAttribute('fill',idx===s.stack.length-1?'var(--accent-bg)':'var(--surface)');
+      r.setAttribute('stroke',colors[name]||'var(--ink)');r.setAttribute('stroke-width','2');
+      stackG.appendChild(r);
+      const t=document.createElementNS(NS,'text');
+      t.setAttribute('x',x+w/2);t.setAttribute('y',y+22);t.setAttribute('text-anchor','middle');
+      t.setAttribute('class','svg-label');t.setAttribute('font-weight','600');
+      t.textContent=name+(idx===s.stack.length-1?'  ◀ foreground':'');
+      stackG.appendChild(t);
+    });
+    const lbl=document.createElementNS(NS,'text');
+    lbl.setAttribute('x',x);lbl.setAttribute('y',24);lbl.setAttribute('class','svg-label svg-faint');
+    lbl.textContent='activity stack (push up, pop down)';nodes.appendChild(lbl);
+    msg.textContent=s.act;
+    readout.textContent=`step ${i+1}/${steps.length} · depth ${s.stack.length}`;
+  }
+  document.getElementById('navStep').onclick=()=>{i=(i+1)%steps.length;render();};
+  document.getElementById('navReset').onclick=()=>{i=0;render();};
+  render();
+})();
+
+/* ============================================================================
+   9. HUNT SCREEN (live)
+   ============================================================================ */
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.getElementById('huntFig');
+  const sl=document.getElementById('huntSlider');
+  const ro=document.getElementById('huntReadout');
+  const playBtn=document.getElementById('huntPlay');
+  let beat=false,timer=null;
+  function build(){
+    svg.innerHTML='';
+    const bg=document.createElementNS(NS,'rect');
+    bg.setAttribute('width',320);bg.setAttribute('height',240);bg.setAttribute('fill','#CFE2AD');
+    svg.appendChild(bg);
+    // banner
+    const ban=document.createElementNS(NS,'rect');
+    ban.setAttribute('width',320);ban.setAttribute('height',26);ban.setAttribute('fill','#CF6A3F');
+    svg.appendChild(ban);
+    const bt=document.createElementNS(NS,'text');
+    bt.setAttribute('x',8);bt.setAttribute('y',18);bt.setAttribute('class','svg-label');
+    bt.setAttribute('fill','#FFF7E6');bt.setAttribute('font-weight','600');bt.textContent='Vos';svg.appendChild(bt);
+  }
+  function render(){
+    build();
+    const s=+sl.value/100;
+    const level=Math.round(s*5);
+    const bpm=Math.round(60+s*100);
+    // scan card
+    const card=document.createElementNS(NS,'rect');
+    card.setAttribute('x',6);card.setAttribute('y',30);card.setAttribute('width',308);card.setAttribute('height',120);
+    card.setAttribute('fill','#E9F1CF');card.setAttribute('stroke','#CF6A3F');card.setAttribute('stroke-width',2);
+    svg.appendChild(card);
+    // silhouette (canvas → image not easy in SVG; draw blocks directly)
+    const scale=5,rows=SH.fox;
+    const ox=160-(16*scale)/2,oy=90-(16*scale)/2;
+    for(let y=0;y<rows.length;y++)for(let x=0;x<rows[y].length;x++){
+      const ch=rows[y][x];if(ch==='.'||ch===' ')continue;
+      const r=document.createElementNS(NS,'rect');
+      r.setAttribute('x',ox+x*scale);r.setAttribute('y',oy+y*scale);
+      r.setAttribute('width',scale);r.setAttribute('height',scale);r.setAttribute('fill',hx(SIL));
+      svg.appendChild(r);
+    }
+    // heart (throb offset)
+    const hscale=3;const hy=(beat?38:42);
+    for(let y=0;y<HEART.length;y++)for(let x=0;x<HEART[y].length;x++){
+      const ch=HEART[y][x];if(ch==='.')continue;
+      const col=ch==='k'?0x7A1F12:0xE0463A;
+      const r=document.createElementNS(NS,'rect');
+      r.setAttribute('x',196+x*hscale);r.setAttribute('y',hy+y*hscale);
+      r.setAttribute('width',hscale);r.setAttribute('height',hscale);r.setAttribute('fill',hx(col));
+      svg.appendChild(r);
+    }
+    const bpmT=document.createElementNS(NS,'text');
+    bpmT.setAttribute('x',244);bpmT.setAttribute('y',54);bpmT.setAttribute('class','svg-label');
+    bpmT.setAttribute('fill','#CF6A3F');bpmT.setAttribute('font-weight','600');bpmT.setAttribute('font-size','16');
+    bpmT.textContent=bpm;svg.appendChild(bpmT);
+    // hint
+    const hint=document.createElementNS(NS,'text');
+    hint.setAttribute('x',160);hint.setAttribute('y',160);hint.setAttribute('text-anchor','middle');
+    hint.setAttribute('class','svg-label');hint.textContent='draai rond om te zoeken';svg.appendChild(hint);
+    // 5-LED mirror
+    for(let i=0;i<5;i++){
+      const seg=document.createElementNS(NS,'rect');
+      seg.setAttribute('x',20+i*57);seg.setAttribute('y',172);seg.setAttribute('width',52);seg.setAttribute('height',16);
+      seg.setAttribute('stroke','#34271A');seg.setAttribute('stroke-width',2);
+      let fill='#222222';
+      if(i<level){const c=segColor(i);fill=`rgb(${c[0]},${c[1]},${c[2]})`;}
+      seg.setAttribute('fill',fill);svg.appendChild(seg);
+    }
+    const cold=document.createElementNS(NS,'text');
+    cold.setAttribute('x',20);cold.setAttribute('y',202);cold.setAttribute('class','svg-label');cold.setAttribute('fill','#3C6B2E');cold.textContent='koud';svg.appendChild(cold);
+    const warm=document.createElementNS(NS,'text');
+    warm.setAttribute('x',270);warm.setAttribute('y',202);warm.setAttribute('class','svg-label');warm.setAttribute('fill','#CF6A3F');warm.textContent='warm';svg.appendChild(warm);
+    // button
+    const btn=document.createElementNS(NS,'rect');
+    btn.setAttribute('x',6);btn.setAttribute('y',208);btn.setAttribute('width',308);btn.setAttribute('height',26);
+    btn.setAttribute('fill','#5A9A3C');btn.setAttribute('stroke','#34271A');btn.setAttribute('stroke-width',2);svg.appendChild(btn);
+    const blt=document.createElementNS(NS,'text');
+    blt.setAttribute('x',160);blt.setAttribute('y',225);blt.setAttribute('text-anchor','middle');
+    blt.setAttribute('class','svg-label');blt.setAttribute('fill','#FFF7E6');blt.setAttribute('font-weight','600');
+    blt.textContent='VOER DE CODE IN';svg.appendChild(blt);
+    ro.innerHTML=`strength <b>${s.toFixed(2)}</b> → level <b>${level}</b> · <b>${bpm}</b> bpm`;
+  }
+  sl.oninput=()=>{if(timer){stop();}render();};
+  function stop(){clearInterval(timer);timer=null;playBtn.classList.remove('on');playBtn.textContent='play ▶';}
+  playBtn.onclick=()=>{
+    if(timer){stop();return;}
+    playBtn.classList.add('on');playBtn.textContent='pause ❚❚';
+    let s=+sl.value;
+    timer=setInterval(()=>{
+      beat=!beat;
+      s+=(-4+Math.random()*10);              // drift up, with jitter (×100 scale)
+      s=Math.max(0,Math.min(100,s));sl.value=s;
+      render();
+    },250);
+  };
+  render();
+})();
+
+/* ============================================================================
+   10. KEYPAD + reveal + verify
+   ============================================================================ */
+(function(){
+  const cv=document.getElementById('keyRevealCanvas'),ctx=cv.getContext('2d');
+  const dots=document.getElementById('keyDots'),msg=document.getElementById('keyMsg');
+  const pad=document.getElementById('keypadG');
+  const KEYS=['1','2','3','4','5','6','7','8','9','<','0','OK'];
+  const CODE='1234';
+  let entry='';
+  const scale=10,rows=SH.fox,pal=PALS.orange;
+  function drawReveal(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    drawSprite(ctx,rows,pal,scale,{reveal:entry.length/4});
+  }
+  function setDots(){dots.textContent=(entry+'____').slice(0,4);}
+  function submit(){
+    if(entry===CODE){msg.innerHTML='<b style="color:oklch(0.55 0.14 145)">Gevangen! id appended to caught[]</b>';}
+    else{msg.innerHTML='<span style="color:var(--accent)">fout — opnieuw</span>';entry='';setDots();drawReveal();}
+  }
+  function press(k){
+    if(k==='<')entry=entry.slice(0,-1);
+    else if(k==='OK')return submit();
+    else if(entry.length<4)entry+=k;
+    setDots();drawReveal();
+    if(entry.length===4)submit();
+  }
+  KEYS.forEach(k=>{
+    const b=document.createElement('button');b.textContent=k;b.style.height='40px';
+    if(k==='OK')b.style.cssText+=';background:#5A9A3C;color:#FFF7E6;border-color:#34271A';
+    b.onclick=()=>press(k);pad.appendChild(b);
+  });
+  cv.width=16*scale;cv.height=16*scale;setDots();drawReveal();
+})();
+
+/* ============================================================================
+   11. PET decay + actions
+   ============================================================================ */
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.getElementById('petFig');
+  const hours=document.getElementById('petHours');
+  const msg=document.getElementById('petMsg');
+  const clamp=v=>v<0?0:v>100?100:v;
+  const DECAY={hunger:+6,energy:-4,mood:-3};
+  function fresh(){return {bond:10,mood:65,energy:75,hunger:25};}
+  let caught=fresh();           // the state at catch time
+  function withDecay(h){
+    const s=Object.assign({},caught);
+    for(const k in DECAY)s[k]=clamp(s[k]+DECAY[k]*h);
+    return s;
+  }
+  const STATS=[['bond','binding','var(--secondary)'],['mood','humeur','var(--tertiary)'],
+               ['energy','energie','oklch(0.55 0.14 145)'],['hunger','honger','var(--accent)']];
+  function render(){
+    const h=+hours.value;
+    const s=withDecay(h);
+    svg.innerHTML='';
+    STATS.forEach((st,i)=>{
+      const [k,lab,col]=st;const y=24+i*46;
+      const t=document.createElementNS(NS,'text');
+      t.setAttribute('x',20);t.setAttribute('y',y);t.setAttribute('class','svg-label');t.textContent=lab;svg.appendChild(t);
+      // track
+      const tr=document.createElementNS(NS,'rect');
+      tr.setAttribute('x',120);tr.setAttribute('y',y-14);tr.setAttribute('width',400);tr.setAttribute('height',18);
+      tr.setAttribute('fill','var(--surface-2)');tr.setAttribute('stroke','var(--rule)');svg.appendChild(tr);
+      const fl=document.createElementNS(NS,'rect');
+      fl.setAttribute('x',120);fl.setAttribute('y',y-14);fl.setAttribute('width',400*s[k]/100);fl.setAttribute('height',18);
+      fl.setAttribute('fill',col);svg.appendChild(fl);
+      const v=document.createElementNS(NS,'text');
+      v.setAttribute('x',526);v.setAttribute('y',y);v.setAttribute('class','svg-label');v.setAttribute('text-anchor','end');
+      v.textContent=s[k];svg.appendChild(v);
+    });
+    msg.textContent=`level ${Math.min(5,1+Math.floor(s.bond/20))} · ${h}h away`;
+    return s;
+  }
+  // actions operate on the *current displayed* state, persisted by collapsing hours→0
+  function applyAction(kind){
+    const h=+hours.value;let s=withDecay(h);
+    if(kind==='voeden'&&s.hunger<=8){flash('zit vol!');return;}
+    if(kind==='spelen'&&s.energy<20){flash('te moe om te spelen');return;}
+    const ACT={voeden:{hunger:-35,energy:+8,bond:+3,mood:+4},
+               aaien:{mood:+12,bond:+5,energy:+2},
+               spelen:{mood:+18,bond:+8,energy:-18,hunger:+12}};
+    const d=ACT[kind];for(const k in d)s[k]=clamp(s[k]+d[k]);
+    caught=s;hours.value=0;             // "now" becomes the new baseline
+    render();
+    flash({voeden:'smikkelt!',aaien:'spint van plezier',spelen:'wat een lol!'}[kind]);
+  }
+  let flashT=null;
+  function flash(txt){msg.textContent=txt;}
+  document.getElementById('actFeed').onclick=()=>applyAction('voeden');
+  document.getElementById('actPet').onclick=()=>applyAction('aaien');
+  document.getElementById('actPlay').onclick=()=>applyAction('spelen');
+  document.getElementById('petReset').onclick=()=>{caught=fresh();hours.value=0;render();flash('vers gevangen');};
+  hours.oninput=render;render();
+})();
+
+/* ============================================================================
+   12. MODULE MAP
+   ============================================================================ */
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.getElementById('mapFig');
+  const boxes=[
+    // x,y,w,h,label,sub,group
+    [200,20,160,44,'screens','home · hunt · code · win · beest · feed · dossier','scr'],
+    [40,140,160,40,'creatures.py','roster (pure data)','core'],
+    [40,200,160,40,'pet.py','companion rules (pure)','core'],
+    [200,140,160,40,'ui.py','tokens · styles · widgets','ui'],
+    [200,200,160,40,'art.py','sprites · PNG swap','ui'],
+    [380,120,150,38,'fox_radio.py','radio seam','seam'],
+    [380,168,150,38,'leds.py','NeoPixel / no-op','seam'],
+    [380,216,150,38,'sound.py','buzzer / silent','seam'],
+    [380,264,150,38,'store.py','SharedPreferences','seam'],
+  ];
+  const fills={scr:'var(--accent-bg)',core:'var(--surface-2)',ui:'var(--secondary-bg)',seam:'var(--surface)'};
+  const strokes={scr:'var(--accent)',core:'var(--ink)',ui:'var(--secondary)',seam:'var(--rule)'};
+  const byLabel={};
+  boxes.forEach(b=>byLabel[b[4]]=b);
+  function center(b){return {x:b[0]+b[2]/2,y:b[1]+b[3]/2};}
+  // edges: from → to (depends on)
+  const edges=[['screens','ui.py'],['screens','art.py'],['screens','creatures.py'],
+    ['screens','fox_radio.py'],['screens','leds.py'],['screens','sound.py'],['screens','store.py'],
+    ['ui.py','art.py'],['art.py','creatures.py'],['store.py','pet.py'],['store.py','creatures.py'],
+    ['fox_radio.py','creatures.py'],['pet.py','creatures.py']];
+  // draw edges first
+  edges.forEach(([a,b])=>{
+    const A=center(byLabel[a]),B=center(byLabel[b]);
+    const l=document.createElementNS(NS,'line');
+    l.setAttribute('x1',A.x);l.setAttribute('y1',A.y);l.setAttribute('x2',B.x);l.setAttribute('y2',B.y);
+    l.setAttribute('stroke','var(--rule)');l.setAttribute('stroke-opacity',0.4);svg.appendChild(l);
+  });
+  boxes.forEach(b=>{
+    const[x,y,w,h,lab,sub,grp]=b;
+    const r=document.createElementNS(NS,'rect');
+    r.setAttribute('x',x);r.setAttribute('y',y);r.setAttribute('width',w);r.setAttribute('height',h);
+    r.setAttribute('fill',fills[grp]);r.setAttribute('stroke',strokes[grp]);r.setAttribute('stroke-width',2);
+    svg.appendChild(r);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',x+w/2);t.setAttribute('y',y+(sub?17:24));t.setAttribute('text-anchor','middle');
+    t.setAttribute('class','svg-label');t.setAttribute('font-weight','600');t.textContent=lab;svg.appendChild(t);
+    if(sub){const s=document.createElementNS(NS,'text');
+      s.setAttribute('x',x+w/2);s.setAttribute('y',y+31);s.setAttribute('text-anchor','middle');
+      s.setAttribute('class','svg-label svg-faint svg-small');s.textContent=sub;svg.appendChild(s);}
+  });
+  // legend
+  const leg=[['pure core','core'],['ui layer','ui'],['screens','scr'],['backend seams','seam']];
+  leg.forEach(([txt,grp],i)=>{
+    const x=40,y=350+i*18;
+    const r=document.createElementNS(NS,'rect');
+    r.setAttribute('x',x);r.setAttribute('y',y-9);r.setAttribute('width',14);r.setAttribute('height',11);
+    r.setAttribute('fill',fills[grp]);r.setAttribute('stroke',strokes[grp]);svg.appendChild(r);
+    const t=document.createElementNS(NS,'text');
+    t.setAttribute('x',x+22);t.setAttribute('y',y);t.setAttribute('class','svg-label');t.textContent=txt;svg.appendChild(t);
+  });
+})();
+</script>
+</body>
+</html>
