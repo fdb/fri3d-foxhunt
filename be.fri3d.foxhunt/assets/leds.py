@@ -12,10 +12,10 @@ OFF = (24, 22, 18)
 
 def _seg_color(i):
     if i >= 4:
-        return (0xCF, 0x6A, 0x3F)   # terra  (hot)
+        return (0xCF, 0x6A, 0x3F)  # terra  (hot)
     if i >= 2:
-        return (0xE8, 0xB2, 0x3A)   # gold
-    return (0x5A, 0x9A, 0x3C)       # green  (cold)
+        return (0xE8, 0xB2, 0x3A)  # gold
+    return (0x5A, 0x9A, 0x3C)  # green  (cold)
 
 
 def colors_for_level(level):

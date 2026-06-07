@@ -30,15 +30,25 @@ class DossierActivity(Activity):
         port = ui.panel(s, 8, 32, 64, 64, ui.SURFACE_SOFT)
         art.creature_panel(port, c, 3).align(lv.ALIGN.CENTER, 0, 0)
         ui.label(s, c["naam"], 82, 34, ui.INK, ui.font_title(), w=164)
-        ui.label(s, 'bijnaam "%s" . LV.%d' % (st.get("bijnaam") or c["naam"], pet.level(bond)),
-                 82, 58, ui.TEXT_MUTED, ui.font_small(), w=210)
+        ui.label(
+            s,
+            'bijnaam "%s" . LV.%d' % (st.get("bijnaam") or c["naam"], pet.level(bond)),
+            82,
+            58,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=210,
+        )
         ui.heart_row(s, 82, 76, pet.hearts(bond), scale=2)
 
         # ── facts grid ───────────────────────────────────────────────────
         facts = (
-            ("soort", c["soort"]), ("biotoop", c["biotoop"]),
-            ("zeldzaam", _RARITY.get(c["rarity"], "?")), ("1e vangst", st.get("date", "?")),
-            ("plek", st.get("place", "?")), ("gezien", "%d keer" % st.get("sightings", 1)),
+            ("soort", c["soort"]),
+            ("biotoop", c["biotoop"]),
+            ("zeldzaam", _RARITY.get(c["rarity"], "?")),
+            ("1e vangst", st.get("date", "?")),
+            ("plek", st.get("place", "?")),
+            ("gezien", "%d keer" % st.get("sightings", 1)),
         )
         grid = ui.panel(s, 8, 104, 304, 64, ui.CARD)
         colw = 138
@@ -58,7 +68,9 @@ class DossierActivity(Activity):
         # ── bond progress to next level ──────────────────────────────────
         lvl = pet.level(bond)
         if lvl >= pet.LEVEL_MAX:
-            ui.label(s, "max level!", 8, 218, ui.GOLD_D, ui.font_small(), w=304, center=True)
+            ui.label(
+                s, "max level!", 8, 218, ui.GOLD_D, ui.font_small(), w=304, center=True
+            )
         else:
             pct = pet.level_pct(bond)
             ui.label(s, "naar LV.%d" % (lvl + 1), 8, 218, ui.INK, ui.font_small())
@@ -67,6 +79,8 @@ class DossierActivity(Activity):
             track.set_style_border_color(ui.hexc(ui.INK), 0)
             fill = ui.box(track, 0, 0, max(2, int(196 * pct / 100)), 14, ui.GOLD)
             fill.align(lv.ALIGN.LEFT_MID, 0, 0)
-            ui.label(s, "%d%%" % pct, 276, 218, 0x5E6B44, ui.font_small(), w=40, center=True)
+            ui.label(
+                s, "%d%%" % pct, 276, 218, 0x5E6B44, ui.font_small(), w=40, center=True
+            )
 
         self.setContentView(s)

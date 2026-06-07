@@ -17,9 +17,17 @@ from screen_feed import FeedActivity
 from screen_dossier import DossierActivity
 
 # action-bar buttons: (icon, label, kind)
-_ACTS = (("food", "VOER", "feed"), ("paw", "AAI", "aaien"),
-         ("ball", "SPEEL", "spelen"), ("book", "DOSSIER", "dossier"))
-_SEG = (("mood", "Humeur", ui.GOLD), ("energy", "Energie", ui.GREEN), ("hunger", "Honger", ui.TERRA))
+_ACTS = (
+    ("food", "VOER", "feed"),
+    ("paw", "AAI", "aaien"),
+    ("ball", "SPEEL", "spelen"),
+    ("book", "DOSSIER", "dossier"),
+)
+_SEG = (
+    ("mood", "Humeur", ui.GOLD),
+    ("energy", "Energie", ui.GREEN),
+    ("hunger", "Honger", ui.TERRA),
+)
 
 
 class BeastActivity(Activity):
@@ -31,7 +39,9 @@ class BeastActivity(Activity):
         s = ui.make_screen(ui.PAPER)
         ui.banner(s, self.c["naam"], ui.GREEN)
         # LV badge (own ref so it updates when band crosses a level)
-        self.lvtag = ui.label(s, "", 270, 6, ui.CREAM, ui.font_small(), w=44, center=True)
+        self.lvtag = ui.label(
+            s, "", 270, 6, ui.CREAM, ui.font_small(), w=44, center=True
+        )
 
         # ── portrait card ───────────────────────────────────────────────
         rare = self.c["rarity"] != "norm"
@@ -41,7 +51,9 @@ class BeastActivity(Activity):
         sp.align(lv.ALIGN.CENTER, 0, -12)
         self.bubble = ui.label(card, "", 4, 2, ui.INK, ui.font_small(), w=124)
         strip = ui.box(card, 0, 130, 128, 18, ui.GREEN)
-        self.nick = ui.label(strip, "", 0, 1, ui.CREAM, ui.font_small(), w=128, center=True)
+        self.nick = ui.label(
+            strip, "", 0, 1, ui.CREAM, ui.font_small(), w=128, center=True
+        )
 
         # ── stats column (rebuilt on every refresh) ─────────────────────
         self.stats = ui.box(s, 150, 34, 164, 148)
@@ -50,10 +62,19 @@ class BeastActivity(Activity):
         bw = 73
         bar = ui.row(s, 6, 198, 4 * bw + 3 * 5, 36, gap=5)
         for i, (ic, lab, kind) in enumerate(_ACTS):
-            accent = (i == 0)
+            accent = i == 0
             b = ui.panel(bar, 0, 0, bw, 36, ui.GREEN if accent else ui.CARD)
             art.icon(b, ic, 2).align(lv.ALIGN.TOP_MID, 0, 3)
-            ui.label(b, lab, 0, 22, ui.CREAM if accent else ui.INK, ui.font_small(), w=bw, center=True)
+            ui.label(
+                b,
+                lab,
+                0,
+                22,
+                ui.CREAM if accent else ui.INK,
+                ui.font_small(),
+                w=bw,
+                center=True,
+            )
             ui.focusable(b, on_click=lambda k=kind: self._press(k))
 
         self.setContentView(s)
@@ -75,18 +96,37 @@ class BeastActivity(Activity):
         ui.heart_row(g, 0, 16, pet.hearts(st["bond"]), scale=2)
         for i, (k, lab, col) in enumerate(_SEG):
             ui.seg_bar(g, 0, 44 + i * 22, lab, pet.segments(st[k]), col)
-        ui.label(g, "gevonden " + st.get("date", "?"), 0, 112, ui.TEXT_MUTED, ui.font_small(), w=164)
-        ui.label(g, "%s . %dx gezien" % (st.get("place", "?"), st.get("sightings", 1)),
-                 0, 128, ui.TEXT_MUTED, ui.font_small(), w=164)
+        ui.label(
+            g,
+            "gevonden " + st.get("date", "?"),
+            0,
+            112,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=164,
+        )
+        ui.label(
+            g,
+            "%s . %dx gezien" % (st.get("place", "?"), st.get("sightings", 1)),
+            0,
+            128,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=164,
+        )
 
     def _press(self, kind):
         if kind == "feed":
             sound.play("tap")
-            self.startActivity(Intent(activity_class=FeedActivity, extras={"fox_id": self.fox_id}))
+            self.startActivity(
+                Intent(activity_class=FeedActivity, extras={"fox_id": self.fox_id})
+            )
         elif kind == "dossier":
             sound.play("tap")
-            self.startActivity(Intent(activity_class=DossierActivity, extras={"fox_id": self.fox_id}))
-        else:                                   # aaien / spelen — inline care
+            self.startActivity(
+                Intent(activity_class=DossierActivity, extras={"fox_id": self.fox_id})
+            )
+        else:  # aaien / spelen — inline care
             st, ok, msg = store.do_action(self.fox_id, kind)
             sound.play("tap" if ok else "error")
             self._flash(msg)

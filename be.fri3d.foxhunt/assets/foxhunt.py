@@ -39,12 +39,18 @@ class HomeActivity(Activity):
         s = self.screen
         awake = set(RADIO.active_foxes())
         caught = set(store.caught_ids())
-        ui.banner(s, "FOXHUNT", ui.GREEN,
-                  right="%d/%d" % (len(caught), len(CREATURES)))
+        ui.banner(s, "FOXHUNT", ui.GREEN, right="%d/%d" % (len(caught), len(CREATURES)))
 
         # 4 cells per row; +2px slack so the exact-fit 4th column never wraps early
-        grid = ui.row(s, 6, 30, 4 * _CELL_W + 3 * _GAP + 2, 3 * _CELL_H + 2 * _GAP,
-                      gap=_GAP, wrap=True)
+        grid = ui.row(
+            s,
+            6,
+            30,
+            4 * _CELL_W + 3 * _GAP + 2,
+            3 * _CELL_H + 2 * _GAP,
+            gap=_GAP,
+            wrap=True,
+        )
         for c in CREATURES:
             cid = c["id"]
             is_caught = cid in caught
@@ -58,7 +64,13 @@ class HomeActivity(Activity):
             cell = ui.box(grid, 0, 0, _CELL_W, _CELL_H, bg, radius=2)
 
             if is_caught:
-                rc = ui.TERRA if c["rarity"] == "rare" else ui.GOLD if c["rarity"] == "leg" else ui.GREEN_D
+                rc = (
+                    ui.TERRA
+                    if c["rarity"] == "rare"
+                    else ui.GOLD
+                    if c["rarity"] == "leg"
+                    else ui.GREEN_D
+                )
                 cell.set_style_border_width(2, 0)
                 cell.set_style_border_color(ui.hexc(rc), 0)
             elif huntable:
@@ -68,8 +80,16 @@ class HomeActivity(Activity):
             sp = art.creature_panel(cell, c, 3, silhouette=not is_caught)
             sp.align(lv.ALIGN.TOP_MID, 0, 3)
 
-            ui.label(cell, c["naam"] if is_caught else "???", 0, 51,
-                     ui.INK if is_caught else ui.MYSTERY, ui.font_small(), w=_CELL_W, center=True)
+            ui.label(
+                cell,
+                c["naam"] if is_caught else "???",
+                0,
+                51,
+                ui.INK if is_caught else ui.MYSTERY,
+                ui.font_small(),
+                w=_CELL_W,
+                center=True,
+            )
 
             # Every tile is navigable (arrows/click) so the grid never goes
             # dead: caught -> companion page, huntable -> the hunt, dormant ->

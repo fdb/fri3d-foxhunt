@@ -6,8 +6,8 @@
 
 # Living stats, in display order: (key, dutch label).
 STATS = (
-    ("bond",   "binding"),
-    ("mood",   "humeur"),
+    ("bond", "binding"),
+    ("mood", "humeur"),
     ("energy", "energie"),
     ("hunger", "honger"),
 )
@@ -18,7 +18,7 @@ _DECAY = {"hunger": +6, "energy": -4, "mood": -3}
 # Action effects: deltas applied when the creature accepts.
 _ACTIONS = {
     "voeden": {"hunger": -35, "energy": +8, "bond": +3, "mood": +4},
-    "aaien":  {"mood": +12, "bond": +5, "energy": +2},
+    "aaien": {"mood": +12, "bond": +5, "energy": +2},
     "spelen": {"mood": +18, "bond": +8, "energy": -18, "hunger": +12},
 }
 
@@ -30,15 +30,15 @@ def _clamp(v):
 def default_state(date, place, now):
     """Fresh companion, the moment it's caught."""
     return {
-        "date": date,           # gevonden op (YYYY-MM-DD)
-        "place": place,         # plaats
-        "sightings": 1,         # waarnemingen
-        "bijnaam": "",          # nickname (falls back to the creature name)
+        "date": date,  # gevonden op (YYYY-MM-DD)
+        "place": place,  # plaats
+        "sightings": 1,  # waarnemingen
+        "bijnaam": "",  # nickname (falls back to the creature name)
         "bond": 10,
         "mood": 65,
         "energy": 75,
         "hunger": 25,
-        "last": now,            # epoch seconds of last update
+        "last": now,  # epoch seconds of last update
     }
 
 
@@ -109,7 +109,11 @@ def act(state, action, now):
     return s, True, _OK_MSG[action]
 
 
-_OK_MSG = {"voeden": "smikkelt!", "aaien": "spint van plezier", "spelen": "wat een lol!"}
+_OK_MSG = {
+    "voeden": "smikkelt!",
+    "aaien": "spint van plezier",
+    "spelen": "wat een lol!",
+}
 
 
 def feed(state, food, favoriet, now):
@@ -147,14 +151,15 @@ if __name__ == "__main__":
     # Quick self-test: catch -> age a day -> feed/pet/play -> refusals.
     st = default_state("2026-06-06", "Fri3d Camp", 1000)
     assert st["hunger"] == 25 and st["sightings"] == 1
-    aged = decay(st, 1000 + 24 * 3600)          # +24h
-    assert aged["hunger"] == 100, aged          # 25 + 6*24, clamped
-    assert aged["energy"] == 0, aged            # 75 - 4*24, clamped
+    aged = decay(st, 1000 + 24 * 3600)  # +24h
+    assert aged["hunger"] == 100, aged  # 25 + 6*24, clamped
+    assert aged["energy"] == 0, aged  # 75 - 4*24, clamped
     fed, ok, msg = act(aged, "voeden", aged["last"])
     assert ok and fed["hunger"] == 65, (fed, msg)
     tired, ok, msg = act(aged, "spelen", aged["last"])
     assert not ok and msg == "te moe om te spelen", (ok, msg)
-    full = dict(st); full["hunger"] = 5
+    full = dict(st)
+    full["hunger"] = 5
     _, ok, msg = act(full, "voeden", st["last"])
     assert not ok and msg == "zit vol!", (ok, msg)
     assert face({"hunger": 80})[1] == "honger!"
@@ -167,7 +172,8 @@ if __name__ == "__main__":
     assert level_pct(50) == 50 and level_pct(100) == 100, level_pct(50)
     assert fullness(25) == 75
     # favourite food grants more band than a plain hapje
-    base = dict(st); base["hunger"] = 60
+    base = dict(st)
+    base["hunger"] = 60
     plain, ok, _, fav = feed(base, "noot", "bes", st["last"])
     assert ok and not fav and plain["bond"] == base["bond"] + 3, plain
     favd, ok, _, fav = feed(base, "bes", "bes", st["last"])

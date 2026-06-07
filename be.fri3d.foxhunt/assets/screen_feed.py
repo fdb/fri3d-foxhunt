@@ -32,30 +32,52 @@ class FeedActivity(Activity):
         self.bubble = ui.label(stage, "", 8, 8, ui.INK, ui.font_label(), w=140)
 
         # VERZADIGD meter, top-right inside the stage
-        ui.label(stage, "VERZADIGD", 188, 8, ui.GREEN_D, ui.font_small(), w=108, center=True)
+        ui.label(
+            stage, "VERZADIGD", 188, 8, ui.GREEN_D, ui.font_small(), w=108, center=True
+        )
         self.sat = []
         for i in range(5):
             c = ui.box(stage, 196 + i * 18, 28, 13, 16, ui.GREEN)
             c.set_style_border_width(2, 0)
             c.set_style_border_color(ui.hexc(ui.INK), 0)
             self.sat.append(c)
-        ui.label(stage, "favoriet = +band", 188, 52, ui.TEXT_MUTED, ui.font_small(), w=108, center=True)
+        ui.label(
+            stage,
+            "favoriet = +band",
+            188,
+            52,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=108,
+            center=True,
+        )
 
         # ── food picker ──────────────────────────────────────────────────
         fw = 97
         picker = ui.row(s, 8, 154, 3 * fw + 2 * 6, 50, gap=6)
         for ic, lab, food in _FOODS:
-            fav = (food == self.c.get("favoriet"))
+            fav = food == self.c.get("favoriet")
             p = ui.panel(picker, 0, 0, fw, 50, ui.CARD)
             art.icon(p, ic, 2).align(lv.ALIGN.TOP_MID, 0, 5)
             ui.label(p, lab, 0, 32, ui.INK, ui.font_small(), w=fw, center=True)
             if fav:
-                art.draw_sprite(p, art.HEART, {"k": 0x7A1F12, "r": 0xE0463A}, 1).align(lv.ALIGN.TOP_RIGHT, -4, 4)
+                art.draw_sprite(p, art.HEART, {"k": 0x7A1F12, "r": 0xE0463A}, 1).align(
+                    lv.ALIGN.TOP_RIGHT, -4, 4
+                )
             ui.focusable(p, on_click=lambda f=food: self._feed(f))
 
         # ── hint ─────────────────────────────────────────────────────────
         hint = ui.panel(s, 8, 212, 304, 22, ui.CREAM)
-        ui.label(hint, "tik een hapje om te voeren", 0, 3, ui.INK, ui.font_small(), w=304, center=True)
+        ui.label(
+            hint,
+            "tik een hapje om te voeren",
+            0,
+            3,
+            ui.INK,
+            ui.font_small(),
+            w=304,
+            center=True,
+        )
 
         self.setContentView(s)
         self._refresh()

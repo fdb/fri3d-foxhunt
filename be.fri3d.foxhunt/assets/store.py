@@ -12,7 +12,7 @@ import pet
 from creatures import by_id
 
 _APP = "be.fri3d.foxhunt"
-_PLACE = "Fri3d Camp"   # stub: no GPS yet — see fox_radio for the backend seam
+_PLACE = "Fri3d Camp"  # stub: no GPS yet — see fox_radio for the backend seam
 
 
 def _now():

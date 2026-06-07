@@ -7,10 +7,10 @@
 from mpos import AudioManager
 
 _TUNES = {
-    "tap":    "Tap:d=16,o=6,b=400:c",
+    "tap": "Tap:d=16,o=6,b=400:c",
     "warmer": "Warm:d=16,o=6,b=320:e,g",
     "caught": "Win:d=16,o=6,b=260:c,e,g,8c7",
-    "error":  "Err:d=8,o=5,b=300:c,p,c",
+    "error": "Err:d=8,o=5,b=300:c,p,c",
 }
 
 
@@ -29,7 +29,7 @@ def play(event):
     if not tune:
         return
     out = _buzzer_output()
-    if not out:                 # desktop: no buzzer -> stay silent
+    if not out:  # desktop: no buzzer -> stay silent
         return
     try:
         AudioManager.rtttl_player(tune, output=out, volume=60).start()

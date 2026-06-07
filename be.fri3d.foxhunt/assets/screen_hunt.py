@@ -37,7 +37,16 @@ class HuntActivity(Activity):
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 8)
         self.bpm = ui.label(card, "--", 244, 8, ui.TERRA, ui.font_title(), w=60)
 
-        ui.label(s, "draai rond om te zoeken", 6, 154, ui.INK, ui.font_small(), w=308, center=True)
+        ui.label(
+            s,
+            "draai rond om te zoeken",
+            6,
+            154,
+            ui.INK,
+            ui.font_small(),
+            w=308,
+            center=True,
+        )
 
         # 5-LED mirror (emulator + redundant on-badge): cells 52x16, gap 5
         self.mirror = []
@@ -53,7 +62,9 @@ class HuntActivity(Activity):
         btn = ui.box(s, 6, 208, 308, 26, ui.GREEN, radius=3)
         btn.set_style_border_width(2, 0)
         btn.set_style_border_color(ui.hexc(ui.INK), 0)
-        bl = ui.label(btn, "VOER DE CODE IN", 0, 0, ui.CREAM, ui.font_label(), w=308, center=True)
+        bl = ui.label(
+            btn, "VOER DE CODE IN", 0, 0, ui.CREAM, ui.font_label(), w=308, center=True
+        )
         bl.align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(btn, on_click=self._enter_code)
 
@@ -61,7 +72,7 @@ class HuntActivity(Activity):
 
     def onResume(self, screen):
         super().onResume(screen)
-        RADIO.start(self.fox_id)            # restart cold on every entry / return
+        RADIO.start(self.fox_id)  # restart cold on every entry / return
         self.timer = lv.timer_create(self._tick, 250, None)
 
     def onPause(self, screen):
@@ -81,7 +92,7 @@ class HuntActivity(Activity):
         self._beat = not self._beat
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 6 if self._beat else 10)
 
-        leds.show_level(r.level)                       # physical LEDs (badge)
+        leds.show_level(r.level)  # physical LEDs (badge)
         cols = leds.colors_for_level(r.level)
         for i, seg in enumerate(self.mirror):
             rr, gg, bb = cols[i]
@@ -93,4 +104,6 @@ class HuntActivity(Activity):
             self.timer = None
         leds.off()
         sound.play("tap")
-        self.startActivity(Intent(activity_class=CodeActivity, extras={"fox_id": self.fox_id}))
+        self.startActivity(
+            Intent(activity_class=CodeActivity, extras={"fox_id": self.fox_id})
+        )

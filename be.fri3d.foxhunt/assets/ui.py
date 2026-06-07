@@ -22,11 +22,11 @@ CREAM = 0xFFF7E6
 # Semantic / surface tokens — promoted from inline literals so the look lives in
 # one place. SURFACE_SOFT is the pale card interior on the beast/hunt screens;
 # DORMANT is the sleeping-cell bg (was also written out as the _TRACK literal).
-TEXT_MUTED = 0x5E6B44     # secondary text (found-facts, captions)
-MYSTERY = 0x8A7D5E        # the "???" label on an uncaught creature
-SURFACE_SOFT = 0xE9F1CF   # card interior (portrait card, hunt/win panel)
-SURFACE_TINT = 0xEEF4D6   # lighter card interior (code reveal, feed stage, weetje)
-DORMANT = 0xD8C9A4        # sleeping-cell bg / empty-segment track
+TEXT_MUTED = 0x5E6B44  # secondary text (found-facts, captions)
+MYSTERY = 0x8A7D5E  # the "???" label on an uncaught creature
+SURFACE_SOFT = 0xE9F1CF  # card interior (portrait card, hunt/win panel)
+SURFACE_TINT = 0xEEF4D6  # lighter card interior (code reveal, feed stage, weetje)
+DORMANT = 0xD8C9A4  # sleeping-cell bg / empty-segment track
 
 # Spacing & geometry scale — replaces scattered magic 2/3/5/6 in the screens.
 GAP_S = 3
@@ -51,6 +51,7 @@ def hexc(v):
 # property always overrides a shared one), so only the truly common bits live
 # here: the box reset, the panel outline, the segment-cell hairline, and the
 # focus / pressed state styles that used to be re-applied on every nav widget.
+
 
 def _style(**props):
     s = lv.style_t()
@@ -83,8 +84,9 @@ _PANEL = _style(border_width=BORDER, border_color=INK)
 # segment cell: the 1px ink hairline around each LED/meter cell.
 _SEG_CELL = _style(border_width=BORDER_THIN, border_color=INK)
 # gold focus ring for joystick/arrow nav (added on the FOCUSED state).
-_FOCUS = _style(outline_color=GOLD, outline_width=3, outline_pad=1,
-                outline_opa=lv.OPA.COVER)
+_FOCUS = _style(
+    outline_color=GOLD, outline_width=3, outline_pad=1, outline_opa=lv.OPA.COVER
+)
 # tactile press: nudge an actionable widget down 2px on the PRESSED state.
 _PRESSED = _style(translate_y=2)
 
@@ -139,8 +141,8 @@ def box(parent, x, y, w, h, bg=None, radius=0):
     o = lv.obj(parent)
     o.set_pos(x, y)
     o.set_size(w, h)
-    o.add_style(_RESET, 0)          # shared pad/border reset
-    o.set_style_radius(radius, 0)   # radius varies per call -> local
+    o.add_style(_RESET, 0)  # shared pad/border reset
+    o.set_style_radius(radius, 0)  # radius varies per call -> local
     o.remove_flag(lv.obj.FLAG.SCROLLABLE)
     if bg is None:
         o.set_style_bg_opa(lv.OPA.TRANSP, 0)
@@ -175,16 +177,16 @@ def banner(screen, title, color=GREEN, right=None):
 
 import art
 
-_TRACK = DORMANT   # empty-segment / track colour (same value, named token)
+_TRACK = DORMANT  # empty-segment / track colour (same value, named token)
 
 
 def panel(parent, x, y, w, h, bg=CARD, radius=RADIUS, border=INK, bw=BORDER):
     """A pixel panel: filled box with a hard ink outline (design 'Panel')."""
     o = box(parent, x, y, w, h, bg, radius=radius)
     if bw == BORDER and border == INK:
-        o.add_style(_PANEL, 0)              # shared ink outline (common case)
+        o.add_style(_PANEL, 0)  # shared ink outline (common case)
     elif bw:
-        o.set_style_border_width(bw, 0)     # custom width/colour -> local
+        o.set_style_border_width(bw, 0)  # custom width/colour -> local
         o.set_style_border_color(hexc(border), 0)
     return o
 
@@ -202,15 +204,19 @@ def row(parent, x, y, w, h, gap=GAP_M, wrap=False, bg=None):
     return o
 
 
-def seg_bar(parent, x, y, text, lit, color, total=5, seg_w=16, seg_h=11, gap=GAP_S, label_w=56):
+def seg_bar(
+    parent, x, y, text, lit, color, total=5, seg_w=16, seg_h=11, gap=GAP_S, label_w=56
+):
     """Label + a row of `total` segment cells, `lit` of them coloured. Mirrors
     the device's 5-LED look. Returns the list of cells for live updates."""
     label(parent, text, x, y, INK, font_small())
-    track = row(parent, x + label_w, y, total * seg_w + (total - 1) * gap, seg_h, gap=gap)
+    track = row(
+        parent, x + label_w, y, total * seg_w + (total - 1) * gap, seg_h, gap=gap
+    )
     cells = []
     for i in range(total):
         c = box(track, 0, 0, seg_w, seg_h, color if i < lit else _TRACK)
-        c.add_style(_SEG_CELL, 0)           # shared 1px ink hairline
+        c.add_style(_SEG_CELL, 0)  # shared 1px ink hairline
         cells.append(c)
     return cells
 
@@ -226,7 +232,11 @@ def heart_row(parent, x, y, filled, total=5, scale=2, gap=GAP_S):
     track = row(parent, x, y, total * hw + (total - 1) * gap, 8 * scale, gap=gap)
     hearts = []
     for i in range(total):
-        pal = {"k": 0x7A1F12, "r": 0xE0463A} if i < filled else {"k": 0xB0A07E, "r": 0xECE0C2}
+        pal = (
+            {"k": 0x7A1F12, "r": 0xE0463A}
+            if i < filled
+            else {"k": 0xB0A07E, "r": 0xECE0C2}
+        )
         hearts.append(art.draw_sprite(track, art.HEART, pal, scale))
     return hearts
 

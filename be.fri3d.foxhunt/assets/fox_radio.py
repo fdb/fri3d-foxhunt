@@ -16,15 +16,20 @@ class FoxReading:
     # box. The player decides when to enter the code. We only report signal.
     def __init__(self, fox_id, level, strength, bearing=None):
         self.fox_id = fox_id
-        self.level = level          # 0..5 discrete hot/cold -> the 5 LEDs
-        self.strength = strength    # 0.0..1.0 continuous   -> bpm
-        self.bearing = bearing      # degrees; present but UI ignores it (classic ARDF)
+        self.level = level  # 0..5 discrete hot/cold -> the 5 LEDs
+        self.strength = strength  # 0.0..1.0 continuous   -> bpm
+        self.bearing = bearing  # degrees; present but UI ignores it (classic ARDF)
 
 
 class FoxRadio:
-    def active_foxes(self):            raise NotImplementedError
-    def reading(self, fox_id):         raise NotImplementedError
-    def verify_code(self, fox_id, c):  raise NotImplementedError
+    def active_foxes(self):
+        raise NotImplementedError
+
+    def reading(self, fox_id):
+        raise NotImplementedError
+
+    def verify_code(self, fox_id, c):
+        raise NotImplementedError
 
 
 class FakeFoxRadio(FoxRadio):
@@ -48,7 +53,7 @@ class FakeFoxRadio(FoxRadio):
 
     def reading(self, fox_id):
         s = self._strength.get(fox_id, 0.12)
-        s += random.uniform(-0.04, 0.10)        # drift up, with jitter
+        s += random.uniform(-0.04, 0.10)  # drift up, with jitter
         s = max(0.0, min(1.0, s))
         self._strength[fox_id] = s
         return FoxReading(fox_id, int(round(s * 5)), s)
