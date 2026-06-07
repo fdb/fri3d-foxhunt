@@ -28,7 +28,7 @@ class HuntActivity(Activity):
         ui.banner(s, self.c["naam"], ui.TERRA, right=("zeldzaam" if rare else "gewoon"))
 
         # scan card with the silhouette + heartbeat
-        card = ui.box(s, 6, 30, 308, 120, 0xE9F1CF, radius=2)
+        card = ui.box(s, 6, 30, 308, 120, ui.SURFACE_SOFT, radius=2)
         card.set_style_border_width(2, 0)
         card.set_style_border_color(ui.hexc(ui.TERRA), 0)
         self.sil = art.creature_panel(card, self.c, 6, silhouette=True)

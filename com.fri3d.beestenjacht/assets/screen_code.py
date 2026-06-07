@@ -35,12 +35,12 @@ class CodeActivity(Activity):
             ui.focusable(b, on_click=lambda kk=k: self.press(kk))
 
         self.dots = ui.label(s, "____", 198, 40, ui.INK, ui.font_title(), w=116, center=True)
-        self.rev = ui.box(s, 214, 80, 92, 92, 0xEEF4D6, radius=2)
+        self.rev = ui.box(s, 214, 80, 92, 92, ui.SURFACE_TINT, radius=2)
         self.rev.set_style_border_width(2, 0)
         self.rev.set_style_border_color(ui.hexc(ui.TERRA), 0)
         self._sprite = None
         self._draw_reveal()                       # starts as a full silhouette
-        ui.label(s, "vul de code in", 198, 178, 0x5E6B44, ui.font_small(), w=116, center=True)
+        ui.label(s, "vul de code in", 198, 178, ui.TEXT_MUTED, ui.font_small(), w=116, center=True)
 
         self.setContentView(s)
 

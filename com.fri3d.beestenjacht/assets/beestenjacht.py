@@ -54,7 +54,7 @@ class HomeActivity(Activity):
             # is a mystery silhouette — the catch is the reveal. Huntable ones
             # (transmitting right now) get an active green frame so the player
             # knows what's out there to find.
-            bg = ui.CARD if (is_caught or huntable) else 0xD8C9A4
+            bg = ui.CARD if (is_caught or huntable) else ui.DORMANT
             cell = ui.box(s, x, y, 74, 66, bg, radius=2)
 
             if is_caught:
@@ -69,7 +69,7 @@ class HomeActivity(Activity):
             sp.align(lv.ALIGN.TOP_MID, 0, 3)
 
             ui.label(cell, c["naam"] if is_caught else "???", 0, 51,
-                     ui.INK if is_caught else 0x8A7D5E, ui.font_small(), w=74, center=True)
+                     ui.INK if is_caught else ui.MYSTERY, ui.font_small(), w=74, center=True)
 
             # Every tile is navigable (arrows/click) so the grid never goes
             # dead: caught -> companion page, huntable -> the hunt, dormant ->

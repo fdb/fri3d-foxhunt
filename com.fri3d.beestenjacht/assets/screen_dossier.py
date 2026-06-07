@@ -27,11 +27,11 @@ class DossierActivity(Activity):
         ui.banner(s, "Dossier", ui.GREEN, right="#%02d" % (self.fox_id + 1))
 
         # ── header ───────────────────────────────────────────────────────
-        port = ui.panel(s, 8, 32, 64, 64, 0xE9F1CF)
+        port = ui.panel(s, 8, 32, 64, 64, ui.SURFACE_SOFT)
         art.creature_panel(port, c, 3).align(lv.ALIGN.CENTER, 0, 0)
         ui.label(s, c["naam"], 82, 34, ui.INK, ui.font_title(), w=164)
         ui.label(s, 'bijnaam "%s" . LV.%d' % (st.get("bijnaam") or c["naam"], pet.level(bond)),
-                 82, 58, 0x5E6B44, ui.font_small(), w=210)
+                 82, 58, ui.TEXT_MUTED, ui.font_small(), w=210)
         ui.heart_row(s, 82, 76, pet.hearts(bond), scale=2)
 
         # ── facts grid ───────────────────────────────────────────────────
@@ -45,7 +45,7 @@ class DossierActivity(Activity):
         for i, (k, v) in enumerate(facts):
             cx = 8 + (i % 2) * 150
             cy = 6 + (i // 2) * 18
-            ui.label(grid, k, cx, cy, 0x8A7D5E, ui.font_small())
+            ui.label(grid, k, cx, cy, ui.MYSTERY, ui.font_small())
             vl = ui.label(grid, v, cx, cy, ui.INK, ui.font_small(), w=colw)
             vl.set_style_text_align(lv.TEXT_ALIGN.RIGHT, 0)
 

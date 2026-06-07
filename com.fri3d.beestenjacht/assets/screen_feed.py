@@ -26,7 +26,7 @@ class FeedActivity(Activity):
         ui.banner(s, "Voeren " + self.c["naam"], ui.GREEN)
 
         # ── stage ────────────────────────────────────────────────────────
-        stage = ui.panel(s, 8, 32, 304, 116, 0xEEF4D6)
+        stage = ui.panel(s, 8, 32, 304, 116, ui.SURFACE_TINT)
         sp = art.creature_panel(stage, self.c, 6)
         sp.align(lv.ALIGN.BOTTOM_LEFT, 16, -2)
         self.bubble = ui.label(stage, "", 8, 8, ui.INK, ui.font_label(), w=140)
@@ -39,7 +39,7 @@ class FeedActivity(Activity):
             c.set_style_border_width(2, 0)
             c.set_style_border_color(ui.hexc(ui.INK), 0)
             self.sat.append(c)
-        ui.label(stage, "favoriet = +band", 188, 52, 0x5E6B44, ui.font_small(), w=108, center=True)
+        ui.label(stage, "favoriet = +band", 188, 52, ui.TEXT_MUTED, ui.font_small(), w=108, center=True)
 
         # ── food picker ──────────────────────────────────────────────────
         fw, gap = 97, 6
@@ -72,7 +72,7 @@ class FeedActivity(Activity):
     def _set_meter(self, lit):
         for i, c in enumerate(self.sat):
             on = i < lit
-            col = (ui.GOLD if i == lit - 1 else ui.GREEN) if on else 0xD8C9A4
+            col = (ui.GOLD if i == lit - 1 else ui.GREEN) if on else ui.DORMANT
             c.set_style_bg_color(ui.hexc(col), 0)
 
     def _feed(self, food):
