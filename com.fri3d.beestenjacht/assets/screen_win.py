@@ -18,7 +18,7 @@ class WinActivity(Activity):
         if leg:
             ui.label(s, "* LEGENDARISCH *", 0, 44, ui.GOLD, ui.font_small(), w=320, center=True)
 
-        panel = ui.box(s, 114, 66, 92, 92, 0xE9F1CF, radius=2)
+        panel = ui.box(s, 114, 66, 92, 92, ui.SURFACE_SOFT, radius=2)
         panel.set_style_border_width(3, 0)
         panel.set_style_border_color(ui.hexc(ui.GOLD if leg else ui.GREEN_D), 0)
         sp = art.creature_panel(panel, c, 5)

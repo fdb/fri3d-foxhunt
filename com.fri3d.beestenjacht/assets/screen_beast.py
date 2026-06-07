@@ -35,7 +35,7 @@ class BeastActivity(Activity):
 
         # ── portrait card ───────────────────────────────────────────────
         rare = self.c["rarity"] != "norm"
-        card = ui.panel(s, 8, 32, 132, 150, 0xE9F1CF)
+        card = ui.panel(s, 8, 32, 132, 150, ui.SURFACE_SOFT)
         card.set_style_border_color(ui.hexc(ui.GOLD if rare else ui.GREEN_D), 0)
         sp = art.creature_panel(card, self.c, 5)
         sp.align(lv.ALIGN.CENTER, 0, -12)
@@ -47,10 +47,11 @@ class BeastActivity(Activity):
         self.stats = ui.box(s, 150, 34, 164, 148)
 
         # ── action bar ──────────────────────────────────────────────────
-        bw, gap = 73, 5
+        bw = 73
+        bar = ui.row(s, 6, 198, 4 * bw + 3 * 5, 36, gap=5)
         for i, (ic, lab, kind) in enumerate(_ACTS):
             accent = (i == 0)
-            b = ui.panel(s, 6 + i * (bw + gap), 198, bw, 36, ui.GREEN if accent else ui.CARD)
+            b = ui.panel(bar, 0, 0, bw, 36, ui.GREEN if accent else ui.CARD)
             art.icon(b, ic, 2).align(lv.ALIGN.TOP_MID, 0, 3)
             ui.label(b, lab, 0, 22, ui.CREAM if accent else ui.INK, ui.font_small(), w=bw, center=True)
             ui.focusable(b, on_click=lambda k=kind: self._press(k))
@@ -74,9 +75,9 @@ class BeastActivity(Activity):
         ui.heart_row(g, 0, 16, pet.hearts(st["bond"]), scale=2)
         for i, (k, lab, col) in enumerate(_SEG):
             ui.seg_bar(g, 0, 44 + i * 22, lab, pet.segments(st[k]), col)
-        ui.label(g, "gevonden " + st.get("date", "?"), 0, 112, 0x5E6B44, ui.font_small(), w=164)
+        ui.label(g, "gevonden " + st.get("date", "?"), 0, 112, ui.TEXT_MUTED, ui.font_small(), w=164)
         ui.label(g, "%s . %dx gezien" % (st.get("place", "?"), st.get("sightings", 1)),
-                 0, 128, 0x5E6B44, ui.font_small(), w=164)
+                 0, 128, ui.TEXT_MUTED, ui.font_small(), w=164)
 
     def _press(self, kind):
         if kind == "feed":

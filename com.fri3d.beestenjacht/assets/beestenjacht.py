@@ -14,8 +14,7 @@ from fox_radio import RADIO
 from screen_hunt import HuntActivity
 from screen_beast import BeastActivity
 
-_COLS = (6, 84, 162, 240)
-_ROWS = (30, 100, 170)
+_CELL_W, _CELL_H, _GAP = 74, 66, 4
 
 
 class HomeActivity(Activity):
@@ -43,9 +42,10 @@ class HomeActivity(Activity):
         ui.banner(s, "BEESTENJACHT", ui.GREEN,
                   right="%d/%d" % (len(caught), len(CREATURES)))
 
-        for i, c in enumerate(CREATURES):
-            x = _COLS[i % 4]
-            y = _ROWS[i // 4]
+        # 4 cells per row; +2px slack so the exact-fit 4th column never wraps early
+        grid = ui.row(s, 6, 30, 4 * _CELL_W + 3 * _GAP + 2, 3 * _CELL_H + 2 * _GAP,
+                      gap=_GAP, wrap=True)
+        for c in CREATURES:
             cid = c["id"]
             is_caught = cid in caught
             huntable = (cid in awake) and not is_caught
@@ -54,8 +54,8 @@ class HomeActivity(Activity):
             # is a mystery silhouette — the catch is the reveal. Huntable ones
             # (transmitting right now) get an active green frame so the player
             # knows what's out there to find.
-            bg = ui.CARD if (is_caught or huntable) else 0xD8C9A4
-            cell = ui.box(s, x, y, 74, 66, bg, radius=2)
+            bg = ui.CARD if (is_caught or huntable) else ui.DORMANT
+            cell = ui.box(grid, 0, 0, _CELL_W, _CELL_H, bg, radius=2)
 
             if is_caught:
                 rc = ui.TERRA if c["rarity"] == "rare" else ui.GOLD if c["rarity"] == "leg" else ui.GREEN_D
@@ -69,7 +69,7 @@ class HomeActivity(Activity):
             sp.align(lv.ALIGN.TOP_MID, 0, 3)
 
             ui.label(cell, c["naam"] if is_caught else "???", 0, 51,
-                     ui.INK if is_caught else 0x8A7D5E, ui.font_small(), w=74, center=True)
+                     ui.INK if is_caught else ui.MYSTERY, ui.font_small(), w=_CELL_W, center=True)
 
             # Every tile is navigable (arrows/click) so the grid never goes
             # dead: caught -> companion page, huntable -> the hunt, dormant ->

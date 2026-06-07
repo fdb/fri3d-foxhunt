@@ -34,5 +34,9 @@ board layer handles the hardware differences.
   them; keep per-widget state in the Activity.
 
 ## Layout source of truth
-`layout/beestenjacht-layout.html` is the pixel-exact 320×240 spec. Screen
-coordinates in the app come from it; keep them in sync.
+`layout/beestenjacht-layout.html` is the pixel-exact 320×240 spec — it owns
+sizes, gaps and colours; keep them in sync. *How* the app expresses them is in
+`DESIGN.md`: repeated elements use LVGL flex via `ui.row(...)` (positions are
+computed, not transcribed); only one-off panels keep absolute coords. Colours
+and spacing are tokens in `ui.py`, applied through shared `lv.style_t` objects —
+read `DESIGN.md` before adding a screen.

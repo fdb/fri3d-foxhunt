@@ -22,12 +22,12 @@ class CodeActivity(Activity):
         s = ui.make_screen(0xDFEEBF)
         ui.banner(s, "VOER DE CODE IN", ui.GREEN)
 
-        kx, ky, kw, kh, kg = 6, 34, 58, 45, 6
-        for i, k in enumerate(KEYS):
-            x = kx + (i % 3) * (kw + kg)
-            y = ky + (i // 3) * (kh + kg)
+        kw, kh, kg = 58, 45, 6
+        # 3 keys per row; +4px slack so the exact-fit 3rd column never wraps early
+        pad = ui.row(s, 6, 34, 3 * kw + 2 * kg + 4, 4 * kh + 3 * kg, gap=kg, wrap=True)
+        for k in KEYS:
             accent = (k == "OK")
-            b = ui.box(s, x, y, kw, kh, ui.GREEN if accent else ui.CARD, radius=3)
+            b = ui.box(pad, 0, 0, kw, kh, ui.GREEN if accent else ui.CARD, radius=3)
             b.set_style_border_width(2, 0)
             b.set_style_border_color(ui.hexc(ui.INK), 0)
             kl = ui.label(b, k, 0, 0, ui.CREAM if accent else ui.INK, ui.font_title(), w=kw, center=True)
@@ -35,12 +35,12 @@ class CodeActivity(Activity):
             ui.focusable(b, on_click=lambda kk=k: self.press(kk))
 
         self.dots = ui.label(s, "____", 198, 40, ui.INK, ui.font_title(), w=116, center=True)
-        self.rev = ui.box(s, 214, 80, 92, 92, 0xEEF4D6, radius=2)
+        self.rev = ui.box(s, 214, 80, 92, 92, ui.SURFACE_TINT, radius=2)
         self.rev.set_style_border_width(2, 0)
         self.rev.set_style_border_color(ui.hexc(ui.TERRA), 0)
         self._sprite = None
         self._draw_reveal()                       # starts as a full silhouette
-        ui.label(s, "vul de code in", 198, 178, 0x5E6B44, ui.font_small(), w=116, center=True)
+        ui.label(s, "vul de code in", 198, 178, ui.TEXT_MUTED, ui.font_small(), w=116, center=True)
 
         self.setContentView(s)
 
