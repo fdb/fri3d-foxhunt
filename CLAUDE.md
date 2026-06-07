@@ -15,6 +15,11 @@ board layer handles the hardware differences.
   `Traceback` / `Error`. Home rendering with no traceback means imports + that
   screen build cleanly (other screens build when navigated to).
 
+## Formatting
+- `scripts/format.sh` formats all Python (Ruff via `uvx`) and JSON (stdlib
+  `json.tool` via `uv`) — both Astral-runner-based, nothing installed into the
+  project. `scripts/format.sh --check` reports unformatted files and exits 1 (CI).
+
 ## Conventions
 - **Never touch pins.** Use `mpos.*` managers (`mpos.lights`, `AudioManager`) and
   gate on availability — desktop has no LEDs and no buzzer output, so those calls
