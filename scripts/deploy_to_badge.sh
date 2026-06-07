@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Deploy the Beestenjacht app onto a USB-connected Fri3d badge running
+# Deploy the Foxhunt app onto a USB-connected Fri3d badge running
 # MicroPythonOS. Apps are plain files on the device's LittleFS, so this does
 # NOT touch firmware — it stages a badge-clean copy (symlinks resolved,
 # Aseprite sources dropped) and pushes it over the serial REPL.
@@ -17,7 +17,7 @@ cd "$(dirname "$0")/.."
 #   BADGE_PORT       same as --port
 
 PROJECT_DIR="$(pwd)"
-APP_ID="com.fri3d.beestenjacht"
+APP_ID="be.fri3d.foxhunt"
 APP_SRC="$PROJECT_DIR/$APP_ID"
 MPOS_DIR="${MPOS_DIR:-$HOME/Source/MicroPythonOS}"
 CONTROLLER="$MPOS_DIR/scripts/mpos_controller.py"

@@ -1,4 +1,4 @@
-# Beestenjacht — working notes
+# Foxhunt — working notes
 
 ## Commit discipline
 - **Commit after every meaningful, working change** — a fix or feature that builds
@@ -10,7 +10,7 @@
 The identical app runs on the Fri3d 2026 badge and the macOS SDL emulator; the
 board layer handles the hardware differences.
 - The app is symlinked into a local MicroPythonOS checkout's `apps/`.
-- Run: `cd /Users/fdb/Source/MicroPythonOS && ./scripts/run_desktop.sh com.fri3d.beestenjacht`
+- Run: `cd /Users/fdb/Source/MicroPythonOS && ./scripts/run_desktop.sh be.fri3d.foxhunt`
 - Headless smoke test: run it redirected to a log file and grep the log for
   `Traceback` / `Error`. Home rendering with no traceback means imports + that
   screen build cleanly (other screens build when navigated to).
@@ -20,7 +20,7 @@ board layer handles the hardware differences.
   gate on availability — desktop has no LEDs and no buzzer output, so those calls
   must no-op and fall back (e.g. the on-screen LED mirror).
 - **Creature art:** 16×16 RGBA PNGs live in `artwork/` (with their Aseprite sources).
-  The app reads them through the `com.fri3d.beestenjacht/assets/sprites` →
+  The app reads them through the `be.fri3d.foxhunt/assets/sprites` →
   `../../artwork` symlink. A creature opts into real art with an `"img"` field in
   `creatures.py`; without it, it falls back to the procedural placeholder shape.
   (For a badge build, resolve the symlink: `cp -rL`.)
@@ -34,7 +34,7 @@ board layer handles the hardware differences.
   them; keep per-widget state in the Activity.
 
 ## Layout source of truth
-`layout/beestenjacht-layout.html` is the pixel-exact 320×240 spec — it owns
+`layout/foxhunt-layout.html` is the pixel-exact 320×240 spec — it owns
 sizes, gaps and colours; keep them in sync. *How* the app expresses them is in
 `DESIGN.md`: repeated elements use LVGL flex via `ui.row(...)` (positions are
 computed, not transcribed); only one-off panels keep absolute coords. Colours

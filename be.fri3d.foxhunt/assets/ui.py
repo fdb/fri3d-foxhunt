@@ -2,7 +2,7 @@
 # and focus wiring so touch/mouse AND joystick/arrow-keys all work.
 #
 # Everything is positioned with absolute integer coords from the layout spec
-# (layout/beestenjacht-layout.html), in the real 320x240 space.
+# (layout/foxhunt-layout.html), in the real 320x240 space.
 
 import lvgl as lv
 from mpos import FontManager
@@ -92,7 +92,7 @@ _PRESSED = _style(translate_y=2)
 # ---- fonts: baked Pixelify Sans bitmap fonts (crisp, no anti-alias) --------
 # Loaded at runtime via lv.binfont_create (.bin from lv_font_conv). Falls back
 # to built-in Montserrat if a font fails to load, so the app always runs.
-_FONT_DIR = "M:apps/com.fri3d.beestenjacht/assets/fonts/"
+_FONT_DIR = "M:apps/be.fri3d.foxhunt/assets/fonts/"
 _FONTS = {}
 
 

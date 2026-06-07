@@ -1,4 +1,4 @@
-# beestenjacht.py — app entry. HomeActivity: the Pokedex grid (the "boek").
+# foxhunt.py — app entry. HomeActivity: the Pokedex grid (the "boek").
 #
 # Loaded by MicroPythonOS via MANIFEST.JSON (classname HomeActivity). The
 # assets/ dir is on sys.path, so the flat `import ui`, `import art`, etc. work.
@@ -39,7 +39,7 @@ class HomeActivity(Activity):
         s = self.screen
         awake = set(RADIO.active_foxes())
         caught = set(store.caught_ids())
-        ui.banner(s, "BEESTENJACHT", ui.GREEN,
+        ui.banner(s, "FOXHUNT", ui.GREEN,
                   right="%d/%d" % (len(caught), len(CREATURES)))
 
         # 4 cells per row; +2px slack so the exact-fit 4th column never wraps early

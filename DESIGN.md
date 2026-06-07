@@ -1,4 +1,4 @@
-# Beestenjacht — design & UI house rules
+# Foxhunt — design & UI house rules
 
 Two lenses, one goal: a consistent, legible, tactile little game that builds the
 same on the Fri3d badge and the desktop emulator. The first lens is **LVGL done
@@ -6,7 +6,7 @@ idiomatically** (so the badge's limited RAM and the shared codebase stay happy);
 the second is the **golden-age Apple HIG** principles the design already leans
 on. Keep new screens scoring well on both.
 
-The pixel spec is still `layout/beestenjacht-layout.html` — it owns sizes, gaps,
+The pixel spec is still `layout/foxhunt-layout.html` — it owns sizes, gaps,
 and colours. This file owns *how we express them in code*.
 
 ---
@@ -93,4 +93,4 @@ the type scale; don't invent a fourth.
 - [ ] Every interactive element `ui.focusable(...)` with an `on_click` + a sound.
 - [ ] No app-drawn back button.
 - [ ] Sprites refresh via `clean()` + rebuild, never a second `setContentView`.
-- [ ] Verified on the emulator against `layout/beestenjacht-layout.html`.
+- [ ] Verified on the emulator against `layout/foxhunt-layout.html`.

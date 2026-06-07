@@ -1,4 +1,4 @@
-# Beestenjacht 🦊
+# Foxhunt 🦊
 
 A "fox hunting" (ARDF) game for the **Fri3d Camp 2026 badge**. Kids hunt hidden
 LoRa beacons ("beasts") with a directional antenna and collect them in a
@@ -9,10 +9,10 @@ same source.
 ## Layout
 
 ```
-com.fri3d.beestenjacht/      # the MicroPythonOS app (the thing that ships)
+be.fri3d.foxhunt/      # the MicroPythonOS app (the thing that ships)
   META-INF/MANIFEST.JSON
   assets/                    # all the Python; assets/ is on sys.path at runtime
-    beestenjacht.py          # entry: HomeActivity (the "boek" grid)
+    foxhunt.py          # entry: HomeActivity (the "boek" grid)
     screen_hunt.py           # classic ARDF: silhouette + heart/bpm + 5 LEDs
     screen_code.py           # PIN keypad + reveal
     screen_win.py            # "Gevangen!" payoff -> back to home
@@ -24,7 +24,7 @@ com.fri3d.beestenjacht/      # the MicroPythonOS app (the thing that ships)
     sound.py                 # buzzer RTTTL jingles (no-op on desktop)
     store.py                 # caught-set persistence (SharedPreferences)
   res/mipmap-mdpi/icon_64x64.png
-layout/beestenjacht-layout.html   # pixel-exact 320x240 layout spec (source of truth)
+layout/foxhunt-layout.html   # pixel-exact 320x240 layout spec (source of truth)
 PLAN.md                           # architecture + decisions
 proposal.md / app.md              # original workshop brief
 ```
@@ -36,7 +36,7 @@ checkout:
 
 ```bash
 cd /Users/fdb/Source/MicroPythonOS
-./scripts/run_desktop.sh com.fri3d.beestenjacht
+./scripts/run_desktop.sh be.fri3d.foxhunt
 ```
 
 Mouse = touch · arrow keys = focus nav · Esc = back. The hunt "warms up" on its

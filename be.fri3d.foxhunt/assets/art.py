@@ -136,7 +136,7 @@ def draw_sprite(parent, rows, palette, scale, silhouette=False, reveal=1.0):
 # Creature PNGs are authored at 16x16 RGBA (same grid as the shapes) and live
 # in assets/sprites/ (NOT assets/creatures/ — that would shadow creatures.py on
 # import). A creature opts in via its "img" field (see creatures.py).
-_CREATURE_DIR = "M:apps/com.fri3d.beestenjacht/assets/sprites/"
+_CREATURE_DIR = "M:apps/be.fri3d.foxhunt/assets/sprites/"
 _IMG_SRC = 16
 
 

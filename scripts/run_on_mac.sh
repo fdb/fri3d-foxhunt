@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Run the Beestenjacht app on the macOS SDL emulator.
+# Run the Foxhunt app on the macOS SDL emulator.
 #
 # This uses a PREBUILT MicroPythonOS package (no compiling from source). If the
 # package isn't on disk yet it's downloaded and unzipped automatically, so a
@@ -21,7 +21,7 @@ cd "$(dirname "$0")/.."
 #   MPOS_PKG_URL    download URL for the prebuilt macOS package zip
 
 PROJECT_DIR="$(pwd)"
-APP_ID="com.fri3d.beestenjacht"
+APP_ID="be.fri3d.foxhunt"
 APP_SRC="$PROJECT_DIR/$APP_ID"
 MPOS_DIR="${MPOS_DIR:-$HOME/MicroPythonOS}"
 MPOS_PKG_URL="${MPOS_PKG_URL:-https://debleser.s3-eu-central-1.amazonaws.com/2026-fri3d-badge/MicroPythonOS-macOS-0.12.0.zip}"

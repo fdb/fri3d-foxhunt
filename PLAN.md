@@ -1,17 +1,17 @@
-# Beestenjacht — implementatieplan
+# Foxhunt — implementatieplan
 
 Fox-hunt badge-app voor Fri3d Camp 2026. Kinderen (6–12) jagen op verstopte
 RF-zenders ("beesten") met een directionele antenne, en verzamelen ze in een
 Pokédex-achtig boek. UI in het Nederlands, cutesy pixel-art.
 
 Bronnen: `proposal.md` (workshop-abstract), `app.md` (app-brief),
-design-handoff van Claude Design (`Beestenjacht Schermen.html`).
+design-handoff van Claude Design (`Foxhunt Schermen.html`).
 
 ---
 
 ## 1. Waar we nu staan
 
-- **`layout/beestenjacht-layout.html`** — de vier schermen, pixel-exact op een
+- **`layout/foxhunt-layout.html`** — de vier schermen, pixel-exact op een
   echte 320×240 grid. Dit is de *bron-of-truth voor de geometrie*: elke maat is
   een geheel getal, niets is fractioneel. Open in een browser, zet "Pixelraster
   8px" aan om te controleren dat alles op de grid valt.
@@ -68,7 +68,7 @@ Vier schermen, één lineaire lus (de "catch loop"):
 Alle coördinaten zijn **logische pixels** in 320×240. Banner = `0,0 → 320×26`.
 
 ### Hoofdscherm — Pokédex-raster
-- Banner met titel `BEESTENJACHT` + teller `4/12` rechts.
+- Banner met titel `FOXHUNT` + teller `4/12` rechts.
 - Raster 4×3, **cel = 74×66**, gap 4, marges links/rechts 6, top 30.
   - kolom-x: `6, 84, 162, 240` · rij-y: `30, 100, 170`
   - (controle: 4·74 + 3·4 + 2·6 = 320 ✓ · 30 + 3·66 + 2·4 = 236, 4px onderaan ✓)
@@ -151,10 +151,10 @@ hartslag-bpm       150  130  110   90   70   (sneller = dichterbij)
 App-structuur (Android-achtig model):
 
 ```
-com.fri3d.beestenjacht/
+be.fri3d.foxhunt/
 ├── META-INF/MANIFEST.JSON      # name, fullname, version, activities[]
 ├── assets/
-│   ├── beestenjacht.py         # Activity-subclass, onCreate() → setContentView
+│   ├── foxhunt.py         # Activity-subclass, onCreate() → setContentView
 │   ├── screens.py              # 4 schermen, bouwt LVGL-objecten op de coords van §4
 │   ├── sprites.py              # SH-shapes, PALS-paletten, roster
 │   ├── pixel.py                # sprite → lv.canvas (pixel-blit met palet)
@@ -176,7 +176,7 @@ com.fri3d.beestenjacht/
 
 ## 8. Milestones
 
-1. **Layout vastleggen** ✅ — `layout/beestenjacht-layout.html`, gesnapt op de grid.
+1. **Layout vastleggen** ✅ — `layout/foxhunt-layout.html`, gesnapt op de grid.
 2. **Sprite-pipeline** — `draw_sprite` in MicroPython/LVGL; render het roster op één
    testscherm. *Verify:* alle 12 beesten herkenbaar, scherp, op de juiste plek.
 3. **Statische schermen** — de vier schermen exact volgens §4 (nog zonder logica).

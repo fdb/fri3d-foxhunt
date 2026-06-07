@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Beestenjacht — how a fox-hunt fits in 320×240 pixels</title>
+<title>Foxhunt — how a fox-hunt fits in 320×240 pixels</title>
 <!--
   CONCEPT-DEPENDENCY MAP (the spine — each section unlocks the next)
    1. The premise: ARDF fox hunt + Pokédex collecting        (deps: none)
@@ -102,7 +102,7 @@ footer{margin:5rem 0 3rem; padding-top:1.5rem; border-top:1px solid var(--rule);
 <header class="page">
   <div class="kicker">Fri3d Camp 2026 badge · MicroPythonOS + LVGL · June 2026</div>
   <h1>How a fox-hunt fits in 320×240 pixels</h1>
-  <p class="lede">Beestenjacht is a creature-catching game for the Fri3d 2026 badge — kids
+  <p class="lede">Foxhunt is a creature-catching game for the Fri3d 2026 badge — kids
   hunt hidden radio beacons in a forest with a directional antenna and collect them in a
   Pokédex-style book. One Python codebase runs on the badge hardware <em>and</em> on a
   macOS emulator. This page builds up how it works, one primitive at a time, with figures
@@ -132,7 +132,7 @@ footer{margin:5rem 0 3rem; padding-top:1.5rem; border-top:1px solid var(--rule);
   <h2>1. What is the player actually doing?</h2>
   <p>The game restages a real radio sport. In <em>ARDF</em> — amateur radio direction
   finding, the "fox hunt" — small transmitters are hidden over a field, and you carry a
-  directional antenna to home in on them. Beestenjacht dresses each transmitter as a
+  directional antenna to home in on them. Foxhunt dresses each transmitter as a
   cartoon "beest" (Dutch for beast). You can't see the beasts; you can only <em>feel</em>
   them through signal strength: turn until the signal peaks, walk until it grows, and when
   you reach the box you read a 4-digit code off its back and type it into the badge to
@@ -233,7 +233,7 @@ footer{margin:5rem 0 3rem; padding-top:1.5rem; border-top:1px solid var(--rule);
   <p>A web mockup can say "this column is 46% wide" and the browser will happily paint half
   a pixel. A 320×240 framebuffer cannot — each element must land on an integer pixel or it
   smears. So the project's source of truth for geometry isn't the code; it's
-  <code>layout/beestenjacht-layout.html</code>, a pixel-exact mock snapped to a grid where
+  <code>layout/foxhunt-layout.html</code>, a pixel-exact mock snapped to a grid where
   every size is a whole number. Those integers become the <em>literal</em> arguments to
   LVGL's <code>set_pos(x, y)</code> and <code>set_size(w, h)</code>.</p>
 
@@ -245,7 +245,7 @@ footer{margin:5rem 0 3rem; padding-top:1.5rem; border-top:1px solid var(--rule);
       <svg viewBox="0 0 320 240" id="gridFig" width="100%" style="max-width:480px; margin:0 auto; border:1px solid var(--rule); background:oklch(0.93 0.03 85)">
         <g id="rasterG"></g>
         <rect x="0" y="0" width="320" height="26" fill="oklch(0.6 0.12 145)"/>
-        <text x="8" y="18" class="svg-label" fill="oklch(0.97 0.02 85)" font-weight="600">BEESTENJACHT</text>
+        <text x="8" y="18" class="svg-label" fill="oklch(0.97 0.02 85)" font-weight="600">FOXHUNT</text>
         <g id="cellsG"></g>
         <g id="dimG"></g>
       </svg>
@@ -560,7 +560,7 @@ footer{margin:5rem 0 3rem; padding-top:1.5rem; border-top:1px solid var(--rule);
 
   <p>Persistence is deliberately tiny. <code>store.py</code> keeps a single list under the
   key <code>caught</code> in a per-app <code>SharedPreferences</code> file
-  (<code>data/com.fri3d.beestenjacht/config.json</code>) — the same path on badge and
+  (<code>data/be.fri3d.foxhunt/config.json</code>) — the same path on badge and
   desktop. Catching appends an id; the home book reads the list back to decide which tiles
   are revealed and to draw its <code>4/12</code> counter. No network is needed for the save,
   and a re-catch never duplicates an id. That JSON file is also where each creature's
@@ -637,20 +637,20 @@ footer{margin:5rem 0 3rem; padding-top:1.5rem; border-top:1px solid var(--rule);
   on your laptop from the same source.</p>
 
   <h3>Where to go next</h3>
-  <p>The code is small and readable end to end. Good entry points: <code>beestenjacht.py</code>
+  <p>The code is small and readable end to end. Good entry points: <code>foxhunt.py</code>
   (the home grid and the <code>clean()</code>-on-resume rebuild), <code>art.py</code> (the
   procedural renderer and the PNG swap), <code>fox_radio.py</code> (the seam and the fake),
   and <code>pet.py</code> (the pure rules with its self-test). The geometry lives in
-  <code>layout/beestenjacht-layout.html</code>; the house rules for adding a screen are in
+  <code>layout/foxhunt-layout.html</code>; the house rules for adding a screen are in
   <code>DESIGN.md</code>; the architecture and open questions are in <code>PLAN.md</code>.</p>
 </section>
 
 <footer>
-  <p>Interactive explainer for <strong>Beestenjacht</strong> — the Fri3d Camp 2026 badge
+  <p>Interactive explainer for <strong>Foxhunt</strong> — the Fri3d Camp 2026 badge
   fox-hunt app. Generated 7 June 2026. All figures use real values from the source:
   sprite grids and palettes from <code>art.py</code>, the LED colour table from
   <code>leds.py</code>, the decay and action maths from <code>pet.py</code>.</p>
-  <p>Source: the <code>com.fri3d.beestenjacht/</code> app tree, with <code>PLAN.md</code>,
+  <p>Source: the <code>be.fri3d.foxhunt/</code> app tree, with <code>PLAN.md</code>,
   <code>DESIGN.md</code> and <code>README.md</code> as companion documents.</p>
 </footer>
 

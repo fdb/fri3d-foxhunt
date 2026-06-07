@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Beestenjacht · Pixel-layout (320×240)</title>
+<title>Foxhunt · Pixel-layout (320×240)</title>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet" />
 <style>
   /*
@@ -57,7 +57,7 @@
 </style>
 </head>
 <body data-grid="off" data-grid1="off" data-crt="off" data-ruler="off">
-  <h1>Beestenjacht — pixel-exact layout</h1>
+  <h1>Foxhunt — pixel-exact layout</h1>
   <p class="sub">Vier schermen op een échte 320×240 pixelgrid. Elke maat hier is een geheel getal —
   geen %, geen flex, geen halve pixels. Dit is de bron-of-truth voor de MicroPythonOS-implementatie.
   Zet het pixelraster aan om te controleren dat alles op de grid valt.</p>
@@ -215,7 +215,7 @@
   function scrHome(){
     const s=makeStage();
     s.style.background='var(--paper)';
-    banner(s,'BEESTENJACHT',{right:'4/12'});
+    banner(s,'FOXHUNT',{right:'4/12'});
     const cols=[6,84,162,240], rows=[30,100,170], CW=74, CH=66;
     ROSTER.forEach((c,i)=>{
       const x=cols[i%4], y=rows[(i/4)|0];
