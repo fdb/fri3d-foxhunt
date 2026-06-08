@@ -116,11 +116,11 @@ def _load(name, fallback_size):
 
 
 def font_small():
-    return _load("pixelify_r14.bin", 12)
+    return _load("pixelify_r11.bin", 11)
 
 
 def font_label():
-    return _load("pixelify_r16.bin", 14)
+    return _load("pixelify_r11.bin", 11)
 
 
 def font_title():
