@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Foxhunt — Bitmap Font Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="root"></div>
+<script src="font_codec.js"></script>
+<script>
+"use strict";
+// ============================================================
+// Foxhunt Bitmap Font Editor — PixelForge visual system (vanilla)
+// driven by the metrics-correct font_codec.js engine + real File
+// System Access. Glyphs carry advance width + baseline-relative
+// ascent/descent; the editor canvas + guides come from those.
+// ============================================================
+const C = window.FontCodec;
+
+// ---- tiny DOM helper ----
+function el(tag, props, ...kids){
+  const e=document.createElement(tag);
+  if(props) for(const k in props){
+    if(k==="class") e.className=props[k];
+    else if(k==="style") e.style.cssText=props[k];
+    else if(k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(),props[k]);
+    else if(k==="html") e.innerHTML=props[k];
+    else if(props[k]!=null) e.setAttribute(k,props[k]);
+  }
+  for(const c of kids){ if(c==null||c===false)continue; e.append(c.nodeType?c:document.createTextNode(c)); }
+  return e;
+}
+const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function pcanvas(w,h){ const cv=el("canvas"); const dpr=window.devicePixelRatio||1;
+  cv.width=Math.max(1,Math.round(w*dpr)); cv.height=Math.max(1,Math.round(h*dpr));
+  cv.style.width=Math.max(1,w)+"px"; cv.style.height=Math.max(1,h)+"px"; cv.style.imageRendering="pixelated";
+  const ctx=cv.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.imageSmoothingEnabled=false; cv._ctx=ctx; return cv; }
+
+// ---- global state ----
+const S = {
+  dir:null, fonts:new Map(), order:[], cur:null, dirty:new Set(),
+  view:"library", ch:null,
+  tweaks:{ previewText:"Sphinx of black quartz", theme:"light",
+           accent:"oklch(0.62 0.13 250)", showGrid:true, showMinimap:true },
+  ed:{ tool:"pencil", penSize:1, penShape:"square", rectFill:false, zoom:0 },
+};
+
+// =====================================================================
+// glyph rendering (metrics-aware) — shared by library / grid / minimap
+// =====================================================================
+function drawGlyphCells(ctx, g, ox, baseY, s, color){
+  ctx.fillStyle=color;
+  const {x,y,width:w,height:h}=g.bbox;
+  for(let r=0;r<h;r++)for(let c=0;c<w;c++){
+    if(!(g.pixels[r]&&g.pixels[r][c]))continue;
+    const ay=y+(h-1-r);
+    ctx.fillRect(ox+(x+c)*s, baseY-(ay+1)*s, s, s);
+  }
+}
+// render a string to a NEW canvas sized to glyph extents (never clips)
+function runCanvas(font, text, s){
+  const codes=[...text].map(c=>c.codePointAt(0));
+  const m=new Map(font.glyphs.map(g=>[g.code,g]));
+  const spaceAdv=Math.max(1,Math.round(font.meta.ascent*0.4));
+  let w=0, top=font.meta.ascent, bot=Math.min(0,font.meta.descent);
+  for(const cp of codes){ const g=m.get(cp);
+    if(g){ w+=g.advanceWidth; if(g.bbox.height){ top=Math.max(top,g.bbox.y+g.bbox.height); bot=Math.min(bot,g.bbox.y);} }
+    else w+=spaceAdv; }
+  const h=Math.max(1,top-bot);
+  const cv=pcanvas(Math.max(1,w*s), h*s); const ctx=cv._ctx;
+  const ink=cssVar("--ink")||"#222"; let ox=0; const baseY=top*s;
+  for(const cp of codes){ const g=m.get(cp); if(g) drawGlyphCells(ctx,g,ox,baseY,s,ink); ox+=(g?g.advanceWidth:spaceAdv)*s; }
+  return cv;
+}
+function charLabel(cp){ if(cp===32)return "SPC"; return String.fromCodePoint(cp); }
+
+// =====================================================================
+// File System Access
+// =====================================================================
+async function openFolder(){
+  try{ S.dir=await window.showDirectoryPicker({mode:"readwrite"}); }catch(e){ return; }
+  await loadDir();
+}
+async function loadDir(){
+  S.fonts.clear(); S.order=[]; S.dirty.clear();
+  const handles=new Map();
+  for await(const [name,h] of S.dir.entries()){ if(h.kind==="file"&&/\.(bdf|bin)$/i.test(name)) handles.set(name,h); }
+  for(const [name,h] of [...handles].sort((a,b)=>a[0].localeCompare(b[0]))){
+    try{ const f=await h.getFile();
+      const font=/\.bdf$/i.test(name)?C.parseBDF(await f.text()):C.parseLvBin(await f.arrayBuffer());
+      font._handle=h; S.fonts.set(name,font); S.order.push(name);
+    }catch(e){ console.warn("parse failed",name,e); }
+  }
+  S.view="library"; render();
+}
+async function writeFile(name, data){
+  const h=await S.dir.getFileHandle(name,{create:true});
+  const w=await h.createWritable(); await w.write(data); await w.close(); return h;
+}
+async function saveBDF(){
+  if(!S.cur)return; commitGlyph();
+  const font=S.fonts.get(S.cur); const name=S.cur.replace(/\.bin$/i,".bdf");
+  await writeFile(name, C.serializeBDF(font));
+  if(name!==S.cur){ S.fonts.set(name,font); if(!S.order.includes(name))S.order.push(name); S.cur=name; }
+  S.dirty.delete(S.cur); toast("Saved "+name); render();
+}
+async function exportBin(){
+  if(!S.cur)return; commitGlyph();
+  const font=S.fonts.get(S.cur); const name=S.cur.replace(/\.(bdf|bin)$/i,".bin");
+  const bin=C.lvBinFromGlyphs(font,{bpp:1}); await writeFile(name,bin);
+  toast("Exported "+name+" ("+bin.length+" B)");
+}
+async function importBin(){
+  try{
+    const [h]=await window.showOpenFilePicker({types:[{description:"fonts",accept:{"application/octet-stream":[".bin",".bdf"]}}]});
+    const f=await h.getFile(); const name=f.name;
+    const font=/\.bdf$/i.test(name)?C.parseBDF(await f.text()):C.parseLvBin(await f.arrayBuffer());
+    font._handle=h; S.fonts.set(name,font); if(!S.order.includes(name))S.order.push(name);
+    if(!S.dir) S.dir={ getFileHandle:()=>{throw new Error("Open a folder to save")} }; // allow view w/o dir
+    S.cur=name; S.view="grid"; render();
+  }catch(e){}
+}
+let _toastT;
+function toast(msg){ let t=document.getElementById("toast"); if(!t){ t=el("div",{id:"toast",style:"position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font:600 12px/1 'IBM Plex Mono',monospace;padding:9px 14px;border-radius:6px;z-index:50;box-shadow:0 4px 16px #0004"}); document.body.append(t);} t.textContent=msg; t.style.opacity="1"; clearTimeout(_toastT); _toastT=setTimeout(()=>t.style.opacity="0",1800); }
+
+// =====================================================================
+// Top bar
+// =====================================================================
+function DotLogo(){ const on=[0,1,3,4,5,7,8]; const w=el("span",{class:"dot-logo"});
+  for(let i=0;i<9;i++) w.append(el("i",{class:on.includes(i)?"":"off"})); return w; }
+function topbar(){
+  const font=S.cur?S.fonts.get(S.cur):null;
+  const crumbs=el("div",{class:"crumbs mono"},
+    el("a",{class:S.view==="library"?"here":"", onClick:()=>{S.view="library";render();}},"fonts"));
+  if(font){ crumbs.append(el("span",{class:"sep"},"/"),
+    el("a",{class:S.view==="grid"?"here":"", onClick:()=>{S.view="grid";render();}}, S.cur, S.dirty.has(S.cur)?el("span",{class:"dirty-dot"}):null)); }
+  if(font&&S.view==="editor"&&S.ch!=null){ crumbs.append(el("span",{class:"sep"},"/"), el("span",{class:"here"},charLabel(S.ch))); }
+
+  const actions=el("div",{class:"tb-actions"});
+  actions.append(el("button",{class:"btn",onClick:openFolder},"Open folder…"));
+  if(font){
+    actions.append(
+      el("button",{class:"btn",onClick:saveBDF,title:"Save .bdf"},"Save .bdf"),
+      el("button",{class:"btn",onClick:exportBin,title:"Export LVGL .bin"},"Export .bin"));
+  }
+  actions.append(el("button",{class:"btn ghost",onClick:importBin,title:"Import .bin / .bdf"},"Import…"));
+  actions.append(el("button",{class:"btn ghost",onClick:toggleTweaks,title:"Settings"},"⚙"));
+
+  return el("div",{class:"topbar"},
+    el("span",{class:"brand"},DotLogo()," FOXHUNT FONTS"),
+    el("span",{style:"width:1px;height:22px;background:var(--border)"}),
+    crumbs,
+    el("span",{class:"spacer"}),
+    S.dir&&S.dir.name?el("span",{class:"tb-dir"},S.dir.name+"/"):null,
+    actions);
+}
+
+// =====================================================================
+// Library view
+// =====================================================================
+function libraryView(){
+  if(!S.fonts.size){
+    return el("div",{class:"hero"},
+      DotLogo(),
+      el("h2",null,"Open a folder of bitmap fonts"),
+      el("p",null,"Edit .bdf (text, version-controlled) and export LVGL .bin. Point me at a directory of .bdf/.bin files — I'll preview them all, then you can edit any glyph with real metrics."),
+      el("button",{class:"btn",style:"font-size:14px;padding:9px 16px",onClick:openFolder},"Open fonts folder…"),
+      el("p",{class:"note"},"Chrome / Edge (File System Access API). Or use Import… for a single file."));
+  }
+  const head=el("div",{class:"ov-head"},
+    el("h1",null,"Bitmap font library"),
+    el("p",null,S.fonts.size+" font"+(S.fonts.size>1?"s":"")+" in "+(S.dir?.name||"folder")+" · type a sentence to preview them all, then open one to edit."),
+    el("div",{class:"ov-preview-row"},
+      el("label",{for:"pv"},"Preview"),
+      el("input",{id:"pv",class:"field",value:S.tweaks.previewText,placeholder:"Type a preview sentence…",spellcheck:"false",
+        onInput:e=>{ S.tweaks.previewText=e.target.value; for(const name of S.order) refreshCardPreview(name); }})));
+  const grid=el("div",{class:"ov-grid"});
+  for(const name of S.order){ grid.append(fontCard(name)); }
+  return el("div",{class:"scroll",style:"flex:1;min-height:0"}, head, grid);
+}
+function fontCard(name){
+  const font=S.fonts.get(name);
+  const wrap=el("div",{class:"fc-canvas-wrap scroll"});
+  wrap.append(runCanvas(font, S.tweaks.previewText||" ", fitScale(font,S.tweaks.previewText||" ",302,5)));
+  const card=el("div",{class:"fontcard",title:"Open "+name,onClick:()=>{S.cur=name;S.view="grid";render();}},
+    el("div",{class:"fc-head"},
+      el("span",{class:"nm"},name.replace(/\.(bdf|bin)$/i,""), S.dirty.has(name)?el("span",{class:"dirty-dot"}):null),
+      el("span",{class:"ct"}, /\.bin$/i.test(name)?"bin":"bdf"),
+      el("span",{class:"open mono"},"open →")),
+    wrap,
+    el("div",{class:"fc-foot"},
+      el("span",null,"asc "+font.meta.ascent+" / desc "+Math.abs(font.meta.descent)),
+      el("span",null,"·"), el("span",null,font.glyphs.length+" glyphs")));
+  card._wrap=wrap; card._name=name; return card;
+}
+function refreshCardPreview(name){
+  const card=[...document.querySelectorAll(".fontcard")].find(c=>c._name===name); if(!card)return;
+  const font=S.fonts.get(name);
+  card._wrap.innerHTML=""; card._wrap.append(runCanvas(font,S.tweaks.previewText||" ",fitScale(font,S.tweaks.previewText||" ",302,5)));
+}
+function fitScale(font,text,maxW,maxS){ const c=runCanvas(font,text,1); const w=parseInt(c.style.width)||1; return Math.max(1,Math.min(maxS||5,Math.floor(maxW/Math.max(1,w)))); }
+
+// =====================================================================
+// Glyph grid view
+// =====================================================================
+function gridView(){
+  const font=S.fonts.get(S.cur);
+  const head=el("div",{class:"gg-head"},
+    el("button",{class:"btn",onClick:()=>{S.view="library";render();}},"← Back"),
+    el("span",{class:"title"},S.cur.replace(/\.(bdf|bin)$/i,"")),
+    el("span",{class:"tag"}, /\.bin$/i.test(S.cur)?"bin":"bdf"),
+    el("span",{class:"hint"},"asc "+font.meta.ascent+" / desc "+Math.abs(font.meta.descent)+" · "+font.glyphs.length+" glyphs"),
+    el("span",{style:"flex:1"}),
+    el("span",{class:"path mono"},"double-click a glyph to edit"));
+  const grid=el("div",{class:"gg-grid"});
+  const sc=Math.max(2,Math.floor(46/(font.meta.ascent-font.meta.descent)));
+  for(const g of font.glyphs){
+    const tile=el("div",{class:"glyph-tile"+(g.code===S.ch?" sel":""),
+      title:"U+"+g.code.toString(16).toUpperCase().padStart(4,"0")+" — double-click to edit",
+      onClick:()=>{S.ch=g.code; [...grid.children].forEach(c=>c.classList.remove("sel")); tile.classList.add("sel");},
+      onDblclick:()=>{S.ch=g.code; S.view="editor"; render();}});
+    tile.append(runCanvas(font,String.fromCodePoint(g.code),sc),
+      el("div",{class:"gl-label"}, el("span",null,charLabel(g.code)), el("span",{class:"code"},g.code)));
+    grid.append(tile);
+  }
+  return el("div",{class:"scroll",style:"flex:1;min-height:0"}, head, el("div",{class:"gg-wrap"},grid));
+}
+
+// =====================================================================
+// Editor view — metrics-aware
+// =====================================================================
+const PAD=2;
+const ED={};   // live editor session (geometry, buffer, history, redraw)
+function makeBrush(size,shape){ const start=-Math.floor((size-1)/2); const center=start+(size-1)/2; const cells=[];
+  for(let i=0;i<size;i++)for(let j=0;j<size;j++){ const dx=start+j,dy=start+i;
+    if(shape==="circle"&&size>2){ if(Math.hypot(dx-center,dy-center)>(size/2)*0.92)continue; } cells.push([dx,dy]); } return cells; }
+function lineCells(x0,y0,x1,y1){ const p=[]; let dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1,err=dx-dy,x=x0,y=y0;
+  while(true){ p.push([x,y]); if(x===x1&&y===y1)break; const e2=2*err; if(e2>-dy){err-=dy;x+=sx;} if(e2<dx){err+=dx;y+=sy;} } return p; }
+function rectCells(x0,y0,x1,y1,fill){ const ax=Math.min(x0,x1),bx=Math.max(x0,x1),ay=Math.min(y0,y1),by=Math.max(y0,y1),p=[];
+  for(let y=ay;y<=by;y++)for(let x=ax;x<=bx;x++) if(fill||x===ax||x===bx||y===ay||y===by)p.push([x,y]); return p; }
+function normRect(a,b){ return {x0:Math.min(a.x,b.x),y0:Math.min(a.y,b.y),x1:Math.max(a.x,b.x),y1:Math.max(a.y,b.y)}; }
+
+function curGlyph(){ const f=S.fonts.get(S.cur); return f.glyphs.find(g=>g.code===S.ch); }
+function capHeightOf(font){ const H=font.glyphs.find(g=>g.code===72); return H&&H.bbox.height?H.bbox.height:Math.round(font.meta.ascent*0.7); }
+
+// build geometry + dense buffer from the current glyph. Preserve the live
+// session (buffer + undo history) across re-renders of the SAME glyph/metrics;
+// only rebuild when the glyph, ascent/descent, or advance actually change.
+function edBuildBuffer(){
+  const font=S.fonts.get(S.cur), g=curGlyph();
+  const key=S.cur+"|"+S.ch+"|"+font.meta.ascent+"|"+font.meta.descent+"|"+g.advanceWidth;
+  if(ED.key===key && ED.buf) return;
+  ED.key=key;
+  ED.advance = g.advanceWidth;
+  const asc=font.meta.ascent, desc=font.meta.descent;
+  let bx0=0,bx1=Math.max(1,ED.advance), by0=desc, by1=asc;
+  if(g.bbox.height){ bx0=Math.min(bx0,g.bbox.x); bx1=Math.max(bx1,g.bbox.x+g.bbox.width); by0=Math.min(by0,g.bbox.y); by1=Math.max(by1,g.bbox.y+g.bbox.height); }
+  // horizontal box is exactly [0, advance) — no padding; only extend to show
+  // any pre-existing ink outside the advance (those columns are non-paintable).
+  ED.LEFT=bx0; const RIGHT=bx1; ED.C=Math.max(1,RIGHT-ED.LEFT);
+  ED.TOPAY=by1-1+PAD; const BOTAY=by0-PAD; ED.R=ED.TOPAY-BOTAY+1;
+  ED.buf=Array.from({length:ED.R},()=>Array(ED.C).fill(0));
+  for(let r=0;r<g.bbox.height;r++)for(let c=0;c<g.bbox.width;c++){
+    if(!(g.pixels[r]&&g.pixels[r][c]))continue;
+    const ay=g.bbox.y+(g.bbox.height-1-r), xabs=g.bbox.x+c;
+    ED.buf[ED.TOPAY-ay][xabs-ED.LEFT]=1;
+  }
+  ED.sel=null; ED.float=null; ED.overlay=null; ED.undo=[]; ED.redo=[];
+}
+function edCommit(){   // buffer -> glyph bbox/pixels (+ advance)
+  const g=curGlyph(); g.advanceWidth=ED.advance;
+  let xmin=1e9,xmax=-1e9,aymin=1e9,aymax=-1e9,any=false;
+  for(let r=0;r<ED.R;r++)for(let c=0;c<ED.C;c++) if(ED.buf[r][c]){ any=true;
+    const xabs=ED.LEFT+c, ay=ED.TOPAY-r; xmin=Math.min(xmin,xabs);xmax=Math.max(xmax,xabs);aymin=Math.min(aymin,ay);aymax=Math.max(aymax,ay); }
+  if(!any){ g.bbox={x:0,y:0,width:0,height:0}; g.pixels=[]; markDirty(); return; }
+  const w=xmax-xmin+1,h=aymax-aymin+1, px=Array.from({length:h},()=>Array(w).fill(0));
+  for(let r=0;r<ED.R;r++)for(let c=0;c<ED.C;c++) if(ED.buf[r][c]){ const xabs=ED.LEFT+c, ay=ED.TOPAY-r; px[aymax-ay][xabs-xmin]=1; }
+  g.bbox={x:xmin,y:aymin,width:w,height:h}; g.pixels=px; markDirty();
+}
+function commitGlyph(){ if(S.view==="editor"&&S.cur&&S.ch!=null&&ED.buf) edCommit(); }
+function markDirty(){ if(S.cur)S.dirty.add(S.cur); }
+function pushUndo(){ ED.undo.push(ED.buf.map(r=>r.slice())); if(ED.undo.length>80)ED.undo.shift(); ED.redo=[]; }
+
+function editorView(){
+  const font=S.fonts.get(S.cur), g=curGlyph();
+  edBuildBuffer();
+
+  // ---- tools column ----
+  const tools=el("div",{class:"ed-tools scroll"});
+  const TOOLS=[["pencil","Pencil","B"],["eraser","Eraser","E"],["line","Line","L"],["rect","Rectangle","U"],["select","Select","M"]];
+  const ICON={
+    pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 19l2.5-.6L18 7.9a1.8 1.8 0 0 0 0-2.5l-.4-.4a1.8 1.8 0 0 0-2.5 0L4.6 15.5 4 18z"/><path d="M13.5 6.5l3 3"/></svg>',
+    eraser:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6.5" y="10" width="11" height="7" rx="1" transform="rotate(-40 12 13.5)"/><path d="M8 18h9"/></svg>',
+    line:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><line x1="5" y1="19" x2="19" y2="5"/><rect x="3.5" y="17.5" width="3" height="3"/><rect x="17.5" y="3.5" width="3" height="3"/></svg>',
+    rect:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="6.5" width="14" height="11"/></svg>',
+    select:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="3 2"><rect x="5" y="5.5" width="14" height="13"/></svg>',
+  };
+  TOOLS.forEach(([id,label,hot])=>{
+    tools.append(el("button",{class:"tool-btn"+(S.ed.tool===id?" active":""),title:label+" ("+hot+")",html:ICON[id],
+      onClick:()=>{S.ed.tool=id; render();}}));
+  });
+  tools.append(el("div",{class:"tool-sep"}));
+  if(S.ed.tool==="pencil"||S.ed.tool==="eraser"){
+    tools.append(el("div",{class:"tool-mini"},"size"));
+    [1,2,3,4].forEach(n=>tools.append(el("button",{class:"opt-chip"+(S.ed.penSize===n?" on":""),onClick:()=>{S.ed.penSize=n;render();}},""+n)));
+    tools.append(el("div",{class:"tool-mini",style:"margin-top:4px"},"tip"));
+    tools.append(el("button",{class:"opt-chip"+(S.ed.penShape==="square"?" on":""),title:"Square",onClick:()=>{S.ed.penShape="square";render();}},"■"));
+    tools.append(el("button",{class:"opt-chip"+(S.ed.penShape==="circle"?" on":""),title:"Round",onClick:()=>{S.ed.penShape="circle";render();}},"●"));
+  }
+  if(S.ed.tool==="rect"){
+    tools.append(el("div",{class:"tool-mini"},"fill"));
+    tools.append(el("button",{class:"opt-chip"+(!S.ed.rectFill?" on":""),title:"Outline",onClick:()=>{S.ed.rectFill=false;render();}},"□"));
+    tools.append(el("button",{class:"opt-chip"+(S.ed.rectFill?" on":""),title:"Filled",onClick:()=>{S.ed.rectFill=true;render();}},"■"));
+  }
+
+  // ---- center: subbar + canvas + status ----
+  const isBin=/\.bin$/i.test(S.cur);
+  const subbar=el("div",{class:"ed-subbar"},
+    el("span",{class:"ch-big mono"},charLabel(S.ch)),
+    el("span",{class:"meta"},"U+"+S.ch.toString(16).toUpperCase().padStart(4,"0")+" · "+S.cur.replace(/\.(bdf|bin)$/i,"")),
+    S.dirty.has(S.cur)?el("span",{class:"tag edited"},"unsaved"):el("span",{class:"tag"},"on disk"),
+    el("span",{class:"spacer"}),
+    el("button",{class:"btn ghost",title:"Undo (⌘Z)",onClick:edUndo},"↶ Undo"),
+    el("button",{class:"btn ghost",title:"Redo (⌘⇧Z)",onClick:edRedo},"↷ Redo"),
+    el("button",{class:"btn ghost",title:"Clear glyph",onClick:edClear},"Clear"));
+  const canvas=pcanvas(10,10);
+  canvas.style.touchAction="none"; canvas.style.cursor=S.ed.tool==="select"?"default":"crosshair";
+  const area=el("div",{class:"ed-canvas-area"},
+    el("div",{style:"min-width:100%;min-height:100%;display:flex;align-items:center;justify-content:center;padding:28px;box-sizing:border-box"},canvas));
+  const status=el("div",{class:"ed-statusbar"});
+  const center=el("div",{class:"ed-center"},subbar,area,status);
+
+  // ---- right panel ----
+  const right=el("div",{class:"ed-right"});
+  // metrics section (the important part)
+  const mAdv=el("input",{class:"field",type:"number",min:"0",value:ED.advance});
+  mAdv.addEventListener("change",()=>{ edCommit(); ED.advance=Math.max(0,+mAdv.value||0); curGlyph().advanceWidth=ED.advance; markDirty(); render(); });
+  const mAsc=el("input",{class:"field",type:"number",value:font.meta.ascent});
+  const mDesc=el("input",{class:"field",type:"number",value:Math.abs(font.meta.descent)});
+  const applyMetrics=()=>{ edCommit(); font.meta.ascent=+mAsc.value||font.meta.ascent; font.meta.descent=-Math.abs(+mDesc.value||0); markDirty(); render(); };
+  mAsc.addEventListener("change",applyMetrics); mDesc.addEventListener("change",applyMetrics);
+  right.append(el("div",{class:"panel-sec"},
+    el("div",{class:"sec-title"},"Metrics"),
+    el("div",{class:"mfield"},el("label",null,"Advance width (this glyph)"),mAdv),
+    el("div",{class:"metrics-row",style:"margin-top:8px"},
+      el("div",{class:"mfield"},el("label",null,"Ascent"),mAsc),
+      el("div",{class:"mfield"},el("label",null,"Descent"),mDesc)),
+    el("div",{class:"legend",style:"margin-top:10px"},
+      el("span",null,el("i",{class:"baseline"}),"baseline"),
+      el("span",null,el("i",{class:"origin"}),"origin"),
+      el("span",null,el("i",{class:"advance"}),"advance"),
+      el("span",null,el("i",{class:"cap"}),"cap"))));
+  // minimap + word preview
+  if(S.tweaks.showMinimap){
+    const mini=el("div",{class:"minimap-row"});
+    [1,2,4].forEach(sc=>{ const cell=el("div",{class:"minimap-cell"}); cell.append(runCanvas(font,String.fromCodePoint(S.ch),sc),el("span",null,sc+"×")); mini.append(cell); });
+    right.append(el("div",{class:"panel-sec"},
+      el("div",{class:"sec-title"},"Preview"), mini,
+      el("div",{class:"word-preview scroll",style:"margin-top:12px"}, runCanvas(font, S.tweaks.previewText||"Abg", 2))));
+  }
+  // glyph list
+  const list=el("div",{class:"gl-mini-grid"});
+  const lsc=Math.max(1,Math.floor(26/(font.meta.ascent-font.meta.descent)));
+  for(const gg of font.glyphs){
+    const cell=el("div",{class:"gl-mini"+(gg.code===S.ch?" cur":""),title:charLabel(gg.code)+" (U+"+gg.code.toString(16).toUpperCase().padStart(4,"0")+")",
+      onClick:()=>{ commitGlyph(); S.ch=gg.code; render(); }});
+    cell.append(runCanvas(font,String.fromCodePoint(gg.code),lsc)); list.append(cell);
+  }
+  right.append(el("div",{class:"panel-sec glyphlist-sec"},
+    el("div",{class:"sec-title"},"Glyphs · "+S.cur.replace(/\.(bdf|bin)$/i,"")),
+    el("div",{class:"glyphlist scroll"},list)));
+
+  // ---- wire the canvas after it's attached + laid out (needs clientWidth) ----
+  requestAnimationFrame(()=>{ if(document.body.contains(canvas)) setupEditorCanvas(canvas, area, status); });
+
+  return el("div",{class:"ed"}, tools, center, right);
+}
+
+function setupEditorCanvas(cv, area, status){
+  const font=S.fonts.get(S.cur);
+  const capH=capHeightOf(font);
+  let zoom=S.ed.zoom;
+  function fit(){ const aw=area.clientWidth-56, ah=area.clientHeight-56;
+    return Math.max(4,Math.min(48,Math.floor(Math.min(aw/ED.C, ah/ED.R)))); }
+  function applyZoom(z){ zoom=z; S.ed.zoom=z; const ctx=resize(); ED.redraw=()=>paint(ctx); paint(ctx); updateStatus(); }
+  function resize(){ const w=ED.C*zoom,h=ED.R*zoom; const dpr=window.devicePixelRatio||1;
+    cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); cv.style.width=w+"px"; cv.style.height=h+"px";
+    const ctx=cv.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.imageSmoothingEnabled=false; return ctx; }
+  // colors
+  const col=()=>({ ink:cssVar("--ink"),bg:cssVar("--canvas-bg"),checker:cssVar("--checker"),
+    gline:cssVar("--grid-line"),gmaj:cssVar("--grid-major"),accent:cssVar("--accent"),
+    base:cssVar("--g-baseline"),origin:cssVar("--g-origin"),adv:cssVar("--g-advance"),cap:cssVar("--g-cap") });
+  let hover=null;
+  function paint(ctx){
+    const z=zoom, W=ED.C, H=ED.R, cssW=W*z, cssH=H*z, c=col();
+    ctx.clearRect(0,0,cssW,cssH);
+    ctx.fillStyle=c.bg; ctx.fillRect(0,0,cssW,cssH);
+    ctx.fillStyle=c.checker; for(let y=0;y<H;y++)for(let x=0;x<W;x++) if((x+y)%2===0)ctx.fillRect(x*z,y*z,z,z);
+    // non-paintable overflow columns (outside the advance box [0, advance))
+    ctx.fillStyle=c.gmaj; ctx.globalAlpha=0.16;
+    for(let x=0;x<W;x++){ const xa=ED.LEFT+x; if(xa<0||xa>=ED.advance)ctx.fillRect(x*z,0,z,cssH); }
+    ctx.globalAlpha=1;
+    // cap band (between cap line and baseline)
+    const baseRow=ED.TOPAY+1;                 // boundary below ay=0
+    const capRow=baseRow-capH;
+    ctx.fillStyle=c.cap; ctx.globalAlpha=0.08; ctx.fillRect(0,capRow*z,cssW,(baseRow-capRow)*z); ctx.globalAlpha=1;
+    // base buffer
+    const base=ED.float?ED.float.lift:ED.buf; ctx.fillStyle=c.ink;
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++) if(base[y][x])ctx.fillRect(x*z,y*z,z,z);
+    if(ED.float){ const fl=ED.float; ctx.fillStyle=c.ink;
+      for(let y=0;y<fl.h;y++)for(let x=0;x<fl.w;x++) if(fl.bmp[y][x]){ const gx=fl.x+x,gy=fl.y+y; if(gx>=0&&gx<W&&gy>=0&&gy<H)ctx.fillRect(gx*z,gy*z,z,z);} }
+    if(ED.overlay){ const ov=ED.overlay; ctx.fillStyle=ov.value?c.ink:c.bg; ctx.globalAlpha=ov.value?0.8:1;
+      for(const [x,y] of ov.cells){ if(x<0||x>=W||y<0||y>=H)continue; if(ov.value&&!canFill(x))continue; ctx.fillRect(x*z,y*z,z,z); } ctx.globalAlpha=1; }
+    if(S.tweaks.showGrid&&z>=6){ ctx.strokeStyle=c.gline; ctx.lineWidth=1; ctx.beginPath();
+      for(let x=0;x<=W;x++){ctx.moveTo(x*z+0.5,0);ctx.lineTo(x*z+0.5,cssH);} for(let y=0;y<=H;y++){ctx.moveTo(0,y*z+0.5);ctx.lineTo(cssW,y*z+0.5);} ctx.stroke(); }
+    // guides: cap (dashed), baseline, origin, advance
+    ctx.lineWidth=1.5;
+    ctx.strokeStyle=c.cap; ctx.setLineDash([3,3]); line(ctx,0,capRow*z,cssW,capRow*z); ctx.setLineDash([]);
+    ctx.strokeStyle=c.base; line(ctx,0,baseRow*z,cssW,baseRow*z);
+    const originX=(0-ED.LEFT)*z, advX=(ED.advance-ED.LEFT)*z;
+    ctx.strokeStyle=c.origin; line(ctx,originX,0,originX,cssH);
+    ctx.strokeStyle=c.adv; line(ctx,advX,0,advX,cssH);
+    // selection marquee
+    if(ED.sel){ const s=ED.sel; ctx.strokeStyle=c.accent; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+      ctx.strokeRect(s.x0*z+0.5,s.y0*z+0.5,(s.x1-s.x0+1)*z-1,(s.y1-s.y0+1)*z-1); ctx.setLineDash([]); }
+    // hover brush
+    if(hover&&(S.ed.tool==="pencil"||S.ed.tool==="eraser")){ ctx.strokeStyle=c.accent; ctx.globalAlpha=0.5; ctx.lineWidth=1;
+      for(const [dx,dy] of makeBrush(S.ed.penSize,S.ed.penShape)){ const gx=hover.x+dx,gy=hover.y+dy; if(gx>=0&&gx<W&&gy>=0&&gy<H)ctx.strokeRect(gx*z+0.5,gy*z+0.5,z-1,z-1);} ctx.globalAlpha=1; }
+  }
+  function line(ctx,x0,y0,x1,y1){ ctx.beginPath(); ctx.moveTo(x0+0.5,y0+0.5); ctx.lineTo(x1+0.5,y1+0.5); ctx.stroke(); }
+  function updateStatus(){ status.innerHTML="";
+    const seg=(l,v)=>el("span",{class:"seg"},l+" ",el("b",null,v));
+    const idx=font.glyphs.findIndex(g=>g.code===S.ch);
+    status.append(seg("pos",hover?hover.x+","+hover.y:"–"),seg("grid",ED.C+"×"+ED.R),seg("zoom",zoom+"×"),seg("tool",S.ed.tool),seg("adv",ED.advance+""));
+    if(ED.sel)status.append(seg("sel",(ED.sel.x1-ED.sel.x0+1)+"×"+(ED.sel.y1-ED.sel.y0+1)));
+    status.append(el("span",{class:"spacer",style:"flex:1"}),el("span",{class:"seg"},(idx+1)+" / "+font.glyphs.length));
+  }
+  // pointer ops
+  function cellAt(e){ const r=cv.getBoundingClientRect(); const x=Math.floor((e.clientX-r.left)/zoom), y=Math.floor((e.clientY-r.top)/zoom);
+    return {x:Math.max(0,Math.min(ED.C-1,x)),y:Math.max(0,Math.min(ED.R-1,y))}; }
+  // a column is fillable only inside the advance box [0, advance); erasing (v=0)
+  // is always allowed so pre-existing overhang ink can still be cleaned up.
+  const canFill=gx=>{ const xabs=ED.LEFT+gx; return xabs>=0 && xabs<ED.advance; };
+  function stamp(x,y,v){ for(const [dx,dy] of makeBrush(S.ed.penSize,S.ed.penShape)){ const gx=x+dx,gy=y+dy; if(gx<0||gx>=ED.C||gy<0||gy>=ED.R)continue; if(v===1&&!canFill(gx))continue; ED.buf[gy][gx]=v; } }
+  function inSel(x,y,s){ return s&&x>=s.x0&&x<=s.x1&&y>=s.y0&&y<=s.y1; }
+  let op=null;
+  cv.onpointerdown=e=>{ if(!zoom)return; e.preventDefault(); try{cv.setPointerCapture(e.pointerId);}catch(_){} const c=cellAt(e);
+    if(S.ed.tool==="pencil"||S.ed.tool==="eraser"){ pushUndo();
+      // MacPaint pencil: the stroke's value is locked from the first cell —
+      // click an "on" pixel to erase the whole drag, an "off" pixel to fill.
+      const v=S.ed.tool==="eraser"?0:(ED.buf[c.y][c.x]?0:1);
+      stamp(c.x,c.y,v); op={kind:"paint",value:v,last:c}; }
+    else if(S.ed.tool==="line"||S.ed.tool==="rect"){ op={kind:S.ed.tool,start:c}; ED.overlay={cells:S.ed.tool==="line"?lineCells(c.x,c.y,c.x,c.y):rectCells(c.x,c.y,c.x,c.y,S.ed.rectFill),value:1}; }
+    else if(S.ed.tool==="select"){ const s=ED.sel;
+      if(inSel(c.x,c.y,s)){ pushUndo(); const w=s.x1-s.x0+1,h=s.y1-s.y0+1,bmp=[],lift=ED.buf.map(r=>r.slice());
+        for(let y=0;y<h;y++){bmp.push([]);for(let x=0;x<w;x++){bmp[y][x]=lift[s.y0+y][s.x0+x];lift[s.y0+y][s.x0+x]=0;}}
+        ED.float={bmp,x:s.x0,y:s.y0,w,h,lift}; op={kind:"move",gx:c.x,gy:c.y,ox:s.x0,oy:s.y0}; }
+      else { op={kind:"select",start:c}; ED.sel={x0:c.x,y0:c.y,x1:c.x,y1:c.y}; } }
+    paint(cv.getContext("2d")); ED.redraw=()=>paint(cv.getContext("2d")); };
+  cv.onpointermove=e=>{ if(!zoom)return; const c=cellAt(e); hover=c;
+    if(!op){ paint(cv.getContext("2d")); updateStatus(); return; }
+    if(op.kind==="paint"){ for(const [px,py] of lineCells(op.last.x,op.last.y,c.x,c.y))stamp(px,py,op.value); op.last=c; }
+    else if(op.kind==="line"){ ED.overlay={cells:lineCells(op.start.x,op.start.y,c.x,c.y),value:1}; }
+    else if(op.kind==="rect"){ ED.overlay={cells:rectCells(op.start.x,op.start.y,c.x,c.y,S.ed.rectFill),value:1}; }
+    else if(op.kind==="select"){ ED.sel=normRect(op.start,c); }
+    else if(op.kind==="move"){ const fl=ED.float; fl.x=op.ox+(c.x-op.gx); fl.y=op.oy+(c.y-op.gy); ED.sel={x0:fl.x,y0:fl.y,x1:fl.x+fl.w-1,y1:fl.y+fl.h-1}; }
+    paint(cv.getContext("2d")); updateStatus(); };
+  cv.onpointerup=()=>{ const o=op; op=null; if(!o)return;
+    if(o.kind==="paint")edCommitLive();
+    else if(o.kind==="line"||o.kind==="rect"){ pushUndo(); for(const [x,y] of ED.overlay.cells){ if(x<0||x>=ED.C||y<0||y>=ED.R||!canFill(x))continue; ED.buf[y][x]=1; } ED.overlay=null; edCommitLive(); }
+    else if(o.kind==="move"){ const fl=ED.float; for(let y=0;y<fl.h;y++)for(let x=0;x<fl.w;x++) if(fl.bmp[y][x]){const gx=fl.x+x,gy=fl.y+y; if(gx>=0&&gx<ED.C&&gy>=0&&gy<ED.R&&canFill(gx))fl.lift[gy][gx]=1;} ED.buf=fl.lift; ED.float=null; edCommitLive(); }
+    else if(o.kind==="select"){ const s=ED.sel; if(s&&s.x0===s.x1&&s.y0===s.y1)ED.sel=null; }
+    paint(cv.getContext("2d")); updateStatus(); refreshSidePreviews(); };
+  cv.onpointerleave=()=>{ hover=null; paint(cv.getContext("2d")); };
+  cv.onwheel=e=>{ if(!zoom)return; e.preventDefault(); applyZoom(Math.max(2,Math.min(48,zoom+(e.deltaY<0?2:-2)))); };
+  function edCommitLive(){ edCommit(); }
+  // expose for undo/redo/clear buttons + keyboard
+  ED.applyZoom=applyZoom; ED.repaint=()=>{ paint(cv.getContext("2d")); updateStatus(); };
+  ED.deleteSel=()=>{ const s=ED.sel; if(!s)return; pushUndo(); for(let y=s.y0;y<=s.y1;y++)for(let x=s.x0;x<=s.x1;x++) if(x>=0&&x<ED.C&&y>=0&&y<ED.R)ED.buf[y][x]=0; edCommitLive(); ED.repaint(); };
+  // init zoom
+  applyZoom(zoom||fit());
+  if(window.ResizeObserver){ const ro=new ResizeObserver(()=>{ if(S.ed.zoom&&Math.abs(S.ed.zoom-fit())>0){} }); ro.observe(area); }
+}
+function refreshSidePreviews(){
+  // cheap: re-render minimap + glyph list + word preview canvases in place
+  const font=S.fonts.get(S.cur); if(!font)return;
+  document.querySelectorAll(".gl-mini").forEach((cell,i)=>{ const gg=font.glyphs[i]; if(!gg)return;
+    const sc=Math.max(1,Math.floor(26/(font.meta.ascent-font.meta.descent)));
+    cell.replaceChildren(runCanvas(font,String.fromCodePoint(gg.code),sc)); if(gg.code===S.ch)cell.classList.add("cur"); else cell.classList.remove("cur"); });
+  const wp=document.querySelector(".word-preview"); if(wp) wp.replaceChildren(runCanvas(font,S.tweaks.previewText||"Abg",2));
+  document.querySelectorAll(".minimap-cell").forEach((cell,i)=>{ const sc=[1,2,4][i]; cell.replaceChildren(runCanvas(font,String.fromCodePoint(S.ch),sc),el("span",null,sc+"×")); });
+}
+function edUndo(){ if(!ED.undo||!ED.undo.length)return; ED.redo.push(ED.buf.map(r=>r.slice())); ED.buf=ED.undo.pop(); ED.float=null; edCommit(); ED.repaint&&ED.repaint(); refreshSidePreviews(); }
+function edRedo(){ if(!ED.redo||!ED.redo.length)return; ED.undo.push(ED.buf.map(r=>r.slice())); ED.buf=ED.redo.pop(); edCommit(); ED.repaint&&ED.repaint(); refreshSidePreviews(); }
+function edClear(){ pushUndo(); ED.buf=Array.from({length:ED.R},()=>Array(ED.C).fill(0)); ED.sel=null; edCommit(); ED.repaint&&ED.repaint(); refreshSidePreviews(); }
+function stepGlyph(dir){
+  const font=S.fonts.get(S.cur); if(!font)return;
+  const i=font.glyphs.findIndex(g=>g.code===S.ch);
+  const j=Math.max(0,Math.min(font.glyphs.length-1,i+dir));
+  if(j===i)return;
+  commitGlyph(); S.ch=font.glyphs[j].code; render();
+  requestAnimationFrame(()=>{ const cur=document.querySelector(".gl-mini.cur"); if(cur)cur.scrollIntoView({block:"nearest"}); });
+}
+
+// =====================================================================
+// Tweaks panel
+// =====================================================================
+let tweaksOpen=false;
+function toggleTweaks(){ tweaksOpen=!tweaksOpen; render(); }
+function tweaksPanel(){
+  if(!tweaksOpen)return null;
+  const sec=(t)=>el("div",{class:"sec-title",style:"margin:14px 0 8px"},t);
+  const p=el("div",{style:"position:fixed;top:60px;right:14px;width:230px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;z-index:40;box-shadow:0 8px 30px #0003"});
+  p.append(el("div",{style:"display:flex;justify-content:space-between;align-items:center"},
+    el("b",{style:"font-size:13px"},"Settings"), el("button",{class:"btn ghost",onClick:toggleTweaks},"✕")));
+  p.append(sec("Preview"),
+    el("input",{class:"field",style:"width:100%",value:S.tweaks.previewText,onInput:e=>{S.tweaks.previewText=e.target.value; if(S.view==="library")S.order.forEach(refreshCardPreview); else if(S.view==="editor")refreshSidePreviews();}}));
+  p.append(sec("Editor"),
+    toggleRow("Pixel grid lines","showGrid"),
+    toggleRow("Minimap / preview","showMinimap"));
+  p.append(sec("Theme"));
+  const themeRow=el("div",{class:"opt-row"});
+  ["light","dark"].forEach(th=>themeRow.append(el("button",{class:"opt-chip"+(S.tweaks.theme===th?" on":""),onClick:()=>{S.tweaks.theme=th;applyTheme();render();}},th)));
+  p.append(themeRow);
+  p.append(sec("Accent"));
+  const accRow=el("div",{class:"opt-row"});
+  ["oklch(0.62 0.13 250)","oklch(0.62 0.13 150)","oklch(0.64 0.13 70)","oklch(0.6 0.13 300)"].forEach(a=>{
+    accRow.append(el("button",{class:"opt-chip"+(S.tweaks.accent===a?" on":""),style:"width:26px;height:22px;background:"+a,title:a,onClick:()=>{S.tweaks.accent=a;applyTheme();render();}},""));
+  });
+  p.append(accRow);
+  return p;
+}
+function toggleRow(label,key){
+  return el("label",{class:"opt-row",style:"justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:6px"},
+    el("span",{style:"font-size:12.5px"},label),
+    el("input",{type:"checkbox",...(S.tweaks[key]?{checked:"checked"}:{}),onChange:e=>{S.tweaks[key]=e.target.checked; render();}}));
+}
+function applyTheme(){ document.documentElement.setAttribute("data-theme",S.tweaks.theme); document.documentElement.style.setProperty("--accent",S.tweaks.accent); }
+
+// =====================================================================
+// keyboard
+// =====================================================================
+window.addEventListener("keydown",e=>{
+  if(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))return;
+  if(S.view!=="editor")return;
+  const k=e.key.toLowerCase();
+  if((e.metaKey||e.ctrlKey)&&k==="z"){ e.preventDefault(); e.shiftKey?edRedo():edUndo(); return; }
+  if((e.metaKey||e.ctrlKey)&&k==="y"){ e.preventDefault(); edRedo(); return; }
+  if(k==="b"){S.ed.tool="pencil";render();}
+  else if(k==="e"){S.ed.tool="eraser";render();}
+  else if(k==="l"){S.ed.tool="line";render();}
+  else if(k==="u"){S.ed.tool="rect";render();}
+  else if(k==="m"||k==="s"){S.ed.tool="select";render();}
+  else if(k==="escape"){ ED.sel=null; ED.repaint&&ED.repaint(); }
+  else if(k==="delete"||k==="backspace"){ e.preventDefault(); ED.deleteSel&&ED.deleteSel(); }
+  else if(k==="="||k==="+"){ ED.applyZoom&&ED.applyZoom(Math.min(48,(S.ed.zoom||8)+2)); }
+  else if(k==="-"){ ED.applyZoom&&ED.applyZoom(Math.max(2,(S.ed.zoom||8)-2)); }
+  else if(k==="arrowleft"||k==="arrowright"){ e.preventDefault(); stepGlyph(k==="arrowright"?1:-1); }
+  else if(k>="1"&&k<="4"){ S.ed.penSize=parseInt(k,10); render(); }
+});
+
+// =====================================================================
+// render
+// =====================================================================
+function render(){
+  applyTheme();
+  const root=document.getElementById("root");
+  const app=el("div",{class:"app"});
+  app.append(topbar());
+  if(S.view==="library") app.append(libraryView());
+  else if(S.view==="grid"&&S.cur) app.append(gridView());
+  else if(S.view==="editor"&&S.cur&&S.ch!=null) app.append(editorView());
+  else app.append(libraryView());
+  root.replaceChildren(app);
+  document.querySelectorAll(".tweaks-pop").forEach(n=>n.remove());
+  const tw=tweaksPanel(); if(tw){ tw.classList.add("tweaks-pop"); document.body.append(tw); }
+}
+applyTheme();
+render();
+</script>
+</body>
+</html>

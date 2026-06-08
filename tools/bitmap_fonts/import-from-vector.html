@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixel Font Baker — TTF → snapped bitmap → BDF</title>
+<style>
+  :root{ --ink:#34271A; --paper:#EFE0BB; --card:#FBF3DD; --green:#5A9A3C; --gold:#E8B23A; --terra:#CF6A3F; --line:#34271A22; }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 system-ui,sans-serif;color:var(--ink);background:var(--paper)}
+  header{background:var(--ink);color:var(--card);padding:14px 20px}
+  header h1{margin:0;font-size:18px}
+  header p{margin:4px 0 0;opacity:.85;font-size:13px}
+  main{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:18px}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+  .card{background:var(--card);border:2px solid var(--ink);border-radius:4px;padding:16px}
+  .card h2{margin:0 0 10px;font-size:14px;text-transform:uppercase;letter-spacing:.05em}
+  label{display:block;font-size:12px;font-weight:600;margin:10px 0 3px}
+  input[type=number],input[type=text],select{font:inherit;padding:5px 7px;border:1px solid var(--ink);border-radius:3px;background:#fff;width:100%}
+  input[type=range]{width:100%}
+  .drop{border:2px dashed var(--ink);border-radius:6px;padding:26px;text-align:center;cursor:pointer;background:#fff8;transition:.15s}
+  .drop.hot{background:var(--gold)}
+  button{font:inherit;font-weight:600;padding:8px 14px;border:2px solid var(--ink);border-radius:4px;background:var(--green);color:#fff;cursor:pointer}
+  button.alt{background:var(--gold);color:var(--ink)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .muted{opacity:.7;font-size:12px}
+  canvas{image-rendering:pixelated;background:#fff;border:1px solid var(--line)}
+  table{border-collapse:collapse;font-size:12px}
+  td,th{border:1px solid var(--line);padding:3px 8px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  .good{background:#5A9A3C22;font-weight:700}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  code{background:#0001;padding:1px 4px;border-radius:3px;font-size:12px}
+  .pill{display:inline-block;background:var(--ink);color:var(--card);border-radius:99px;padding:2px 10px;font-size:12px;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pixel Font Baker</h1>
+  <p>Drop a vector pixel font → it auto-detects the native pixel grid, snaps each glyph to a true 1-bit bitmap, and exports a <b>.bdf</b> you then open in <a href="editor.html" style="color:var(--gold)">editor.html</a>. No build step, no dependencies.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1 · Load the font</h2>
+    <div id="drop" class="drop">Drop a <b>.ttf / .otf / .woff</b> here, or click to pick.</div>
+    <input id="file" type="file" accept=".ttf,.otf,.woff,.woff2" hidden>
+    <p id="loaded" class="muted" style="margin-top:10px">No font loaded.</p>
+    <p id="calib" class="muted"></p>
+  </section>
+
+  <div class="row">
+    <section class="card" style="flex:1;min-width:280px">
+      <h2>2 · Grid &amp; snap</h2>
+
+      <label>Native design-pixels per em <span class="muted">(auto-calibrated)</span></label>
+      <input id="ppem" type="number" min="4" max="32" step="0.25" value="10">
+
+      <label>X-phase nudge: <span id="xpV">0</span>/8 &nbsp; <span class="muted">(auto, tweak if a stem looks off)</span></label>
+      <input id="xp" type="range" min="0" max="7" value="0">
+      <label>Y-phase nudge: <span id="ypV">0</span>/8</label>
+      <input id="yp" type="range" min="0" max="7" value="0">
+
+      <label>Coverage threshold: <span id="thrV">50</span>% on</label>
+      <input id="thr" type="range" min="20" max="80" value="50">
+
+      <label>Export scale (integer upsample)</label>
+      <select id="scale"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+
+      <label>Preview zoom</label>
+      <input id="zoom" type="range" min="2" max="20" value="9">
+      <label><input type="checkbox" id="grid" checked style="width:auto;display:inline"> grid lines</label>
+      <p style="margin-top:12px"><button id="recal">Re-calibrate grid</button></p>
+    </section>
+
+    <section class="card" style="flex:2;min-width:380px">
+      <h2>Snapped preview <span class="pill" id="dims">—</span></h2>
+      <label>Sample text</label>
+      <input id="sample" type="text" value="Foxhunt 123 — Vang ze allemaal!">
+      <div style="margin-top:10px;overflow:auto"><canvas id="pv" width="10" height="10"></canvas></div>
+      <p class="muted">Each square is one bitmap pixel (nearest-neighbour at the zoom above). This is exactly what LVGL blits — 1 design-pixel → <code id="scl">1</code> screen pixel.</p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>3 · "Clean size" advisor — the simpler raw-TTF path</h2>
+    <p class="muted">If you skip snapping and bake the raw TTF, these <code>--size</code> values land one design-pixel on whole screen pixels (so <code>--bpp 1</code> stays uniform). Highlighted rows are integer multiples of the detected grid.</p>
+    <div style="margin-top:10px;overflow:auto"><table id="adv"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>4 · Export</h2>
+    <label>Glyph range (codepoints, decimal)</label>
+    <div class="grid2" style="max-width:320px"><input id="lo" type="number" value="32"><input id="hi" type="number" value="126"></div>
+    <p class="muted" style="margin-top:8px">32–126 = printable ASCII.</p>
+    <div class="row" style="margin-top:12px">
+      <button id="bdf" disabled>Download .bdf</button>
+      <button id="png" class="alt" disabled>Download specimen .png</button>
+    </div>
+    <p class="muted" style="margin-top:12px">Save the <code>.bdf</code> into your <code>fonts/</code> folder, then open
+    <b><a href="editor.html">editor.html</a></b> to tweak glyphs and <b>Export .bin</b> (LVGL). The editor writes the
+    <code>.bin</code> directly from the bitmap — no <code>lv_font_conv</code>, no TTF roundtrip
+    (which we proved distorts bearings; see <code>README.md</code>).</p>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let FAMILY=null, RAWNAME="snapped";
+const GRID = { ppem:10, xphase:0, yphase:0 };  // calibrated per font
+const SS = 8;                                  // source px per design-pixel while sampling
+
+// ---------- font loading (FontFace, no libs) ----------
+const drop=$("drop"), fileInput=$("file");
+drop.onclick=()=>fileInput.click();
+drop.ondragover=e=>{e.preventDefault();drop.classList.add("hot");};
+drop.ondragleave=()=>drop.classList.remove("hot");
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove("hot");if(e.dataTransfer.files[0])loadFont(e.dataTransfer.files[0]);};
+fileInput.onchange=()=>fileInput.files[0]&&loadFont(fileInput.files[0]);
+
+async function loadFont(file){
+  const buf=await file.arrayBuffer();
+  FAMILY="baked_"+Math.abs(hash(file.name+buf.byteLength));
+  RAWNAME=file.name.replace(/\.[^.]+$/,"");
+  const ff=new FontFace(FAMILY,buf); await ff.load(); document.fonts.add(ff); await document.fonts.ready;
+  $("loaded").innerHTML=`Loaded <b>${file.name}</b> (${file.size/1024|0} KB).`;
+  $("bdf").disabled=$("png").disabled=false;
+  calibrate(); render(); advisor();
+}
+function hash(s){s=String(s);let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return h;}
+
+// ---------- raster + summed-area table for fast coverage ----------
+// Render one glyph at SS source-px / design-pixel for a given ppem.
+// Returns {sat,W,H,PX0,BY, bbox:[x0,y0,x1,y1], adv}  (ink SAT, integral image)
+function raster(ch, ppem){
+  const emPx = ppem*SS;                 // font-size in px == em
+  const W = Math.ceil(emPx*2.2), H = Math.ceil(emPx*3);
+  const cv = raster._c || (raster._c=document.createElement("canvas"));
+  cv.width=W; cv.height=H;
+  const g = cv.getContext("2d",{willReadFrequently:true});
+  g.fillStyle="#fff"; g.fillRect(0,0,W,H);
+  g.fillStyle="#000"; g.textBaseline="alphabetic";
+  g.font = `${emPx}px ${FAMILY}`;
+  const PX0 = Math.round(emPx*0.4), BY = Math.round(emPx*2.0);
+  g.fillText(ch, PX0, BY);
+  const adv = g.measureText(ch).width;
+  const d = g.getImageData(0,0,W,H).data;
+  // ink = 1 where dark
+  const sat = new Int32Array((W+1)*(H+1));
+  let x0=W,y0=H,x1=0,y1=0,any=false;
+  for(let y=0;y<H;y++){
+    let rowsum=0;
+    for(let x=0;x<W;x++){
+      const ink = d[(y*W+x)*4] < 128 ? 1 : 0;
+      rowsum+=ink;
+      sat[(y+1)*(W+1)+(x+1)] = sat[y*(W+1)+(x+1)] + rowsum;
+      if(ink){ any=true; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+    }
+  }
+  return {sat,W,H,PX0,BY,adv,bbox:any?[x0,y0,x1,y1]:null};
+}
+const satSum=(r,x0,y0,x1,y1)=>{ // inclusive box [x0,x1]x[y0,y1] in source px
+  const Wp=r.W+1;
+  x0=Math.max(0,x0);y0=Math.max(0,y0);x1=Math.min(r.W-1,x1);y1=Math.min(r.H-1,y1);
+  if(x1<x0||y1<y0)return 0;
+  return r.sat[(y1+1)*Wp+(x1+1)]-r.sat[y0*Wp+(x1+1)]-r.sat[(y1+1)*Wp+x0]+r.sat[y0*Wp+x0];
+};
+
+// ---------- calibration: find ppem + phase that quantise cleanly ----------
+// Objective: for a phase, tile design-pixel cells over the ink bbox and sum
+// min(cov,1-cov). Crisp grid => cells are ~0 or ~1 => objective near 0.
+function fit(r, ppem, xp, yp){
+  if(!r.bbox) return {score:1e9,cells:0};
+  const [bx0,by0,bx1,by1]=r.bbox;
+  const xAnchor=r.PX0+xp, yAnchor=r.BY-yp;
+  const i0=Math.floor((bx0-xAnchor)/SS), i1=Math.floor((bx1-xAnchor)/SS);
+  const k0=Math.floor((yAnchor-by1)/SS), k1=Math.floor((yAnchor-by0)/SS);
+  let s=0,n=0;
+  for(let i=i0;i<=i1;i++) for(let k=k0;k<=k1;k++){
+    const sx=xAnchor+i*SS, sy=yAnchor-(k+1)*SS;
+    const cov=satSum(r,sx,sy,sx+SS-1,sy+SS-1)/(SS*SS);
+    if(cov>0.001){ s+=Math.min(cov,1-cov); n++; }
+  }
+  return {score:n?s/n:1e9, cells:n};
+}
+function calibrate(){
+  const refs="HEnox0gld".split("").map(c=>c);
+  let best={score:1e9};
+  for(const ppem of [9,9.5,10,10.5,11,11.5,12]){
+    const rs=refs.map(c=>raster(c,ppem));
+    for(let xp=0;xp<SS;xp++) for(let yp=0;yp<SS;yp++){
+      let s=0,cnt=0;
+      for(const r of rs){ const f=fit(r,ppem,xp,yp); if(f.cells){s+=f.score;cnt++;} }
+      const score=cnt?s/cnt:1e9;
+      if(score<best.score) best={score,ppem,xp,yp};
+    }
+  }
+  GRID.ppem=best.ppem; GRID.xphase=best.xp; GRID.yphase=best.yp;
+  $("ppem").value=best.ppem; $("xp").value=best.xp; $("yp").value=best.yp;
+  $("xpV").textContent=best.xp; $("ypV").textContent=best.yp;
+  $("calib").innerHTML=`Calibrated: <b>${best.ppem}</b> design-px/em, phase (${best.xp},${best.yp})/8, grid-fit residual <b>${best.score.toFixed(3)}</b> (lower = crisper).`;
+}
+
+// ---------- snap one glyph to the calibrated grid ----------
+// Returns {rows:[bitstring], xoff (cells from pen origin), kmin (baseline-rel
+// bottom row index), adv (cells)} — all in design-pixels.
+function snapGlyph(ch){
+  const ppem=GRID.ppem, xp=GRID.xphase, yp=GRID.yphase, thr=+$("thr").value/100;
+  const r=raster(ch,ppem);
+  const adv=Math.max(1,Math.round(r.adv/SS));
+  if(!r.bbox) return {rows:[],xoff:0,kmin:0,adv};
+  const [bx0,by0,bx1,by1]=r.bbox;
+  const xAnchor=r.PX0+xp, yAnchor=r.BY-yp;
+  const i0=Math.floor((bx0-xAnchor)/SS), i1=Math.floor((bx1-xAnchor)/SS);
+  const k0=Math.floor((yAnchor-by1)/SS), k1=Math.floor((yAnchor-by0)/SS);
+  const rows=[];
+  for(let k=k1;k>=k0;k--){           // top (high k) -> bottom
+    let bits="";
+    for(let i=i0;i<=i1;i++){
+      const sx=xAnchor+i*SS, sy=yAnchor-(k+1)*SS;
+      const cov=satSum(r,sx,sy,sx+SS-1,sy+SS-1)/(SS*SS);
+      bits+= cov>=thr ? "1":"0";
+    }
+    rows.push(bits);
+  }
+  // trim empty edge rows/cols, keeping offsets correct
+  let top=0; while(top<rows.length && !rows[top].includes("1")) top++;
+  let bot=rows.length; while(bot>top && !rows[bot-1].includes("1")) bot--;
+  let r2=rows.slice(top,bot);
+  let kmin=k0, xoff=i0;
+  if(r2.length){
+    let l=Math.min(...r2.map(s=>s.indexOf("1")<0?1e9:s.indexOf("1")));
+    let rr=Math.max(...r2.map(s=>s.lastIndexOf("1")));
+    if(l<1e9){ r2=r2.map(s=>s.slice(l,rr+1)); xoff=i0+l; }
+    kmin=k0+(rows.length-bot);
+  } else { r2=[]; }
+  return {rows:r2,xoff,kmin,adv};
+}
+
+// integer-upsample a snapped glyph's rows by factor n
+function upscale(rows,n){
+  if(n<=1) return rows;
+  const out=[];
+  for(const row of rows){
+    let s=""; for(const c of row) s+=c.repeat(n);
+    for(let k=0;k<n;k++) out.push(s);
+  }
+  return out;
+}
+
+// ---------- preview ----------
+function render(){
+  if(!FAMILY) return;
+  const zoom=+$("zoom").value, n=+$("scale").value, showGrid=$("grid").checked;
+  $("thrV").textContent=$("thr").value; $("scl").textContent=n;
+  GRID.ppem=+$("ppem").value; GRID.xphase=+$("xp").value; GRID.yphase=+$("yp").value;
+  $("xpV").textContent=GRID.xphase; $("ypV").textContent=GRID.yphase;
+
+  const text=$("sample").value||"Abc";
+  const gl=[...text].map(ch=> ch===" " ? {space:true,adv:Math.max(1,Math.round(GRID.ppem*0.25))} :
+            (()=>{const s=snapGlyph(ch);return{...s,rows:upscale(s.rows,n),xoff:s.xoff*n,kmin:s.kmin*n,adv:s.adv*n};})());
+  // common baseline: top of each glyph is (kmin + rows.length) cells above baseline
+  let asc=0,desc=0;
+  gl.forEach(g=>{ if(!g.space){ asc=Math.max(asc,g.kmin+g.rows.length); desc=Math.min(desc,g.kmin); }});
+  const H=asc-desc; let W=0; gl.forEach(g=>W+=g.adv+n);
+  const cv=$("pv"); cv.width=Math.max(1,W*zoom); cv.height=Math.max(1,H*zoom);
+  const ctx=cv.getContext("2d"); ctx.imageSmoothingEnabled=false;
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,cv.width,cv.height); ctx.fillStyle="#34271A";
+  let pen=0;
+  for(const g of gl){
+    if(!g.space){
+      const topCell = asc-(g.kmin+g.rows.length);   // rows from canvas top
+      for(let r=0;r<g.rows.length;r++) for(let c=0;c<g.rows[r].length;c++)
+        if(g.rows[r][c]==="1") ctx.fillRect((pen+g.xoff+c)*zoom,(topCell+r)*zoom,zoom,zoom);
+    }
+    pen+=g.adv+n;
+  }
+  if(showGrid && zoom>=5){
+    ctx.strokeStyle="#34271A14";
+    for(let x=0;x<=W;x++){ctx.beginPath();ctx.moveTo(x*zoom+.5,0);ctx.lineTo(x*zoom+.5,cv.height);ctx.stroke();}
+    for(let y=0;y<=H;y++){ctx.beginPath();ctx.moveTo(0,y*zoom+.5);ctx.lineTo(cv.width,y*zoom+.5);ctx.stroke();}
+  }
+  $("dims").textContent=`${W}×${H}px @${n}×`;
+}
+["ppem","xp","yp","thr","zoom","scale","sample","grid"].forEach(id=>$(id).addEventListener("input",render));
+$("recal").onclick=()=>{calibrate();render();advisor();};
+
+// ---------- clean-size advisor ----------
+function advisor(){
+  const ppem=GRID.ppem;
+  let html="<tr><th>--size px</th><th>px / design-pixel</th><th>cap px</th><th>verdict</th></tr>";
+  for(let s=8;s<=40;s++){
+    const per=s/ppem, clean=Math.abs(per-Math.round(per))<0.02 && Math.round(per)>=1;
+    html+=`<tr class="${clean?'good':''}"><td>${s}</td><td>${per.toFixed(2)}×</td><td>${(s*0.643).toFixed(1)}</td><td>${clean?'✓ uniform 1-bit':'fractional → mushy'}</td></tr>`;
+  }
+  $("adv").innerHTML=html;
+}
+
+// ---------- BDF export ----------
+function buildBDF(){
+  const n=+$("scale").value, lo=+$("lo").value, hi=+$("hi").value;
+  // measure ascent/descent across the range for FONTBOUNDINGBOX & metrics
+  let asc=1,desc=0,maxW=1;
+  const snaps={};
+  for(let cp=lo;cp<=hi;cp++){
+    const ch=String.fromCodePoint(cp);
+    const s = ch===" " ? {rows:[],xoff:0,kmin:0,adv:Math.max(1,Math.round(GRID.ppem*0.25))} : snapGlyph(ch);
+    snaps[cp]=s;
+    if(s.rows.length){ asc=Math.max(asc,(s.kmin+s.rows.length)*n); desc=Math.min(desc,s.kmin*n); }
+    maxW=Math.max(maxW,s.adv*n);
+  }
+  const FA=asc, FD=-desc, PX=FA+FD;     // pixel size of the BDF
+  const chars=[];
+  for(let cp=lo;cp<=hi;cp++){
+    const s=snaps[cp];
+    const rows=upscale(s.rows,n), adv=s.adv*n, xoff=s.xoff*n, kmin=s.kmin*n;
+    const w=rows.reduce((m,r)=>Math.max(m,r.length),0)||0, h=rows.length;
+    const hex=rows.map(r=>{
+      const p=r.padEnd(Math.ceil((w||1)/8)*8,"0"); let o="";
+      for(let i=0;i<p.length;i+=8)o+=parseInt(p.slice(i,i+8),2).toString(16).padStart(2,"0");
+      return o.toUpperCase();
+    });
+    chars.push(
+`STARTCHAR U+${cp.toString(16).toUpperCase().padStart(4,"0")}
+ENCODING ${cp}
+SWIDTH ${Math.round(adv/PX*1000)} 0
+DWIDTH ${adv} 0
+BBX ${w||1} ${h||1} ${xoff} ${kmin}
+BITMAP
+${hex.length?hex.join("\n"):"00"}
+ENDCHAR`);
+  }
+  return (
+`STARTFONT 2.1
+FONT -baked-${RAWNAME}-Medium-R-Normal--${PX}-${PX*10}-75-75-P-${maxW*10}-ISO10646-1
+SIZE ${PX} 75 75
+FONTBOUNDINGBOX ${maxW} ${PX} 0 ${-FD}
+STARTPROPERTIES 3
+FONT_ASCENT ${FA}
+FONT_DESCENT ${FD}
+DEFAULT_CHAR ${lo}
+ENDPROPERTIES
+CHARS ${chars.length}
+`+chars.join("\n")+"\nENDFONT\n");
+}
+function dl(name,text){const b=new Blob([text],{type:"text/plain"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
+$("bdf").onclick=()=>{const bdf=buildBDF();const m=bdf.match(/SIZE (\d+)/);dl(`${RAWNAME}_${$("scale").value}x_px${m?m[1]:""}.bdf`,bdf);};
+$("png").onclick=()=>{render();$("pv").toBlob(b=>{const u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=`${RAWNAME}_specimen.png`;a.click();});};
+</script>
+</body>
+</html>
