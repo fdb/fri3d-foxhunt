@@ -31,8 +31,9 @@ board layer handles the hardware differences.
   (For a badge build, resolve the symlink: `cp -rL`.)
 - **Don't name an asset dir after an imported module** — a folder `creatures/`
   shadows `creatures.py` on import. That's why art lives in `assets/sprites/`.
-- **Fonts** are baked from Pixelify Sans via `lv_font_conv` (1-bit, ASCII) into
-  `assets/fonts/*.bin`, loaded at runtime with `lv.binfont_create`.
+- **Fonts** are 1-bit bitmap fonts in `assets/fonts/*.bin`, loaded with
+  `lv.binfont_create`. Edit the source `.bdf` and export `.bin` with the editor in
+  `tools/bitmap_fonts/` — see `docs/fonts.md`.
 - **Back navigation** is the system left-edge swipe / Esc / joystick — apps don't
   draw their own back button.
 - **LVGL native widgets have no `__dict__`** — you can't set Python attributes on
