@@ -28,6 +28,7 @@ SURFACE_SOFT = 0xE9F1CF  # card interior (portrait card, hunt/win panel)
 SURFACE_TINT = 0xEEF4D6  # lighter card interior (code reveal, feed stage, weetje)
 DORMANT = 0xD8C9A4  # sleeping-cell bg / empty-segment track
 BORDER_REST = 0xCDB67D  # quiet tan frame on every unfocused grid cell
+FOCUS_GOLD = 0xFFCB45  # brighter gold for the focused cell border (vs GOLD)
 
 # Spacing & geometry scale — replaces scattered magic 2/3/5/6 in the screens.
 GAP_S = 3
@@ -97,7 +98,7 @@ _FOCUS = _style(
 # rest, which this overrides to gold. FOCUSED-state specificity outranks the
 # cell's local default-state border, so the gold wins while focused and reverts
 # when focus moves.
-_FOCUS_BORDER = _style(border_width=BORDER, border_color=GOLD)
+_FOCUS_BORDER = _style(border_width=BORDER, border_color=FOCUS_GOLD)
 # tactile press: nudge an actionable widget down 2px on the PRESSED state.
 _PRESSED = _style(translate_y=2)
 
