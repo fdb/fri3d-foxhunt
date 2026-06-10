@@ -63,25 +63,12 @@ class HomeActivity(Activity):
             bg = ui.CARD if (is_caught or huntable) else ui.DORMANT
             cell = ui.box(grid, 0, 0, _CELL_W, _CELL_H, bg, radius=2)
 
-            # Every cell reserves a BORDER-wide border so the gold focus border
-            # (same width) only recolours — never resizes the box and nudges the
-            # contents. Resting colour signals state; dormant blends into its
-            # own bg, invisible until focus recolours it gold.
-            if is_caught:
-                rc = (
-                    ui.TERRA
-                    if c["rarity"] == "rare"
-                    else ui.GOLD
-                    if c["rarity"] == "leg"
-                    else ui.GREEN_D
-                )
-            elif huntable:
-                rc = ui.GREEN
-            else:
-                rc = bg
+            # Every cell wears the same quiet tan frame at rest; focus recolours
+            # it to gold (same width, so the contents never shift). State is read
+            # from the cell bg (lighter = caught/huntable) and the reveal itself,
+            # not the border.
             cell.set_style_border_width(ui.BORDER, 0)
-            cell.set_style_border_color(ui.hexc(rc), 0)
-            cell.set_style_border_opa(ui.BORDER_OPA_REST, 0)
+            cell.set_style_border_color(ui.hexc(ui.BORDER_REST), 0)
 
             sp = art.creature_panel(cell, c, 3, silhouette=not is_caught)
             sp.align(lv.ALIGN.TOP_MID, 0, 3)

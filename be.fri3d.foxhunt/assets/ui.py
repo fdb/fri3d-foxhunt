@@ -27,6 +27,7 @@ MYSTERY = 0x8A7D5E  # the "???" label on an uncaught creature
 SURFACE_SOFT = 0xE9F1CF  # card interior (portrait card, hunt/win panel)
 SURFACE_TINT = 0xEEF4D6  # lighter card interior (code reveal, feed stage, weetje)
 DORMANT = 0xD8C9A4  # sleeping-cell bg / empty-segment track
+BORDER_REST = 0xCDB67D  # quiet tan frame on every unfocused grid cell
 
 # Spacing & geometry scale — replaces scattered magic 2/3/5/6 in the screens.
 GAP_S = 3
@@ -35,10 +36,6 @@ PAD = 8
 RADIUS = 2
 BORDER = 2
 BORDER_THIN = 1
-# Resting state-border opacity: soft enough that an unfocused cell's colour
-# cue (huntable green, rarity tint) reads quietly, leaving the full-opacity
-# gold focus border to stand out as the selection.
-BORDER_OPA_REST = 90
 
 
 def hexc(v):
@@ -66,8 +63,6 @@ def _style(**props):
         s.set_border_width(props["border_width"])
     if "border_color" in props:
         s.set_border_color(hexc(props["border_color"]))
-    if "border_opa" in props:
-        s.set_border_opa(props["border_opa"])
     if "radius" in props:
         s.set_radius(props["radius"])
     if "outline_color" in props:
@@ -98,13 +93,11 @@ _FOCUS = _style(
 # outer outline that would overflow the tight inter-cell gap and overlap
 # neighbours. Width matches the resting BORDER so focus only recolours — border
 # width insets the content area, so changing it would nudge the cell's contents
-# by a pixel. Every cell must therefore reserve a BORDER-wide border at rest
-# (dormant cells in their own bg colour, invisible until focused). FOCUSED-state
-# specificity outranks the cell's local default-state border, so the gold wins
-# while focused and reverts when focus moves.
-_FOCUS_BORDER = _style(
-    border_width=BORDER, border_color=GOLD, border_opa=lv.OPA.COVER
-)
+# by a pixel. Every cell reserves a BORDER-wide quiet tan frame (BORDER_REST) at
+# rest, which this overrides to gold. FOCUSED-state specificity outranks the
+# cell's local default-state border, so the gold wins while focused and reverts
+# when focus moves.
+_FOCUS_BORDER = _style(border_width=BORDER, border_color=GOLD)
 # tactile press: nudge an actionable widget down 2px on the PRESSED state.
 _PRESSED = _style(translate_y=2)
 
