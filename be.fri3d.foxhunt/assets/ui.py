@@ -90,11 +90,13 @@ _FOCUS = _style(
 # focus-by-recolour: for widgets that already carry a state border (the grid
 # cells), show focus by overriding that border to gold rather than drawing an
 # outer outline that would overflow the tight inter-cell gap and overlap
-# neighbours. Sets width too so it also shows on borderless dormant cells; the
-# extra 1px over the resting 2px border keeps focus distinct from a legendary's
-# resting gold border. FOCUSED-state specificity outranks the cell's local
-# default-state border, so this wins while focused and reverts when focus moves.
-_FOCUS_BORDER = _style(border_width=3, border_color=GOLD)
+# neighbours. Width matches the resting BORDER so focus only recolours — border
+# width insets the content area, so changing it would nudge the cell's contents
+# by a pixel. Every cell must therefore reserve a BORDER-wide border at rest
+# (dormant cells in their own bg colour, invisible until focused). FOCUSED-state
+# specificity outranks the cell's local default-state border, so the gold wins
+# while focused and reverts when focus moves.
+_FOCUS_BORDER = _style(border_width=BORDER, border_color=GOLD)
 # tactile press: nudge an actionable widget down 2px on the PRESSED state.
 _PRESSED = _style(translate_y=2)
 
