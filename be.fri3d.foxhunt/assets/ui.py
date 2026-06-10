@@ -35,6 +35,10 @@ PAD = 8
 RADIUS = 2
 BORDER = 2
 BORDER_THIN = 1
+# Resting state-border opacity: soft enough that an unfocused cell's colour
+# cue (huntable green, rarity tint) reads quietly, leaving the full-opacity
+# gold focus border to stand out as the selection.
+BORDER_OPA_REST = 90
 
 
 def hexc(v):
@@ -62,6 +66,8 @@ def _style(**props):
         s.set_border_width(props["border_width"])
     if "border_color" in props:
         s.set_border_color(hexc(props["border_color"]))
+    if "border_opa" in props:
+        s.set_border_opa(props["border_opa"])
     if "radius" in props:
         s.set_radius(props["radius"])
     if "outline_color" in props:
@@ -96,7 +102,9 @@ _FOCUS = _style(
 # (dormant cells in their own bg colour, invisible until focused). FOCUSED-state
 # specificity outranks the cell's local default-state border, so the gold wins
 # while focused and reverts when focus moves.
-_FOCUS_BORDER = _style(border_width=BORDER, border_color=GOLD)
+_FOCUS_BORDER = _style(
+    border_width=BORDER, border_color=GOLD, border_opa=lv.OPA.COVER
+)
 # tactile press: nudge an actionable widget down 2px on the PRESSED state.
 _PRESSED = _style(translate_y=2)
 

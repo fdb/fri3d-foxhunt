@@ -81,6 +81,7 @@ class HomeActivity(Activity):
                 rc = bg
             cell.set_style_border_width(ui.BORDER, 0)
             cell.set_style_border_color(ui.hexc(rc), 0)
+            cell.set_style_border_opa(ui.BORDER_OPA_REST, 0)
 
             sp = art.creature_panel(cell, c, 3, silhouette=not is_caught)
             sp.align(lv.ALIGN.TOP_MID, 0, 3)
