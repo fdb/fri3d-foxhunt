@@ -87,6 +87,14 @@ _SEG_CELL = _style(border_width=BORDER_THIN, border_color=INK)
 _FOCUS = _style(
     outline_color=GOLD, outline_width=3, outline_pad=1, outline_opa=lv.OPA.COVER
 )
+# focus-by-recolour: for widgets that already carry a state border (the grid
+# cells), show focus by overriding that border to gold rather than drawing an
+# outer outline that would overflow the tight inter-cell gap and overlap
+# neighbours. Sets width too so it also shows on borderless dormant cells; the
+# extra 1px over the resting 2px border keeps focus distinct from a legendary's
+# resting gold border. FOCUSED-state specificity outranks the cell's local
+# default-state border, so this wins while focused and reverts when focus moves.
+_FOCUS_BORDER = _style(border_width=3, border_color=GOLD)
 # tactile press: nudge an actionable widget down 2px on the PRESSED state.
 _PRESSED = _style(translate_y=2)
 
@@ -241,12 +249,18 @@ def heart_row(parent, x, y, filled, total=5, scale=2, gap=GAP_S):
     return hearts
 
 
-def focusable(obj, on_click=None):
+def focusable(obj, on_click=None, focus_border=False):
     """Make an obj tap/click/arrow-key activatable, give it a gold focus ring
-    (for joystick/arrow nav), and register it in the default LVGL group."""
+    (for joystick/arrow nav), and register it in the default LVGL group.
+
+    focus_border=True recolours the widget's own border to gold instead of
+    drawing the default outer outline — use it for widgets in a tight grid
+    (the collection cells) where an outer ring would overlap neighbours."""
     obj.add_flag(lv.obj.FLAG.CLICKABLE)
     # Shared state styles instead of four inline setters per nav widget.
-    obj.add_style(_FOCUS, lv.PART.MAIN | lv.STATE.FOCUSED)
+    obj.add_style(
+        _FOCUS_BORDER if focus_border else _FOCUS, lv.PART.MAIN | lv.STATE.FOCUSED
+    )
     g = lv.group_get_default()
     if g:
         g.add_obj(obj)

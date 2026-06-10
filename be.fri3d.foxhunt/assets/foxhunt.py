@@ -95,11 +95,15 @@ class HomeActivity(Activity):
             # dead: caught -> companion page, huntable -> the hunt, dormant ->
             # selectable but inert (still sleeping).
             if is_caught:
-                ui.focusable(cell, on_click=lambda cc=cid: self._open(cc))
+                ui.focusable(
+                    cell, on_click=lambda cc=cid: self._open(cc), focus_border=True
+                )
             elif huntable:
-                ui.focusable(cell, on_click=lambda cc=cid: self._hunt(cc))
+                ui.focusable(
+                    cell, on_click=lambda cc=cid: self._hunt(cc), focus_border=True
+                )
             else:
-                ui.focusable(cell)
+                ui.focusable(cell, focus_border=True)
 
     def _hunt(self, cid):
         sound.play("tap")
