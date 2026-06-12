@@ -35,7 +35,7 @@ class HuntActivity(Activity):
         self.sil.align(lv.ALIGN.CENTER, 0, -2)
         self.heart = art.draw_sprite(card, art.HEART, {"k": 0x7A1F12, "r": 0xE0463A}, 3)
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 8)
-        self.bpm = ui.label(card, "--", 244, 8, ui.TERRA, ui.font_title(), w=60)
+        self.bpm = ui.label(card, "--", 258, 8, ui.TERRA, ui.font_title(), w=46)
 
         ui.label(
             s,
