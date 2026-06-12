@@ -20,32 +20,32 @@ class WinActivity(Activity):
                 s,
                 "* LEGENDARISCH *",
                 0,
-                44,
+                16,
                 ui.GOLD,
                 ui.font_small(),
                 w=320,
                 center=True,
             )
 
-        panel = ui.box(s, 114, 66, 92, 92, ui.SURFACE_SOFT, radius=2)
+        panel = ui.box(s, 114, 36, 92, 92, ui.SURFACE_SOFT, radius=2)
         panel.set_style_border_width(3, 0)
         panel.set_style_border_color(ui.hexc(ui.GOLD if leg else ui.GREEN_D), 0)
         sp = art.creature_panel(panel, c, 5)
         sp.align(lv.ALIGN.CENTER, 0, 0)
 
-        ui.label(s, c["naam"], 0, 166, ui.CREAM, ui.font_title(), w=320, center=True)
+        ui.label(s, c["naam"], 0, 136, ui.CREAM, ui.font_title(), w=320, center=True)
         ui.label(
             s,
             "toegevoegd aan je boek!",
             0,
-            192,
+            162,
             0xBCD0A4,
             ui.font_small(),
             w=320,
             center=True,
         )
 
-        btn = ui.box(s, 100, 210, 120, 26, ui.GOLD, radius=3)
+        btn = ui.box(s, 100, 180, 120, 26, ui.GOLD, radius=3)
         btn.set_style_border_width(2, 0)
         btn.set_style_border_color(ui.hexc(ui.INK), 0)
         bl = ui.label(
