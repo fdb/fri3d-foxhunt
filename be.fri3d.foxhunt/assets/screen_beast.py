@@ -75,7 +75,7 @@ class BeastActivity(Activity):
                 w=bw,
                 center=True,
             )
-            ui.focusable(b, on_click=lambda k=kind: self._press(k))
+            ui.focusable(b, on_click=lambda k=kind: self._press(k), focus_border=True)
 
         self.setContentView(s)
         self._refresh()

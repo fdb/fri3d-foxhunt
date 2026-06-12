@@ -64,7 +64,7 @@ class FeedActivity(Activity):
                 art.draw_sprite(p, art.HEART, {"k": 0x7A1F12, "r": 0xE0463A}, 1).align(
                     lv.ALIGN.TOP_RIGHT, -4, 4
                 )
-            ui.focusable(p, on_click=lambda f=food: self._feed(f))
+            ui.focusable(p, on_click=lambda f=food: self._feed(f), focus_border=True)
 
         # ── hint ─────────────────────────────────────────────────────────
         hint = ui.panel(s, 8, 212, 304, 22, ui.CREAM)
