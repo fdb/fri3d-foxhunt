@@ -63,7 +63,9 @@ class BeastActivity(Activity):
         bar = ui.row(s, 6, 198, 4 * bw + 3 * 5, 36, gap=5)
         for i, (ic, lab, kind) in enumerate(_ACTS):
             accent = i == 0
-            b = ui.panel(bar, 0, 0, bw, 36, ui.GREEN if accent else ui.CARD)
+            b = ui.panel(
+                bar, 0, 0, bw, 36, ui.GREEN if accent else ui.CARD, border=ui.BORDER_REST
+            )
             art.icon(b, ic, 2).align(lv.ALIGN.TOP_MID, 0, 3)
             ui.label(
                 b,

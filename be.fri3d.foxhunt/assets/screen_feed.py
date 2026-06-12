@@ -57,7 +57,7 @@ class FeedActivity(Activity):
         picker = ui.row(s, 8, 154, 3 * fw + 2 * 6, 50, gap=6)
         for ic, lab, food in _FOODS:
             fav = food == self.c.get("favoriet")
-            p = ui.panel(picker, 0, 0, fw, 50, ui.CARD)
+            p = ui.panel(picker, 0, 0, fw, 50, ui.CARD, border=ui.BORDER_REST)
             art.icon(p, ic, 2).align(lv.ALIGN.TOP_MID, 0, 5)
             ui.label(p, lab, 0, 32, ui.INK, ui.font_small(), w=fw, center=True)
             if fav:
