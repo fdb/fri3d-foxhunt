@@ -24,8 +24,9 @@ class HuntActivity(Activity):
         self._beat = False
 
         s = ui.make_screen(0xCFE2AD)
-        rare = self.c["rarity"] != "norm"
-        ui.banner(s, self.c["naam"], ui.TERRA, right=("zeldzaam" if rare else "gewoon"))
+        rarity = self.c["rarity"]
+        tag = {"leg": "legende", "rare": "zeldzaam"}.get(rarity, "gewoon")
+        ui.banner(s, self.c["naam"], ui.TERRA, right=tag)
 
         # scan card with the silhouette + heartbeat
         card = ui.box(s, 6, 30, 308, 120, ui.SURFACE_SOFT, radius=2)

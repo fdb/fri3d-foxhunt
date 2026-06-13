@@ -89,7 +89,10 @@ class CodeActivity(Activity):
     def submit(self):
         if RADIO.verify_code(self.fox_id, self.entry):
             store.add_caught(self.fox_id)
-            sound.play("caught")
+            # Legendary catches get their fanfare from the win screen itself
+            # (celebrate.Fireworks), so it loops in sync with the visuals.
+            if self.c["rarity"] != "leg":
+                sound.play("caught")
             self.startActivity(
                 Intent(activity_class=WinActivity, extras={"fox_id": self.fox_id})
             )
