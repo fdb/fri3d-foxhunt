@@ -38,7 +38,7 @@ _STAR = [
     "..w..",
 ]
 
-_CX, _CY = 160, 108  # creature centre — the halo radiates from here
+_CX, _CY = 160, 104  # creature centre — the halo radiates from here
 
 _CONFETTI = 22
 _TICK_MS = 80
@@ -87,14 +87,19 @@ class Fireworks:
             ring.remove_flag(lv.obj.FLAG.CLICKABLE)
             self.rings.append(ring)
 
-        # 2. the beast on a gold-ringed disc, dead centre — it bounces + pulses.
-        # scale 6 -> a 96px sprite on a 112px disc.
-        self.disc = ui.box(s, _CX - 56, _CY - 56, 112, 112, ui.CREAM, radius=56)
+        # 2. a cream backing disc, just for contrast against the busy rings —
+        # deliberately smaller than the beast so the beast overflows it.
+        self.disc = ui.box(s, _CX - 50, _CY - 50, 100, 100, ui.CREAM, radius=50)
         self.disc.set_style_border_width(4, 0)
         self.disc.set_style_border_color(ui.hexc(ui.GOLD), 0)
         self.disc.remove_flag(lv.obj.FLAG.CLICKABLE)
-        self.sprite = art.creature_panel(self.disc, self.c, 6)
-        self.sprite.align(lv.ALIGN.CENTER, 0, 0)
+
+        # the beast itself: big, and drawn straight onto the screen (NOT a child
+        # of the disc, so it isn't clipped) so it floats ON TOP of the rings —
+        # its silhouette spills past the disc onto the rainbow. It bounces.
+        self.sprite = art.creature_panel(s, self.c, 8)  # scale 8 -> 128px
+        self.sprite.remove_flag(lv.obj.FLAG.CLICKABLE)
+        self.sprite.align(lv.ALIGN.CENTER, 0, _CY - 120)
 
         # 3. flashing title + cycling praise.
         self.title = ui.label(
@@ -179,7 +184,7 @@ class Fireworks:
 
         # beast: bounce vertically + pulse the gold ring through the rainbow.
         dy = int(-6 * math.sin(f * 0.45))
-        self.sprite.align(lv.ALIGN.CENTER, 0, dy)
+        self.sprite.align(lv.ALIGN.CENTER, 0, _CY - 120 + dy)
         self.disc.set_style_border_color(ui.hexc(RAINBOW[(f // 2) % len(RAINBOW)]), 0)
 
         # title flashes through bright hues; praise cycles its message.
