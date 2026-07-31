@@ -1,8 +1,12 @@
 # leds.py — hot/cold on the 5 physical NeoPixels (mpos.lights).
 #
-# On the badge: lights.is_available() is True -> drives GPIO12 NeoPixels.
-# On desktop:   not available -> show_level() is a no-op; the hunt screen's
-#               on-screen 5-LED mirror uses colors_for_level() instead.
+# On the badge: drives the 5 GPIO12 NeoPixels.
+# On desktop:   no NeoPixel -> set_led()/write() are no-ops that return False,
+#               and the hunt screen's on-screen 5-LED mirror uses
+#               colors_for_level() instead.
+# We deliberately only use set_led() + write() (never is_available()/clear()):
+# those two are the oldest, most stable part of the mpos.lights API, so the app
+# runs on badge firmware older than this checkout's mpos.
 # index 0 = leftmost (coldest), 4 = rightmost (hottest) — matches the board.
 
 import mpos.lights as lights
@@ -26,14 +30,13 @@ def colors_for_level(level):
 
 def show_level(level):
     """Light the physical NeoPixels. Returns False (no-op) on desktop."""
-    if not lights.is_available():
-        return False
     for i, (r, g, b) in enumerate(colors_for_level(level)):
         lights.set_led(i, r, g, b)
     return lights.write()
 
 
 def off():
-    if lights.is_available():
-        lights.clear()
-        lights.write()
+    """Blank the physical NeoPixels. Returns False (no-op) on desktop."""
+    for i in range(5):
+        lights.set_led(i, 0, 0, 0)
+    return lights.write()

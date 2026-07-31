@@ -12,6 +12,7 @@ import random
 import ui
 import art
 import sound
+import leds
 import mpos.lights as lights
 
 # Vivid 8-hue rainbow reused everywhere — bg wash, halo, confetti, title, LEDs.
@@ -65,6 +66,7 @@ class Fireworks:
         self.c = creature
         self.timer = None
         self.frame = 0
+        self._leds = False  # set in start(): True only when real NeoPixels answered
         self._build()
 
     # ── build: bottom-to-top so z-order is halo < beast < text < confetti ──
@@ -150,23 +152,23 @@ class Fireworks:
     # ── lifecycle ──────────────────────────────────────────────────────────
     def start(self):
         sound.play("legendary")
-        if lights.is_available():
-            self._led_chase(0)
+        # The first chase tells us whether there are real LEDs: write() returns
+        # False on desktop. Cache it so _tick doesn't redo 6 no-op calls.
+        self._leds = self._led_chase(0)
         self.timer = lv.timer_create(self._tick, _TICK_MS, None)
 
     def stop(self):
         if self.timer:
             self.timer.delete()
             self.timer = None
-        if lights.is_available():
-            lights.clear()
-            lights.write()
+        if self._leds:
+            leds.off()
 
     def _led_chase(self, frame):
         for i in range(5):
             r, g, b = _rgb(RAINBOW[(frame + i) % len(RAINBOW)])
             lights.set_led(i, r, g, b)
-        lights.write()
+        return lights.write()
 
     # ── the dopamine pump ────────────────────────────────────────────────
     def _tick(self, t):
@@ -212,7 +214,7 @@ class Fireworks:
                 star.add_flag(lv.obj.FLAG.HIDDEN)
 
         # rainbow chase across the 5 LEDs (badge only).
-        if lights.is_available():
+        if self._leds:
             self._led_chase(f)
 
         # loop the fanfare so the music never stops while the screen is up.
