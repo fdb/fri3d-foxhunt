@@ -102,6 +102,7 @@ CREATURES = [
         "pal": "tan",
         "code": "6789",
         "beacon": 6,
+        "img": "konijlpaard.png",
         "soort": "Springer",
         "biotoop": "Weide",
         "favoriet": "noot",
