@@ -32,8 +32,9 @@ board layer handles the hardware differences.
 - **Don't name an asset dir after an imported module** — a folder `creatures/`
   shadows `creatures.py` on import. That's why art lives in `assets/sprites/`.
 - **Fonts** are 1-bit bitmap fonts in `assets/fonts/*.bin`, loaded with
-  `lv.binfont_create`. Edit the source `.bdf` and export `.bin` with the editor in
-  `tools/bitmap_fonts/` — see `docs/fonts.md`.
+  `lv.binfont_create`. Edit the source `.bdf` in `tools/bitmap_fonts/` (editor)
+  and re-bake the deployed `.bin` with `scripts/bake_fonts.sh`
+  (`--check` reports drift) — see `docs/fonts.md`.
 - **Back navigation** is the system left-edge swipe / Esc / joystick — apps don't
   draw their own back button.
 - **LVGL native widgets have no `__dict__`** — you can't set Python attributes on

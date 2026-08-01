@@ -43,12 +43,24 @@ cd tools/bitmap_fonts && python3 -m http.server   # then open editor.html (Chrom
 ### Workflow
 1. Create a `.bdf` from a vector font with `import-from-vector.html`, **or** start
    fresh / edit an existing one in `editor.html`.
-2. Edit glyphs and metrics in `editor.html`; **Save `.bdf`** (commit this — it's the
-   diff-friendly source of truth, lives in `tools/bitmap_fonts/fonts/`).
-3. **Export `.bin`** into `be.fri3d.foxhunt/assets/fonts/` (the deployed artifact).
+2. Edit glyphs and metrics in `editor.html`; **Save `.bdf`** into
+   `tools/bitmap_fonts/fonts/` — the diff-friendly source of truth, and the only
+   file you hand-edit.
+3. Bake the deployed artifact:
+   ```
+   scripts/bake_fonts.sh            # every .bdf → be.fri3d.foxhunt/assets/fonts/*.bin
+   scripts/bake_fonts.sh --check    # report stale/missing .bin, change nothing (CI)
+   ```
+   It calls the same `font_codec.js` the editor's *Export `.bin`* button calls, so
+   the output is byte-identical — the script just saves you the round trip through
+   the browser and the download folder. (The editor's export is still fine for a
+   quick try-out; run the script before committing.)
 4. Point a `ui.py` `font_*()` helper at the new `.bin`.
 
-Keep the source `.bdf` and the deployed `.bin` in sync — re-export after editing.
+Commit **both** files: the badge has no build step, so the `.bin` in `assets/` is
+what actually runs. A `.bin` that has drifted from its `.bdf` fails silently —
+`ui.py`'s fallback only fires when a font won't *load*, never when it loads and
+draws stale pixels. That's what `--check` is for.
 
 ## Why we write `.bin` directly (no `lv_font_conv`, no TTF)
 
