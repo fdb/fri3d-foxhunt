@@ -1,10 +1,19 @@
 # Foxhunt 🦊
 
 A "fox hunting" (ARDF) game for the **Fri3d Camp 2026 badge**. Kids hunt hidden
-LoRa beacons ("beasts") with a directional antenna and collect them in a
+LoRa beacons ("foxes") with a directional antenna and collect them in a
 Pokédex-style book. Dutch UI, cutesy pixel-art. Runs on the badge
 (ESP32-S3 / MicroPythonOS / LVGL) **and** on the macOS SDL emulator from the
 same source.
+
+## Glossary
+
+- Players: people playing the game
+- Hunters: players actively searching for foxes; these have LoRa antennas installed. They receive points for foxes found.
+- Caretakers: players that don't have LoRa but still want to participate; instead of hunting for foxes they take of the foxes. They can clone foxes of hunters to take care of them. Scoring works differently.
+- Fox: 4 fixed hardware devices positioned in the field, sending out beacon signals. Hunters will find these with their directional antennas. They don't have Wi-Fi, instead they communicate to the LoRa bridge relay.
+- Bridge relay: hardware device that receives and acknowledges messages of foxes being found through LoRa. It communicates to the cloud server over Wi-Fi.
+- Cloud server: server running in the cloud on a VPS that keeps track of active users and current scores.
 
 ## Layout
 
@@ -50,10 +59,3 @@ The app never touches a pin. The MicroPythonOS **board layer**
 320×240 display, input, LEDs and audio. Hardware that only exists on the badge
 (`mpos.lights`, the buzzer audio output) is gated: we call it, check the return,
 and fall back (on-screen LED mirror, silent audio) on desktop.
-
-## Status / next
-
-- ✅ Full catch loop: home → hunt → code → win, with persistence.
-- ⏳ Pixel font (Pixelify Sans, baked via `lv_font_conv`) — built-in Montserrat for now.
-- ⏳ Real creature art (PNGs) — procedural placeholders for now.
-- ⏳ Hunt-screen polish (scrolling ECG, scale-pulse heartbeat).
