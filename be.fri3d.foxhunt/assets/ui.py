@@ -28,7 +28,7 @@ SURFACE_SOFT = 0xE9F1CF  # card interior (portrait card, hunt/win panel)
 SURFACE_TINT = 0xEEF4D6  # lighter card interior (code reveal, feed stage, weetje)
 DORMANT = 0xD8C9A4  # sleeping-cell bg / empty-segment track
 BORDER_REST = 0xCDB67D  # quiet tan frame on every unfocused grid cell
-FOCUS_GOLD = 0xFFCB45  # brighter gold for the focused cell border (vs GOLD)
+FOCUS_GOLD = 0xFFCB45  # bright gold halo drawn around the focused widget
 
 # Spacing & geometry scale — replaces scattered magic 2/3/5/6 in the screens.
 GAP_S = 3
@@ -37,6 +37,15 @@ PAD = 8
 RADIUS = 2
 BORDER = 2
 BORDER_THIN = 1
+
+# Focus ring geometry. Focus is signalled on three channels at once — contrast
+# (the widget's own frame goes from pale tan to full ink), hue (a gold halo) and
+# thickness (a 2px frame becomes a 6px / 4px double ring). One channel alone
+# (the old "recolour the border a bit goldener") reads as noise on a 320x240
+# screen full of warm tans.
+HALO = 4  # gold halo on roomy widgets (standalone buttons, keypad)
+HALO_TIGHT = 2  # halo that still fits the 4px gutter between grid cells
+ROW_SLACK = 4  # slack a flex row keeps around itself so halos aren't clipped
 
 
 def hexc(v):
@@ -85,20 +94,33 @@ _RESET = _style(pad_all=0, border_width=0)
 _PANEL = _style(border_width=BORDER, border_color=INK)
 # segment cell: the 1px ink hairline around each LED/meter cell.
 _SEG_CELL = _style(border_width=BORDER_THIN, border_color=INK)
-# gold focus ring for joystick/arrow nav (added on the FOCUSED state).
+# focus ring for joystick/arrow nav (added on the FOCUSED state): the widget's
+# frame snaps to full ink and a thick gold halo is drawn just outside it. Dark
+# edge against bright halo is the highest-contrast pair the palette has, and the
+# ring goes from 2px to 6px — visible at a glance, from across a room.
 _FOCUS = _style(
-    outline_color=GOLD, outline_width=3, outline_pad=1, outline_opa=lv.OPA.COVER
+    border_color=INK,
+    outline_color=FOCUS_GOLD,
+    outline_width=HALO,
+    outline_pad=0,
+    outline_opa=lv.OPA.COVER,
 )
-# focus-by-recolour: for widgets that already carry a state border (the grid
-# cells), show focus by overriding that border to gold rather than drawing an
-# outer outline that would overflow the tight inter-cell gap and overlap
-# neighbours. Width matches the resting BORDER so focus only recolours — border
-# width insets the content area, so changing it would nudge the cell's contents
-# by a pixel. Every cell reserves a BORDER-wide quiet tan frame (BORDER_REST) at
-# rest, which this overrides to gold. FOCUSED-state specificity outranks the
-# cell's local default-state border, so the gold wins while focused and reverts
-# when focus moves.
-_FOCUS_BORDER = _style(border_width=BORDER, border_color=FOCUS_GOLD)
+# Same treatment, tighter halo: for widgets packed in a grid (the collection
+# cells, the beast/feed action rows) a 4px halo would jump the gutter and touch
+# the neighbour, so it stays at HALO_TIGHT and the gutter keeps a clear 2px.
+# The border only *recolours* (width stays BORDER) because border width insets
+# the content area — growing it would nudge the cell's sprite and label by a
+# pixel. Every cell reserves a BORDER-wide tan frame (BORDER_REST) at rest;
+# FOCUSED-state specificity outranks that local default-state border, so ink
+# wins while focused and the tan returns when focus moves on.
+_FOCUS_BORDER = _style(
+    border_width=BORDER,
+    border_color=INK,
+    outline_color=FOCUS_GOLD,
+    outline_width=HALO_TIGHT,
+    outline_pad=0,
+    outline_opa=lv.OPA.COVER,
+)
 # tactile press: nudge an actionable widget down 2px on the PRESSED state.
 _PRESSED = _style(translate_y=2)
 
@@ -208,8 +230,15 @@ def row(parent, x, y, w, h, gap=GAP_M, wrap=False, bg=None):
     so callers stop computing `x = base + i*(w+gap)`. wrap=True flows onto
     multiple lines (a grid). Children are added with pos (0,0) — flex places
     them. Give a wrap container a few px of slack so an exact-fit last column
-    doesn't wrap early."""
-    o = box(parent, x, y, w, h, bg)
+    doesn't wrap early.
+
+    The container is grown by ROW_SLACK on every side and given matching
+    padding, so children still land on the caller's coordinates but a focus halo
+    drawn outside a child isn't clipped away at the container edge."""
+    o = box(
+        parent, x - ROW_SLACK, y - ROW_SLACK, w + 2 * ROW_SLACK, h + 2 * ROW_SLACK, bg
+    )
+    o.set_style_pad_all(ROW_SLACK, 0)
     o.set_flex_flow(lv.FLEX_FLOW.ROW_WRAP if wrap else lv.FLEX_FLOW.ROW)
     o.set_style_pad_column(gap, 0)
     o.set_style_pad_row(gap, 0)

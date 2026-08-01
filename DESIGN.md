@@ -71,9 +71,13 @@ the type scale; don't invent a fourth.
   16×16 RGBA; new scales are integer multiples.
 - **Consistency** — same panel, same outline, same focus ring everywhere, because
   it all comes from the tokens + shared styles above. Change the look in one place.
-- **Feedback** — every actionable widget gives a gold focus ring (joystick/arrow),
-  a 2px press nudge (`_PRESSED`), *and* a sound. Don't add an action without all
+- **Feedback** — every actionable widget gives a focus ring (joystick/arrow), a
+  2px press nudge (`_PRESSED`), *and* a sound. Don't add an action without all
   three. Inert items (dormant tiles) are focusable but give no press feedback.
+  The ring says "focused" on three channels at once — the widget's own frame goes
+  pale tan → full ink (contrast), a gold halo appears outside it (hue), and the
+  ring thickens from 2px to 6px (`HALO`) or 4px in tight grids (`HALO_TIGHT`).
+  One channel alone disappears on a screen this small and this warm.
 - **Direct manipulation** — every tile/key/button is `focusable()` so the grid
   never goes dead; the catch *is* the reveal (silhouette → full art).
 - **Forgiveness** — destructive/entry flows are reversible: the keypad has
