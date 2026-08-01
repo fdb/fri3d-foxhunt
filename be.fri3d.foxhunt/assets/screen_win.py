@@ -50,7 +50,9 @@ class WinActivity(Activity):
         self._verder_button(s, ui.GOLD, ui.INK)
 
     def _verder_button(self, s, bg, border):
-        btn = ui.box(s, 100, 210, 120, 26, bg, radius=3)
+        # y=202, not flush at the bottom: the focused button wears a 4px gold
+        # halo outside its box, so it needs real screen margin under it.
+        btn = ui.box(s, 100, 202, 120, 26, bg, radius=3)
         btn.set_style_border_width(2, 0)
         btn.set_style_border_color(ui.hexc(border), 0)
         bl = ui.label(

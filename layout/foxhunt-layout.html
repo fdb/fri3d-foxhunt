@@ -392,12 +392,13 @@
     fp.style.boxShadow=`0 0 0 ${SCALE}px var(--ink), 0 0 0 ${5*SCALE}px var(--gold), 0 0 ${24}px rgba(232,178,58,.5)`;
     fp.appendChild(center(creature(c,5,false)));
     s.appendChild(fp);
-    s.appendChild(text('Paauwpegaai',0,166,320,20,{size:18,weight:600,color:'#fff7e6',align:'center'}));
-    s.appendChild(text('toegevoegd aan je boek!',0,190,320,13,
+    s.appendChild(text('Paauwpegaai',0,156,320,20,{size:18,weight:600,color:'#fff7e6',align:'center'}));
+    s.appendChild(text('toegevoegd aan je boek!',0,180,320,13,
       {size:11,font:'var(--mono)',color:'#bcd0a4',align:'center'}));
-    // single centered button → back to Home (Home IS the book). width 120, y=210
+    // single centered button → back to Home (Home IS the book). width 120, y=202
+    // (not lower: the focus halo needs margin under it)
     const bw=120, bx=160-bw/2;
-    const b1=box(bx,210,bw,26,{background:'var(--gold)'});
+    const b1=box(bx,202,bw,26,{background:'var(--gold)'});
     b1.style.boxShadow=`0 0 0 ${SCALE}px var(--ink), 0 ${3*SCALE}px 0 var(--ink)`;
     b1.appendChild(text('VERDER',0,0,bw,26,{size:14,weight:600,align:'center',color:'#3a2a0c'}));
     s.appendChild(b1);

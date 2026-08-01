@@ -56,11 +56,12 @@ class HuntActivity(Activity):
             seg.set_style_border_width(2, 0)
             seg.set_style_border_color(ui.hexc(ui.INK), 0)
             self.mirror.append(seg)
-        ui.label(s, "koud", 20, 190, ui.GREEN_D, ui.font_small())
-        ui.label(s, "warm", 252, 190, ui.TERRA, ui.font_small(), w=42, center=True)
+        ui.label(s, "koud", 20, 186, ui.GREEN_D, ui.font_small())
+        ui.label(s, "warm", 252, 186, ui.TERRA, ui.font_small(), w=42, center=True)
 
-        # player-driven: tap when you've physically found the box & read its code
-        btn = ui.box(s, 6, 208, 308, 26, ui.GREEN, radius=3)
+        # player-driven: tap when you've physically found the box & read its code.
+        # y=204 leaves screen margin for the focused button's 4px gold halo.
+        btn = ui.box(s, 6, 204, 308, 26, ui.GREEN, radius=3)
         btn.set_style_border_width(2, 0)
         btn.set_style_border_color(ui.hexc(ui.INK), 0)
         bl = ui.label(

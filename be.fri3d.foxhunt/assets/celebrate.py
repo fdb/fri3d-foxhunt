@@ -113,13 +113,13 @@ class Fireworks:
 
         # 4. name + dossier line, just under the disc.
         ui.label(
-            s, self.c["naam"], 0, 170, ui.CREAM, ui.font_title(), w=320, center=True
+            s, self.c["naam"], 0, 160, ui.CREAM, ui.font_title(), w=320, center=True
         )
         ui.label(
             s,
             "toegevoegd aan je boek!",
             0,
-            194,
+            184,
             ui.CREAM,
             ui.font_small(),
             w=320,
