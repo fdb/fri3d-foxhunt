@@ -104,11 +104,14 @@ Alle coördinaten zijn **logische pixels** in 320×240. Banner = `0,0 → 320×2
 Roster van 12 (zie `pixel.jsx` / de layout-tool). Elk beest:
 
 ```python
-{ "naam": "Everzwaan", "rariteit": "rare",  # norm | rare | leg
-  "sh": "bird",                              # vorm: fox | owl | deer | bird
-  "pal": "cream",                            # palet (kleur)
-  "code": "7391",                            # 4-cijferige code op de fysieke zender
-  "beacon_id": 3 }                           # LoRa-id van het baken
+{
+    "naam": "Everzwaan",
+    "rariteit": "rare",  # norm | rare | leg
+    "sh": "bird",  # vorm: fox | owl | deer | bird
+    "pal": "cream",  # palet (kleur)
+    "code": "7391",  # 4-cijferige code op de fysieke zender
+    "beacon_id": 3,  # LoRa-id van het baken
+}
 ```
 
 - **4 herbruikbare 16×16 sprites** (fox/owl/deer/bird) × **8 paletten** = alle 12
