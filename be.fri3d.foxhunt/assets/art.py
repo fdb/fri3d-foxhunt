@@ -408,12 +408,25 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
     return canvas
 
 
-# ── Creature renderer: real PNG art when present, procedural otherwise ──────
-# Creature PNGs are authored at 16x16 RGBA (same grid as the shapes) and live
-# in assets/sprites/ (NOT assets/creatures/ — that would shadow creatures.py on
-# import). A creature opts in via its "img" field (see creatures.py).
-_CREATURE_DIR = "M:apps/be.fri3d.foxhunt/assets/sprites/"
+# ── Baked artwork: assets/<folder>/<name>.png, mirrored from artwork/ ───────
+# scripts/bake_sprites.sh keeps the tree structure, so the folders here are the
+# folders an artist sees. Creature art lives in animals/ (NOT creatures/ —
+# that would shadow creatures.py on import).
+_ART_DIR = "M:apps/be.fri3d.foxhunt/assets/"
+_CREATURE_DIR = _ART_DIR + "animals/"
+TITLE_SRC = _ART_DIR + "title-screen/title-screen.png"
 _IMG_SRC = 16
+
+
+def picture(parent, src, x=0, y=0):
+    """A baked PNG drawn at its authored size — nearest-neighbour, so the
+    pixels stay pixels. For art that is already screen-sized (the title
+    banner); creature art goes through creature_panel() instead."""
+    w = lv.image(parent)
+    w.set_src(src)
+    w.set_pos(x, y)
+    w.set_antialias(False)
+    return w
 
 
 def _bare(o):

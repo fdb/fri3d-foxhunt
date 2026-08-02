@@ -28,14 +28,19 @@ board layer handles the hardware differences.
 - **Never touch pins.** Use `mpos.*` managers (`mpos.lights`, `AudioManager`) and
   gate on availability — desktop has no LEDs and no buzzer output, so those calls
   must no-op and fall back (e.g. the on-screen LED mirror).
-- **Creature art:** 16×16 RGBA PNGs live in `artwork/` (with their Aseprite
-  sources). `scripts/bake_sprites.sh` mirrors the PNGs (only) into
-  `be.fri3d.foxhunt/assets/sprites/` — re-run it after changing artwork;
-  `--check` reports drift. Both sides are committed. A creature opts into real
-  art with an `"img"` field in `creatures.py`; without it, it falls back to the
+- **Artwork:** PNGs (with their Aseprite sources) live in `artwork/<folder>/` —
+  `animals/` are the huntable creatures (16×16 RGBA), `companion/` the maatje,
+  `title-screen/` the 320×120 welcome banner. `scripts/bake_sprites.sh` mirrors
+  the PNGs (only) into `be.fri3d.foxhunt/assets/`, **keeping the folder
+  structure**, so `artwork/animals/vos.png` → `assets/animals/vos.png`. Re-run
+  it after changing artwork; `--check` reports drift. Both sides are committed,
+  and every PNG under `assets/` belongs to the script (orphans get pruned).
+  A creature opts into real art with an `"img"` field in `creatures.py` — the
+  bare filename, `art.py` owns the folder; without it, it falls back to the
   procedural placeholder shape.
 - **Don't name an asset dir after an imported module** — a folder `creatures/`
-  shadows `creatures.py` on import. That's why art lives in `assets/sprites/`.
+  shadows `creatures.py` on import. That's why creature art lives in
+  `assets/animals/`.
 - **Fonts** are 1-bit bitmap fonts in `assets/fonts/*.bin`, loaded with
   `lv.binfont_create`. Edit the source `.bdf` in `tools/bitmap_fonts/` (editor)
   and re-bake the deployed `.bin` with `scripts/bake_fonts.sh`

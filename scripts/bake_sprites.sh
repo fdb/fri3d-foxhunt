@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# Bake the creature art into the sprite files the app loads.
+# Bake the artwork into the image files the app loads.
 #
-# artwork/**/*.png  →  be.fri3d.foxhunt/assets/sprites/**/*.png
+# artwork/**/*.png  →  be.fri3d.foxhunt/assets/**/*.png   (same structure)
 #
-# artwork/ is the source of truth (PNGs plus their .aseprite sources);
-# assets/sprites/ is the deployed artifact — an exact PNG-only mirror, no
+# artwork/ is the source of truth (PNGs plus their .aseprite sources); the
+# mirror under assets/ is the deployed artifact — an exact PNG-only copy, no
 # symlink, so a plain copy of the app dir is badge-ready. Both are committed,
 # because the badge has no build step: whatever sits in assets/ is what runs.
+#
+# The tree structure is preserved, so artwork/animals/vos.png lands at
+# assets/animals/vos.png and artwork/title-screen/title-screen.png at
+# assets/title-screen/title-screen.png. Every PNG under assets/ belongs to this
+# script (the hand-maintained things there are .py and fonts/*.bin), so a PNG
+# with no artwork behind it is pruned.
 #
 # Usage:
 #   scripts/bake_sprites.sh            # (re-)mirror every PNG, prune orphans
@@ -24,7 +30,7 @@ case "${1:-}" in
 esac
 
 src_dir="artwork"
-out_dir="be.fri3d.foxhunt/assets/sprites"
+out_dir="be.fri3d.foxhunt/assets"
 
 if [[ -L "$out_dir" ]]; then
     echo "bake_sprites: $out_dir is a symlink — remove it first" >&2
@@ -51,7 +57,7 @@ while IFS= read -r -d '' png; do
     fi
 done < <(find "$src_dir" -name '*.png' -print0)
 
-# Mirror → source: a sprite with no artwork behind it is unmaintainable — prune.
+# Mirror → source: an image with no artwork behind it is unmaintainable — prune.
 if [[ -d "$out_dir" ]]; then
     while IFS= read -r -d '' out; do
         rel="${out#"$out_dir"/}"
@@ -69,6 +75,6 @@ if [[ -d "$out_dir" ]]; then
 fi
 
 if [[ "$mode" == "check" && "$fail" -ne 0 ]]; then
-    echo "sprites out of date — run scripts/bake_sprites.sh" >&2
+    echo "artwork out of date — run scripts/bake_sprites.sh" >&2
     exit 1
 fi
