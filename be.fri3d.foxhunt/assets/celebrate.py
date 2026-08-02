@@ -166,7 +166,7 @@ class Fireworks:
 
     def _led_chase(self, frame):
         for i in range(5):
-            r, g, b = _rgb(RAINBOW[(frame + i) % len(RAINBOW)])
+            r, g, b = leds.dim(_rgb(RAINBOW[(frame + i) % len(RAINBOW)]))
             lights.set_led(i, r, g, b)
         return lights.write()
 

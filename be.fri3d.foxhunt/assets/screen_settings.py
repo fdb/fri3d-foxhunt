@@ -1,5 +1,5 @@
-# screen_settings.py — instellingen: geluid + trillen, and the badge/jager
-# ids as plain labels at the bottom.
+# screen_settings.py — instellingen: geluid, trillen + LED sterkte, and the
+# badge/jager ids as plain labels at the bottom.
 #
 # Geluid mutes the app's buzzer sounds; Trillen is a stored switch waiting
 # for a vibration API. Maatje/naam editing lives on the profile screen, and
@@ -9,12 +9,14 @@ from mpos import Activity
 import ui
 import store
 import sound
+import leds
 import registrar
 
 STRIP_BG = 0xEFE7D0
 TRACK_OFF = 0xE0D4B4  # switch track when off
 ROW_H, ROW_GAP = 26, 4
 _ROW_W = 308
+_LED_STEPS = (0, 25, 50, 75, 100)  # tap cycles; 4 bar cells = pct // 25
 
 
 class _Toggle:
@@ -49,6 +51,17 @@ class SettingsActivity(Activity):
             self._toggles[key] = _Toggle(row, 262, 3, cfg[key])
             ui.focusable(row, on_click=lambda k=key: self._flip(k))
 
+        # LED sterkte: full power is blinding on the badge, so it's adjustable.
+        # A 4-cell bar (the hunt's 5-LED look) beats a slider on a touch screen
+        # this small; tapping the row steps through _LED_STEPS and lights the
+        # strip at the new level so you can actually judge it.
+        self._led = cfg["led"]
+        row = ui.panel(s, 6, 32 + 2 * (ROW_H + ROW_GAP), _ROW_W, ROW_H, bg=ui.CARD)
+        self._led_cells = ui.seg_bar(
+            row, 8, 5, "LED sterkte", self._led // 25, ui.TERRA, total=4, label_w=215
+        )
+        ui.focusable(row, on_click=self._cycle_led)
+
         # ids, labels only: the badge id anchors recovery, the jager id is
         # minted over LoRa during registration ("-" until that happened)
         p = store.profile() or {}
@@ -61,9 +74,22 @@ class SettingsActivity(Activity):
 
         self.setContentView(s)
 
+    def onPause(self, screen):
+        super().onPause(screen)
+        leds.off()  # don't leave the preview burning after leaving the screen
+
     def _flip(self, key):
         value = not store.settings()[key]
         store.set_setting(key, value)
         # play after the write, so flipping geluid ON is audible immediately
         sound.play("tap")
         self._toggles[key].set(value)
+
+    def _cycle_led(self):
+        i = _LED_STEPS.index(self._led) if self._led in _LED_STEPS else 2
+        self._led = _LED_STEPS[(i + 1) % len(_LED_STEPS)]
+        store.set_setting("led", self._led)
+        leds.set_brightness(self._led)  # live: no restart to take effect
+        sound.play("tap")
+        ui.set_segments(self._led_cells, self._led // 25, ui.TERRA)
+        leds.show_level(5)  # preview at the new strength

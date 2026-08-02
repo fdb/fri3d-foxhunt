@@ -8,10 +8,39 @@
 # those two are the oldest, most stable part of the mpos.lights API, so the app
 # runs on badge firmware older than this checkout's mpos.
 # index 0 = leftmost (coldest), 4 = rightmost (hottest) — matches the board.
+#
+# "Unlit" means two different things: a NeoPixel must go fully dark (0,0,0),
+# while the on-screen mirror needs a visible dark cell so the row of five stays
+# readable. Hence OFF (physical) vs MIRROR_OFF (LCD).
 
 import mpos.lights as lights
+import store
 
-OFF = (24, 22, 18)
+OFF = (0, 0, 0)
+MIRROR_OFF = (24, 22, 18)
+
+_scale = None  # 0.0..1.0, lazily read from the "led" setting
+
+
+def brightness():
+    """LED strength 0..100, from settings (cached — the hunt polls at 4 Hz)."""
+    global _scale
+    if _scale is None:
+        _scale = max(0, min(100, store.settings()["led"])) / 100.0
+    return _scale
+
+
+def set_brightness(pct):
+    """Apply a new strength without a restart (called by the settings screen)."""
+    global _scale
+    _scale = max(0, min(100, pct)) / 100.0
+
+
+def dim(rgb):
+    """Scale an RGB tuple by the configured strength, for physical LEDs only —
+    the on-screen mirror shows full colour so it stays legible on the LCD."""
+    b = brightness()
+    return (int(rgb[0] * b), int(rgb[1] * b), int(rgb[2] * b))
 
 
 def _seg_color(i):
@@ -22,15 +51,17 @@ def _seg_color(i):
     return (0x5A, 0x9A, 0x3C)  # green  (cold)
 
 
-def colors_for_level(level):
+def colors_for_level(level, off=MIRROR_OFF):
     """RGB tuple per LED for a given lit count (0..5). Used by both the
-    physical LEDs and the on-screen mirror so they always agree."""
-    return [_seg_color(i) if i < level else OFF for i in range(5)]
+    physical LEDs and the on-screen mirror so they always agree on which
+    segments are lit; they differ only in what "unlit" looks like."""
+    return [_seg_color(i) if i < level else off for i in range(5)]
 
 
 def show_level(level):
     """Light the physical NeoPixels. Returns False (no-op) on desktop."""
-    for i, (r, g, b) in enumerate(colors_for_level(level)):
+    for i, rgb in enumerate(colors_for_level(level, OFF)):
+        r, g, b = dim(rgb)
         lights.set_led(i, r, g, b)
     return lights.write()
 
