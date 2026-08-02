@@ -80,12 +80,11 @@ class HomeActivity(Activity):
         # Identity hit-target: portrait + name act as ONE tappable/focusable
         # area, the gear is its own — so joystick focus steps identity ->
         # gear instead of one ring swallowing the whole header. Drawn last so
-        # it sits on top of the portrait for hit-testing; its rest border is
-        # card-on-card (invisible) and snaps to ink+gold when focused.
-        ident = ui.box(header, 2, 2, 262, 32, None)
-        ident.set_style_border_width(ui.BORDER, 0)
-        ident.set_style_border_color(ui.hexc(ui.CARD), 0)
-        ui.focusable(ident, on_click=self._profile, focus_border=True)
+        # it sits on top of the portrait for hit-testing; it is borderless and
+        # transparent, so at rest it changes NOTHING visually — only the gold
+        # focus halo appears, and the box is inset so the halo isn't clipped.
+        ident = ui.box(header, 4, 4, 258, 28, None)
+        ui.focusable(ident, on_click=self._profile)
         gear = ui.box(header, 272, 4, 28, 28, ui.CARD, radius=ui.RADIUS)
         gear.set_style_border_width(ui.BORDER, 0)
         gear.set_style_border_color(ui.hexc(ui.INK), 0)
