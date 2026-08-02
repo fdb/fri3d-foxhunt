@@ -346,7 +346,7 @@
       typoLineGap: dv.getUint16(h + 24, true), defaultChar: 32, props: {},
     };
     const defAdvance = dv.getUint16(h + 30, true);
-    const indexToLoc = bytes[h + 34], bpp = bytes[h + 37];
+    const indexToLoc = bytes[h + 34], awFormat = bytes[h + 36], bpp = bytes[h + 37];
     const xy = bytes[h + 38], wh = bytes[h + 39], awBits = bytes[h + 40], compression = bytes[h + 41];
     if (compression !== 0) throw new Error("compressed fonts not supported by importer (use --no-compress / bpp 1)");
 
@@ -382,7 +382,9 @@
       let bp = (g0 + off) * 8;
       const rd = (n) => { let v = 0; for (let i = 0; i < n; i++) { v = (v << 1) | ((bytes[bp >> 3] >> (7 - (bp & 7))) & 1); bp++; } return v; };
       const rds = (n) => { let v = rd(n); if (v >= (1 << (n - 1))) v -= (1 << n); return v; };
-      const advanceWidth = awBits ? rds(awBits) : defAdvance;
+      // advanceWidthFormat 1 = FP4 fixed-point (lv_font_conv with kerning); snap to whole pixels
+      const rawAdvance = awBits ? rds(awBits) : defAdvance;
+      const advanceWidth = awFormat === 1 ? Math.round(rawAdvance / 16) : rawAdvance;
       const x = rds(xy), y = rds(xy), w = rd(wh), hh = rd(wh);
       const pixels = [];
       for (let r = 0; r < hh; r++) { const row = []; for (let c = 0; c < w; c++) row.push(rd(bpp) ? 1 : 0); pixels.push(row); }
