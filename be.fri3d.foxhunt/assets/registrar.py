@@ -66,6 +66,11 @@ class Registrar:
             "companion": the avatar shortcode the server had, or None — an
                       account registered before shortcodes existed has no
                       profile_pic, and decodes to the default companion
+            "creatures": the creature ids the server has for this player
+                      (players_creatures), or None when it didn't say. The
+                      accessory unlocks are counted off this list, so a
+                      restore without it hands back a maatje wearing things
+                      the badge then claims are locked.
             "error": "E-01" when the server didn't answer, else None
         """
         raise NotImplementedError
@@ -83,6 +88,10 @@ class FakeRegistrar(Registrar):
     # sjaal on the third backdrop), so a restore that ignored the shortcode
     # would be obvious on screen instead of quietly plausible.
     RESTORE_COMPANION = "H2A014C3"
+    # ...and the catch list that earns it: sjaal opens at 8, so eight ids is
+    # the smallest recovery consistent with the companion above. Restore them
+    # together or the builder greys out a sjaal the player is wearing.
+    RESTORE_CREATURES = [0, 1, 2, 3, 4, 5, 6, 7]
 
     def register(self, name, badge, companion, on_update):
         st = {
@@ -149,6 +158,7 @@ class FakeRegistrar(Registrar):
                         "name": "Jager",
                         "hunter_id": "JGR-%04d" % random.randrange(10000),
                         "companion": self.RESTORE_COMPANION,
+                        "creatures": list(self.RESTORE_CREATURES),
                         "error": None,
                     }
                 )

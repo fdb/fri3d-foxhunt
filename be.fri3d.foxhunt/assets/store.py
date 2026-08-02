@@ -89,6 +89,39 @@ def add_caught(cid):
     e.commit()
 
 
+def restore_caught(ids):
+    """Adopt the catch list the server handed back (screen_restore).
+
+    A union, never a replace: the server only hears about a catch when the
+    LoRa bridge relays it, so a catch this badge has and the server doesn't is
+    real and must survive the restore. Ids the roster doesn't know are dropped
+    rather than counted — a phantom catch would inflate the maatje's unlocks.
+
+    Pet state is seeded fresh for everything recovered: the server records
+    which creatures you found, never how well you looked after them.
+
+    Returns the caught list afterwards."""
+    prefs = SharedPreferences(_APP)
+    have = prefs.get_list("caught", [])
+    beast = prefs.get_dict("beast", {})
+    e = prefs.edit()
+    changed = False
+    for cid in ids:
+        if by_id(cid) is None:
+            continue
+        if cid not in have:
+            have.append(cid)
+            changed = True
+        if str(cid) not in beast:
+            e.put_dict_item(
+                "beast", str(cid), pet.default_state(_today(), _PLACE, _now())
+            )
+    if changed:
+        e.put_list("caught", have)
+    e.commit()
+    return have
+
+
 def remove_caught(cid):
     """Forget a catch and its pet state (debug/test support)."""
     prefs = SharedPreferences(_APP)

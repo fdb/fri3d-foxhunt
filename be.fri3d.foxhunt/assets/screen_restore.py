@@ -107,7 +107,11 @@ class RestoreActivity(Activity):
         as the send screen: whatever happens next, the badge has the profile.
         The companion comes back as a shortcode (companion.decode), so the player
         gets their own avatar rather than a default fox; an account from
-        before shortcodes has none and falls back to the default."""
+        before shortcodes has none and falls back to the default.
+
+        The catch list comes back with it. It has to: the maatje's accessory
+        unlocks are counted off it, so restoring the avatar alone would hand
+        the player a sjaal the builder then greys out as unearned."""
         head, accs, bg = companion.decode(st.get("companion"))
         store.save_profile(
             {
@@ -120,6 +124,7 @@ class RestoreActivity(Activity):
                 "synced": True,
             }
         )
+        self.recovered = len(store.restore_caught(st.get("creatures") or []))
 
     # ---- state: found -----------------------------------------------------
     def _build_found(self, st):
@@ -149,9 +154,7 @@ class RestoreActivity(Activity):
 
         ui.label(
             s,
-            "Je maatje is mee hersteld."
-            if st.get("companion")
-            else "Je maatje kies je opnieuw in je profiel.",
+            self._recovered_line(st.get("companion")),
             0,
             178,
             ui.TEXT_MUTED,
@@ -168,6 +171,20 @@ class RestoreActivity(Activity):
         )
         lbl.align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(btn, on_click=self._finish_registered)
+
+    def _recovered_line(self, code):
+        """What came back, in one line. The catch count is worth saying out
+        loud: it is the number the player's unlocks are counted off, and a
+        restore that quietly returned zero would look identical to one that
+        worked until they opened the maatje builder."""
+        beesten = "1 beest" if self.recovered == 1 else "%d beesten" % self.recovered
+        if code and self.recovered:
+            return "Je maatje en %s zijn mee hersteld." % beesten
+        if code:
+            return "Je maatje is mee hersteld."
+        if self.recovered:
+            return "%s hersteld - je maatje kies je opnieuw." % beesten
+        return "Je maatje kies je opnieuw in je profiel."
 
     # ---- state: no luck ---------------------------------------------------
     def _build_no_luck(self, code):

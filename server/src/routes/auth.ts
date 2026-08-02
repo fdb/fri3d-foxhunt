@@ -88,7 +88,18 @@ authRoutes.get("/user", async (c) => {
     .first<Player>();
   if (!player) return c.json({ error: "unknown badge_id" }, 404);
 
-  return c.json(player);
+  // The catch list rides along with the account. players_creatures is the only
+  // record of it that survives a wiped badge, and the restored profile is
+  // wrong without it in a way you can see: the maatje's accessory unlocks are
+  // counted straight off this list, so a restore that dropped it would hand
+  // the player back an avatar wearing things it says they haven't earned.
+  const { results } = await c.env.DB.prepare(
+    "SELECT creature_id FROM players_creatures WHERE player_id = ? ORDER BY creature_id",
+  )
+    .bind(player.id)
+    .all<{ creature_id: number }>();
+
+  return c.json({ ...player, creatures: results.map((r) => r.creature_id) });
 });
 
 // PATCH /api/v1/auth/user
