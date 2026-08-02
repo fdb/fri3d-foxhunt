@@ -66,7 +66,13 @@ class HomeActivity(Activity):
         caught = set(store.caught_ids())
 
         # ── header: your maatje (tap -> profile) + settings gear ──────────
-        header = ui.panel(s, 6, 6, 308, 40, bg=ui.CARD)
+        # Two SIBLING panels, not one panel with the gear inside: the badge's
+        # directional focus navigation is geometric, and a target nested
+        # inside another target's rectangle is unreachable by joystick. Side
+        # by side, identity and gear are two clean focus stops, each with the
+        # standard ring.
+        header = ui.panel(s, 6, 6, 262, 40, bg=ui.CARD)
+        ui.focusable(header, on_click=self._profile)
         portrait = ui.panel(
             header, 4, 2, 32, 32, bg=mascot.BGS[p["bg"]] if p else ui.SURFACE_SOFT
         )
@@ -77,17 +83,7 @@ class HomeActivity(Activity):
         ui.label(header, p["name"] if p else "Jager", 46, 0, ui.INK, ui.font_title())
         sub = (p.get("hunter_id") or "JGR volgt") if p else "tik om te registreren"
         ui.label(header, sub, 46, 24, ui.MYSTERY, ui.font_small())
-        # Identity hit-target: portrait + name act as ONE tappable/focusable
-        # area, the gear is its own — so joystick focus steps identity ->
-        # gear instead of one ring swallowing the whole header. Drawn last so
-        # it sits on top of the portrait for hit-testing; it is borderless and
-        # transparent, so at rest it changes NOTHING visually — only the gold
-        # focus halo appears, and the box is inset so the halo isn't clipped.
-        ident = ui.box(header, 4, 4, 258, 28, None)
-        ui.focusable(ident, on_click=self._profile)
-        gear = ui.box(header, 272, 4, 28, 28, ui.CARD, radius=ui.RADIUS)
-        gear.set_style_border_width(ui.BORDER, 0)
-        gear.set_style_border_color(ui.hexc(ui.INK), 0)
+        gear = ui.panel(s, 272, 6, 42, 40, bg=ui.CARD)
         art.icon(gear, "gear", 2).align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(gear, on_click=self._settings)
 
