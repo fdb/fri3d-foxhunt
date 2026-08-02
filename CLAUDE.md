@@ -1,4 +1,4 @@
-# Foxhunt — working notes
+# Vossenjacht — working notes
 
 ## Commit discipline
 - **Commit after every meaningful, working change** — a fix or feature that builds
@@ -51,6 +51,24 @@ board layer handles the hardware differences.
   draw their own back button.
 - **LVGL native widgets have no `__dict__`** — you can't set Python attributes on
   them; keep per-widget state in the Activity.
+
+## Server debug routes
+`server/` (Hono on Cloudflare Workers + D1) exposes read-only inspection pages
+under `/debug/*` — `/debug/log` for the event log, `/debug/players` for the
+roster. Conventions for adding another one:
+- **One handler, two representations.** Query D1 once, then
+  `if (c.req.header("Accept")?.includes("application/json")) return c.json(...)`
+  before falling through to the HTML render. Curl gets JSON, the browser gets a
+  page — no separate `/api` twin.
+- **Render through `<Layout>`** with a Dutch `title` and a `right` count badge
+  (`` `${results.length} spelers` ``), and use the shared table markup:
+  `class="muted"` for secondary columns, `<code>` for ids/hashes, and a
+  `colspan` `class="empty"` row for the no-rows case.
+- **Timestamps** go through the `shortTime` / `fullTime` helpers in
+  `pages.tsx` — logs and lists show `YYYY-MM-DD HH:MM:SS`, the scoreboard just
+  `HH:MM`. Never dump the raw ISO string in HTML; JSON keeps it verbatim.
+- Debug pages are unauthenticated and unpolled — no HTMX refresh unless the page
+  is meant to be left open (the scoreboard is the only one that is).
 
 ## Layout source of truth
 `layout/foxhunt-layout.html` is the pixel-exact 320×240 spec — it owns

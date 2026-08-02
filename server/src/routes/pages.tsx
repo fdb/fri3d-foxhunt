@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Bindings, GameEvent, ScoreRow } from "../types";
+import type { Bindings, GameEvent, Player, ScoreRow } from "../types";
 import { Layout } from "../components/Layout";
 
 export const pageRoutes = new Hono<{ Bindings: Bindings }>();
@@ -23,6 +23,10 @@ async function fetchScores(db: D1Database): Promise<ScoreRow[]> {
 
 // "2026-08-02T12:34:56.789Z" -> "12:34"
 const shortTime = (iso: string | null) => (iso ? iso.slice(11, 16) : "—");
+
+// "2026-08-02T12:34:56.789Z" -> "2026-08-02 12:34:56"
+const fullTime = (iso: string | null) =>
+  iso ? iso.slice(0, 19).replace("T", " ") : "—";
 
 const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
   <section
@@ -71,7 +75,7 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
 pageRoutes.get("/", async (c) => {
   const scores = await fetchScores(c.env.DB);
   return c.html(
-    <Layout title="Foxhunt" right={`${scores.length} spelers`}>
+    <Layout title="Vossenjacht" right={`${scores.length} spelers`}>
       <Scoreboard scores={scores} />
     </Layout>,
   );
@@ -81,6 +85,55 @@ pageRoutes.get("/", async (c) => {
 pageRoutes.get("/scoreboard", async (c) => {
   const scores = await fetchScores(c.env.DB);
   return c.html(<Scoreboard scores={scores} />);
+});
+
+// Player list: HTML table by default, JSON when requested
+pageRoutes.get("/debug/players", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM players ORDER BY id DESC",
+  ).all<Player>();
+
+  if (c.req.header("Accept")?.includes("application/json")) {
+    return c.json(results);
+  }
+
+  return c.html(
+    <Layout title="Spelers" right={`${results.length} spelers`}>
+      <section>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Naam</th>
+              <th>Badge</th>
+              <th>Hunter</th>
+              <th>Aangemaakt</th>
+            </tr>
+          </thead>
+          <tbody>
+            {results.map((p) => (
+              <tr>
+                <td class="muted">{p.id}</td>
+                <td>{p.name}</td>
+                <td class="muted">
+                  <code>{p.badge_id}</code>
+                </td>
+                <td class="muted">{p.hunter_id ?? "—"}</td>
+                <td class="muted">{fullTime(p.dt_created)}</td>
+              </tr>
+            ))}
+            {results.length === 0 && (
+              <tr>
+                <td class="empty" colspan={5}>
+                  Nog geen spelers geregistreerd.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </section>
+    </Layout>,
+  );
 });
 
 // Event log: HTML table by default, JSON when requested
@@ -115,9 +168,7 @@ pageRoutes.get("/debug/log", async (c) => {
                 <td>
                   <code>{e.payload}</code>
                 </td>
-                <td class="muted">
-                  {e.created_at.slice(0, 19).replace("T", " ")}
-                </td>
+                <td class="muted">{fullTime(e.created_at)}</td>
               </tr>
             ))}
             {results.length === 0 && (
