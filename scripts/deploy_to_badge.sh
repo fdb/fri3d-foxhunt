@@ -4,8 +4,8 @@ cd "$(dirname "$0")/.."
 
 # Deploy the Foxhunt app onto a USB-connected Fri3d badge running
 # MicroPythonOS. Apps are plain files on the device's LittleFS, so this does
-# NOT touch firmware — it stages a badge-clean copy (symlinks resolved,
-# Aseprite sources dropped) and pushes it over the serial REPL.
+# NOT touch firmware — it stages a badge-clean copy (desktop cruft dropped)
+# and pushes it over the serial REPL.
 #
 # Usage: scripts/deploy_to_badge.sh [--start] [--port /dev/cu.usbmodemXXX]
 #
@@ -63,11 +63,7 @@ STAGE_ROOT="$(mktemp -d)"
 trap 'rm -rf "$STAGE_ROOT"' EXIT
 STAGE="$STAGE_ROOT/$APP_ID"
 
-# -RL resolves symlinks (e.g. assets/sprites -> ../../artwork) so the badge
-# gets real files, not dangling links.
-cp -RL "$APP_SRC" "$STAGE"
-# Aseprite sources are editor-only; the badge loads the exported PNGs.
-find "$STAGE" -name '*.aseprite' -delete
+cp -R "$APP_SRC" "$STAGE"
 # Desktop-only cruft: CPython bytecode caches and Finder metadata.
 find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} +
 find "$STAGE" -name '.DS_Store' -delete
