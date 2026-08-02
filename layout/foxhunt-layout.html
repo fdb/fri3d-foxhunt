@@ -406,16 +406,20 @@
     s.style.background='var(--paper)';
     banner(s,'DEBUG',{right:'1111',color:'var(--terra)',dark:'var(--terra-d)'});
 
-    const code=box(6,34,308,42,panelStyle('var(--card)'));
-    code.appendChild(text('TESTCODE ACTIEF',8,5,180,13,
+    const code=box(6,34,308,54,panelStyle('var(--card)'));
+    code.appendChild(text('TESTCODE 1111',8,8,160,13,
       {size:10,color:'var(--terra-d)'}));
-    code.appendChild(text('elk beest vang je nu met code 1111',8,22,260,13,
+    code.appendChild(text('voor elk beest',8,28,160,13,
       {size:10,color:'var(--ink)'}));
+    const codeState=box(178,12,110,28,panelStyle('#d8c9a4','#cdb67d'));
+    codeState.appendChild(text('NIET ACTIEF',0,0,110,28,
+      {size:10,weight:600,align:'center',color:'var(--ink)'}));
+    code.appendChild(codeState);
     s.appendChild(code);
 
-    s.appendChild(text('BEESTENBOEK',8,84,200,13,
+    s.appendChild(text('BEESTENBOEK',8,96,200,13,
       {size:10,color:'var(--green-d)'}));
-    const roster=box(6,98,308,101,panelStyle('#e9f1cf'));
+    const roster=box(6,110,308,89,panelStyle('#e9f1cf'));
     ROSTER.slice(0,3).forEach((c,i)=>{
       const caught=i===0, y=4+i*45;
       const row=box(4,y,294,42,panelStyle('var(--card)','#cdb67d'));

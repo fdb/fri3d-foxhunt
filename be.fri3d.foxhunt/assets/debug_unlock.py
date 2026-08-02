@@ -16,6 +16,10 @@ def disable_debug_code():
     _debug_code_enabled = False
 
 
+def debug_code_enabled():
+    return _debug_code_enabled
+
+
 def accepts_debug_code(code):
     return _debug_code_enabled and code == DEBUG_CODE
 
