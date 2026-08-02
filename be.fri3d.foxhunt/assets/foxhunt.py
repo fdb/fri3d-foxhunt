@@ -41,7 +41,9 @@ class HomeActivity(Activity):
         caught = set(store.caught_ids())
         ui.banner(s, "FOXHUNT", ui.GREEN, right="%d/%d" % (len(caught), len(CREATURES)))
 
-        # 4 cells per row; +2px slack so the exact-fit 4th column never wraps early
+        # 4 cells per row; +2px slack so the exact-fit 4th column never wraps early.
+        # The window shows 3 rows; with more creatures the grid scrolls
+        # vertically (box() strips SCROLLABLE, so re-add it here).
         grid = ui.row(
             s,
             6,
@@ -51,7 +53,18 @@ class HomeActivity(Activity):
             gap=_GAP,
             wrap=True,
         )
-        for c in CREATURES:
+        grid.add_flag(lv.obj.FLAG.SCROLLABLE)
+        grid.set_scroll_dir(lv.DIR.VER)
+
+        # Auto-sort: huntable (transmitting, not yet caught) first, then caught,
+        # then still-hidden. Stable, so roster order holds within each group.
+        def _rank(c):
+            cid = c["id"]
+            if cid in awake and cid not in caught:
+                return 0
+            return 1 if cid in caught else 2
+
+        for c in sorted(CREATURES, key=_rank):
             cid = c["id"]
             is_caught = cid in caught
             huntable = (cid in awake) and not is_caught

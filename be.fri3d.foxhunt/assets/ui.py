@@ -290,6 +290,9 @@ def focusable(obj, on_click=None, focus_border=False):
     drawing the default outer outline — use it for widgets in a tight grid
     (the collection cells) where an outer ring would overlap neighbours."""
     obj.add_flag(lv.obj.FLAG.CLICKABLE)
+    # In a scrollable parent (home grid) arrow-focus pulls the widget into
+    # view; a no-op everywhere else.
+    obj.add_flag(lv.obj.FLAG.SCROLL_ON_FOCUS)
     # Shared state styles instead of four inline setters per nav widget.
     obj.add_style(
         _FOCUS_BORDER if focus_border else _FOCUS, lv.PART.MAIN | lv.STATE.FOCUSED
