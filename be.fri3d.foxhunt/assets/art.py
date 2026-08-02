@@ -209,15 +209,14 @@ PALS = {
 _SIL = 0x2B241D  # silhouette colour for dormant / scanning
 
 
-def draw_sprite(parent, rows, palette, scale, silhouette=False, reveal=1.0):
+def draw_sprite(parent, rows, palette, scale, tint=None):
     """Draw a pixel sprite onto a fresh transparent canvas, each source pixel
     as a scale x scale block. Returns the lv.canvas widget.
 
-    reveal (0..1) colours the top fraction of rows and leaves the rest as
-    silhouette — the creature "fills in" as the player types the code."""
+    tint (a colour) flattens every opaque pixel to that one colour, keeping only
+    the outline — a dark silhouette while hunting, white while typing the code."""
     w = len(rows[0]) * scale
     h = len(rows) * scale
-    cutoff = reveal * len(rows)  # rows above this are colour
     canvas = lv.canvas(parent)
     canvas.set_size(w, h)
     buf = bytearray(w * h * 4)  # ARGB8888 -> real alpha
@@ -227,12 +226,11 @@ def draw_sprite(parent, rows, palette, scale, silhouette=False, reveal=1.0):
     cover = lv.OPA.COVER
     for y, row in enumerate(rows):
         by = y * scale
-        row_sil = silhouette or (y >= cutoff)
         for x in range(len(row)):
             ch = row[x]
             if ch == "." or ch == " ":
                 continue
-            col = _SIL if row_sil else palette.get(ch)
+            col = tint if tint is not None else palette.get(ch)
             if col is None:
                 continue
             color = lv.color_hex(col)
@@ -264,9 +262,10 @@ def _bare(o):
     o.remove_flag(lv.obj.FLAG.CLICKABLE)  # let taps fall through to the cell
 
 
-def _layer(parent, c, scale, silhouette):
-    """One creature image/canvas at (0,0), sized 16*scale, full colour or
-    silhouette. Non-clickable so it never steals taps from a clickable cell."""
+def _layer(parent, c, scale, tint=None):
+    """One creature image/canvas at (0,0), sized 16*scale, full colour (tint
+    None) or flattened to `tint`. Non-clickable so it never steals taps from a
+    clickable cell."""
     px = 16 * scale
     if c.get("img"):
         w = lv.image(parent)
@@ -275,34 +274,38 @@ def _layer(parent, c, scale, silhouette):
         w.set_size(px, px)
         w.set_inner_align(lv.image.ALIGN.STRETCH)  # scale src(16) to fill px x px
         w.set_antialias(False)  # nearest-neighbour -> crisp
-        if silhouette:
-            w.set_style_image_recolor(lv.color_hex(_SIL), 0)
+        if tint is not None:
+            w.set_style_image_recolor(lv.color_hex(tint), 0)
             w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
     else:
-        w = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, silhouette)
+        w = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, tint)
         w.set_pos(0, 0)
     w.remove_flag(lv.obj.FLAG.CLICKABLE)
     return w
 
 
-def creature_panel(parent, c, scale, reveal=1.0, silhouette=False):
-    """The creature shown full / silhouette / partially revealed (colour fills
+def creature_panel(parent, c, scale, reveal=1.0, silhouette=False, mask=None):
+    """The creature shown full / silhouette / partially revealed (fills
     top-down). Backend-agnostic — PNG art and procedural sprites both come
     through here. Full/silhouette return the bare sprite (no wrapper, so it
-    never blocks clicks); only the partial-reveal case needs a clip wrapper."""
+    never blocks clicks); only the partial-reveal case needs a clip wrapper.
+
+    `mask` (a colour) fills the revealed part with that flat colour instead of
+    the real art: the code screen shows typing progress without spoiling which
+    creature it is. The true reveal is the win screen."""
     if silhouette or reveal <= 0.0:
-        return _layer(parent, c, scale, True)
+        return _layer(parent, c, scale, _SIL)
     if reveal >= 1.0:
-        return _layer(parent, c, scale, False)
-    # partial: silhouette base + colour clipped to the top `reveal` fraction
+        return _layer(parent, c, scale, mask)
+    # partial: silhouette base + revealed part clipped to the top `reveal`
     px = 16 * scale
     wrap = lv.obj(parent)
     _bare(wrap)
     wrap.set_size(px, px)
-    _layer(wrap, c, scale, True)
+    _layer(wrap, c, scale, _SIL)
     clip = lv.obj(wrap)
     _bare(clip)
     clip.set_size(px, max(1, int(reveal * px)))
     clip.set_pos(0, 0)
-    _layer(clip, c, scale, False)
+    _layer(clip, c, scale, mask)
     return wrap

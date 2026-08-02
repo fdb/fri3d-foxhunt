@@ -46,7 +46,8 @@ class CodeActivity(Activity):
         self.dots = ui.label(
             s, "____", 198, 40, ui.INK, ui.font_title(), w=116, center=True
         )
-        self.rev = ui.box(s, 214, 80, 92, 92, ui.SURFACE_TINT, radius=2)
+        # dark scanner panel: the white fill needs a dark ground to read against
+        self.rev = ui.box(s, 214, 80, 92, 92, ui.INK, radius=2)
         self.rev.set_style_border_width(2, 0)
         self.rev.set_style_border_color(ui.hexc(ui.TERRA), 0)
         self._sprite = None
@@ -65,11 +66,13 @@ class CodeActivity(Activity):
         self.setContentView(s)
 
     def _draw_reveal(self):
-        # creature "fills in" top-down, a quarter per entered digit
+        # Progress only: the shape fills in white top-down, a quarter per digit.
+        # Never the real art — the creature is only unmasked on the win screen,
+        # after the code is entered in full AND verified.
         if self._sprite is not None:
             self._sprite.delete()
         self._sprite = art.creature_panel(
-            self.rev, self.c, 4, reveal=len(self.entry) / 4.0
+            self.rev, self.c, 4, reveal=len(self.entry) / 4.0, mask=ui.CREAM
         )
         self._sprite.align(lv.ALIGN.CENTER, 0, 0)
 

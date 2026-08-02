@@ -26,7 +26,9 @@ class HuntActivity(Activity):
         s = ui.make_screen(0xCFE2AD)
         rarity = self.c["rarity"]
         tag = {"leg": "legende", "rare": "zeldzaam"}.get(rarity, "gewoon")
-        ui.banner(s, self.c["naam"], ui.TERRA, right=tag)
+        # The hunt is the mystery — you only learn WHICH beast it is once you've
+        # entered its code. Only the rarity is teased, as a difficulty cue.
+        ui.banner(s, "?????", ui.TERRA, right=tag)
 
         # scan card with the silhouette + heartbeat
         card = ui.box(s, 6, 30, 308, 120, ui.SURFACE_SOFT, radius=2)
