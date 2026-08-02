@@ -14,6 +14,10 @@ board layer handles the hardware differences.
 - Headless smoke test: run it redirected to a log file and grep the log for
   `Traceback` / `Error`. Home rendering with no traceback means imports + that
   screen build cleanly (other screens build when navigated to).
+- Full UI verification: pipe commands into the emulator's stdin REPL to
+  simulate taps/drags/focus and capture screenshots — see
+  `docs/emulator-testing.md`. Prefer this over "it should work" for any
+  change with visible or interactive behaviour.
 
 ## Formatting
 - `scripts/format.sh` formats all Python (Ruff via `uvx`) and JSON (stdlib
@@ -35,7 +39,9 @@ board layer handles the hardware differences.
 - **Fonts** are 1-bit bitmap fonts in `assets/fonts/*.bin`, loaded with
   `lv.binfont_create`. Edit the source `.bdf` in `tools/bitmap_fonts/` (editor)
   and re-bake the deployed `.bin` with `scripts/bake_fonts.sh`
-  (`--check` reports drift) — see `docs/fonts.md`.
+  (`--check` reports drift) — see `docs/fonts.md`. Coverage is ASCII 32–126
+  ONLY: no `► ✓ · — é`. Substitute ASCII (`>`, `-`, "wel") or draw a pixel
+  icon in `art.ICONS` (that's what the checkmark/cross/antenna icons are).
 - **Back navigation** is the system left-edge swipe / Esc / joystick — apps don't
   draw their own back button.
 - **LVGL native widgets have no `__dict__`** — you can't set Python attributes on

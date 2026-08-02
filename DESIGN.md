@@ -27,7 +27,9 @@ layout spec are allowed inline, but spacing between repeated things should be a
 token or a `gap=` argument, not a fresh number.
 
 **Fonts** — only `font_small()` / `font_label()` / `font_title()`. Three sizes is
-the type scale; don't invent a fourth.
+the type scale; don't invent a fourth. Glyph coverage is ASCII 32–126 only —
+design glyphs like `► ✓ · — é` become ASCII (`>`, `-`, "wel") or a pixel icon
+in `art.ICONS`.
 
 ---
 
@@ -62,6 +64,22 @@ the type scale; don't invent a fourth.
 5. **Never touch pins.** Hardware goes through `mpos.*` managers and must no-op +
    fall back on desktop (see CLAUDE.md).
 
+6. **Focus targets are disjoint rectangles.** The badge's joystick navigation
+   (`mpos.ui.focus_direction`) is *geometric*: a focusable widget nested inside
+   another focusable widget's rectangle is unreachable by direction keys, even
+   though `group.focus_next()` reaches it in tests. If two actions share a
+   visual area (the home header's identity + gear), make them sibling panels
+   side by side, not one panel containing the other.
+
+7. **Focus is shown with outlines, never border recolours.** On the widget
+   holding `lv.STATE.FOCUSED`, border-colour changes silently don't render in
+   this LVGL build — not via local `set_style_border_color` (any selector) and
+   not via `add_style` with a FOCUSED selector; the property reads back changed
+   but draws the old colour. Outlines DO render (that's what `_FOCUS` /
+   `_FOCUS_BORDER` rely on), and negative `outline_pad` is clamped, so an
+   outline can't be pulled inward to fake a border recolour. Stick to
+   `ui.focusable()`.
+
 ---
 
 ## HIG principles (and how this app meets them)
@@ -94,7 +112,9 @@ the type scale; don't invent a fourth.
 - [ ] `ui.make_screen(<bg token>)`, build through `ui.*` helpers.
 - [ ] Repeated elements in a `ui.row(...)`, not hand-computed coordinates.
 - [ ] Colours/spacing are tokens; no new raw `0x…` or magic gaps in the screen.
-- [ ] Every interactive element `ui.focusable(...)` with an `on_click` + a sound.
+- [ ] Every interactive element `ui.focusable(...)` with an `on_click` + a
+      sound; no focus target nested inside another focus target's rectangle.
 - [ ] No app-drawn back button.
 - [ ] Sprites refresh via `clean()` + rebuild, never a second `setContentView`.
-- [ ] Verified on the emulator against `layout/foxhunt-layout.html`.
+- [ ] Verified on the emulator against `layout/foxhunt-layout.html` — drive it
+      and screenshot it per `docs/emulator-testing.md`.
