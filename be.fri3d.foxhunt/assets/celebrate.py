@@ -13,7 +13,6 @@ import ui
 import art
 import sound
 import leds
-import mpos.lights as lights
 
 # Vivid 8-hue rainbow reused everywhere — bg wash, halo, confetti, title, LEDs.
 RAINBOW = [
@@ -165,10 +164,7 @@ class Fireworks:
             leds.off()
 
     def _led_chase(self, frame):
-        for i in range(5):
-            r, g, b = leds.dim(_rgb(RAINBOW[(frame + i) % len(RAINBOW)]))
-            lights.set_led(i, r, g, b)
-        return lights.write()
+        return leds.write([_rgb(RAINBOW[(frame + i) % len(RAINBOW)]) for i in range(5)])
 
     # ── the dopamine pump ────────────────────────────────────────────────
     def _tick(self, t):

@@ -16,7 +16,19 @@ STRIP_BG = 0xEFE7D0
 TRACK_OFF = 0xE0D4B4  # switch track when off
 ROW_H, ROW_GAP = 26, 4
 _ROW_W = 308
-_LED_STEPS = (0, 25, 50, 75, 100)  # tap cycles; 4 bar cells = pct // 25
+# Tap cycles this ladder; the bar's 5 cells (one per LED) show the rung.
+# Not linear: perceived brightness is roughly a power law, so each rung about
+# doubles the duty — that puts the resolution at the dim end, where it shows.
+_LED_STEPS = (0, 5, 15, 30, 60, 100)
+
+
+def _led_step(pct):
+    """Nearest rung — a value stored under an older ladder still lands well."""
+    best = 0
+    for i, s in enumerate(_LED_STEPS):
+        if abs(s - pct) < abs(_LED_STEPS[best] - pct):
+            best = i
+    return best
 
 
 class _Toggle:
@@ -52,13 +64,13 @@ class SettingsActivity(Activity):
             ui.focusable(row, on_click=lambda k=key: self._flip(k))
 
         # LED sterkte: full power is blinding on the badge, so it's adjustable.
-        # A 4-cell bar (the hunt's 5-LED look) beats a slider on a touch screen
+        # A 5-cell bar (the hunt's 5-LED look) beats a slider on a touch screen
         # this small; tapping the row steps through _LED_STEPS and lights the
         # strip at the new level so you can actually judge it.
         self._led = cfg["led"]
         row = ui.panel(s, 6, 32 + 2 * (ROW_H + ROW_GAP), _ROW_W, ROW_H, bg=ui.CARD)
         self._led_cells = ui.seg_bar(
-            row, 8, 5, "LED sterkte", self._led // 25, ui.TERRA, total=4, label_w=215
+            row, 8, 5, "LED sterkte", _led_step(self._led), ui.TERRA, label_w=196
         )
         ui.focusable(row, on_click=self._cycle_led)
 
@@ -86,10 +98,10 @@ class SettingsActivity(Activity):
         self._toggles[key].set(value)
 
     def _cycle_led(self):
-        i = _LED_STEPS.index(self._led) if self._led in _LED_STEPS else 2
-        self._led = _LED_STEPS[(i + 1) % len(_LED_STEPS)]
+        i = (_led_step(self._led) + 1) % len(_LED_STEPS)
+        self._led = _LED_STEPS[i]
         store.set_setting("led", self._led)
         leds.set_brightness(self._led)  # live: no restart to take effect
         sound.play("tap")
-        ui.set_segments(self._led_cells, self._led // 25, ui.TERRA)
+        ui.set_segments(self._led_cells, i, ui.TERRA)
         leds.show_level(5)  # preview at the new strength

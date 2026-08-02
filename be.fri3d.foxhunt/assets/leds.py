@@ -7,7 +7,10 @@
 # We deliberately only use set_led() + write() (never is_available()/clear()):
 # those two are the oldest, most stable part of the mpos.lights API, so the app
 # runs on badge firmware older than this checkout's mpos.
-# index 0 = leftmost (coldest), 4 = rightmost (hottest) — matches the board.
+# Everything in this module is ordered as you SEE it: index 0 = leftmost
+# (coldest), 4 = rightmost (hottest), same as the on-screen mirror. The strip
+# itself is wired the other way round — physical pixel 0 is the RIGHTMOST one —
+# so write() is the single place that flips; no caller should think about it.
 #
 # "Unlit" means two different things: a NeoPixel must go fully dark (0,0,0),
 # while the on-screen mirror needs a visible dark cell so the row of five stays
@@ -58,12 +61,20 @@ def colors_for_level(level, off=MIRROR_OFF):
     return [_seg_color(i) if i < level else off for i in range(5)]
 
 
+def write(colors):
+    """Push 5 left-to-right RGB tuples to the strip, dimmed to the configured
+    strength and flipped to the board's right-to-left pixel order.
+    Returns False (no-op) on desktop."""
+    last = len(colors) - 1
+    for i, rgb in enumerate(colors):
+        r, g, b = dim(rgb)
+        lights.set_led(last - i, r, g, b)
+    return lights.write()
+
+
 def show_level(level):
     """Light the physical NeoPixels. Returns False (no-op) on desktop."""
-    for i, rgb in enumerate(colors_for_level(level, OFF)):
-        r, g, b = dim(rgb)
-        lights.set_led(i, r, g, b)
-    return lights.write()
+    return write(colors_for_level(level, OFF))
 
 
 def off():
