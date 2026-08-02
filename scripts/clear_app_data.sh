@@ -4,9 +4,16 @@
 # The app persists everything (profile, caught ids, companion stats) through
 # mpos.SharedPreferences, which is one config.json in a per-app directory,
 # resolved relative to the filesystem root of whichever target is running:
-# the MicroPythonOS checkout's internal_filesystem/ on desktop, LittleFS on
-# the badge. MPOS versions disagree on the parent dir — the checkout writes
-# data/<app>/, the badge firmware writes prefs/<app>/ — so both are cleared.
+# a MicroPythonOS install's internal_filesystem/ on desktop, LittleFS on the
+# badge. Two things vary, and guessing wrong means reporting success while the
+# save survives — so this sweeps every candidate instead:
+#
+#   * WHICH INSTALL. run_on_mac.sh runs the prebuilt package in
+#     ~/MicroPythonOS; deploy_to_badge.sh and run_desktop.sh use the source
+#     checkout in ~/Source/MicroPythonOS. Each has its own save file.
+#   * WHICH PARENT DIR. MPOS versions disagree: the desktop trees write
+#     data/<app>/, the badge firmware writes prefs/<app>/.
+#
 # The app re-creates whichever it uses on the next commit().
 #
 # Usage:
@@ -15,16 +22,18 @@
 #   scripts/clear_app_data.sh --badge --port /dev/cu.usbmodemXXX
 #
 # Env overrides:
-#   MPOS_DIR         MicroPythonOS checkout (default: ~/Source/MicroPythonOS)
+#   MPOS_DIR         clear only this MicroPythonOS install, instead of both
 #   BADGE_PORT       same as --port
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
 APP_ID="be.fri3d.foxhunt"
-MPOS_DIR="${MPOS_DIR:-$HOME/Source/MicroPythonOS}"
-CONTROLLER="$MPOS_DIR/scripts/mpos_controller.py"
-LOCAL_ROOT="$MPOS_DIR/internal_filesystem"
+if [[ -n "${MPOS_DIR:-}" ]]; then
+    MPOS_DIRS=("$MPOS_DIR")
+else
+    MPOS_DIRS=("$HOME/MicroPythonOS" "$HOME/Source/MicroPythonOS")
+fi
 
 BADGE=0
 PORT="${BADGE_PORT:-}"
@@ -34,28 +43,46 @@ while [[ $# -gt 0 ]]; do
         --badge) BADGE=1; shift ;;
         --port)  PORT="${2:-}"; shift 2 ;;
         -h|--help)
-            sed -n '2,19p' "$0"; exit 0 ;;
+            sed -n '2,26p' "$0"; exit 0 ;;
         *) echo "error: unknown argument '$1'" >&2; exit 2 ;;
     esac
 done
 
 # ── Local (desktop emulator) ─────────────────────────────────────────
 cleared=0
-for parent in data prefs; do
-    dir="$LOCAL_ROOT/$parent/$APP_ID"
-    if [[ -d "$dir" ]]; then
-        echo "Clearing local app data: $dir"
-        rm -rf "$dir"
-        cleared=1
-    fi
+for root in "${MPOS_DIRS[@]}"; do
+    [[ -d "$root" ]] || continue
+    for parent in data prefs; do
+        dir="$root/internal_filesystem/$parent/$APP_ID"
+        if [[ -d "$dir" ]]; then
+            echo "Clearing local app data: $dir"
+            rm -rf "$dir"
+            cleared=1
+        fi
+    done
 done
-[[ "$cleared" -eq 1 ]] || echo "Local app data already clean (nothing under $LOCAL_ROOT)"
+if [[ "$cleared" -eq 0 ]]; then
+    echo "Local app data already clean. Looked in:"
+    for root in "${MPOS_DIRS[@]}"; do
+        echo "  $root/internal_filesystem/{data,prefs}/$APP_ID"
+    done
+fi
 
 [[ "$BADGE" -eq 1 ]] || exit 0
 
 # ── Badge ────────────────────────────────────────────────────────────
-[[ -f "$CONTROLLER" ]] || { echo "error: controller not found: $CONTROLLER" >&2
-                            echo "       set MPOS_DIR to your MicroPythonOS checkout." >&2; exit 1; }
+# Talking to the badge needs mpos_controller.py; take it from whichever
+# install has it.
+CONTROLLER=""
+for root in "${MPOS_DIRS[@]}"; do
+    if [[ -f "$root/scripts/mpos_controller.py" ]]; then
+        CONTROLLER="$root/scripts/mpos_controller.py"
+        break
+    fi
+done
+[[ -n "$CONTROLLER" ]] || { echo "error: mpos_controller.py not found in any of:" >&2
+                            printf '       %s\n' "${MPOS_DIRS[@]}" >&2
+                            echo "       set MPOS_DIR to your MicroPythonOS install." >&2; exit 1; }
 command -v uv >/dev/null || { echo "error: 'uv' is required (https://docs.astral.sh/uv/)" >&2; exit 1; }
 
 if [[ -z "$PORT" ]]; then
