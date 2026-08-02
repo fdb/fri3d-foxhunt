@@ -164,7 +164,12 @@ class RegSendActivity(Activity):
             center=True,
         )
 
-        REGISTRAR.register(self.p["name"], self.p.get("badge_id", ""), self._on_update)
+        REGISTRAR.register(
+            self.p["name"],
+            self.p.get("badge_id", ""),
+            mascot.encode(self.p["head"], self.p["accs"], self.p["bg"]),
+            self._on_update,
+        )
 
     def _creep(self):
         if self._pct < self._target:

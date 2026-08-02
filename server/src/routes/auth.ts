@@ -18,7 +18,7 @@ function uniqueConflict(err: unknown): "badge_id" | "hunter_id" | null {
 }
 
 // POST /api/v1/auth/register
-// Body: { badge_id, name, hunter_id? }
+// Body: { badge_id, name, hunter_id?, profile_pic? }
 authRoutes.post("/register", async (c) => {
   let body: Record<string, unknown>;
   try {
@@ -38,12 +38,23 @@ authRoutes.post("/register", async (c) => {
   if (hunterId === "invalid")
     return c.json({ error: "invalid hunter_id (integer 0-31)" }, 400);
 
+  // The maatje shortcode rides along with registration: it is what a restore
+  // hands back, so a badge that never sent one can never recover its avatar.
+  // The column is NOT NULL DEFAULT '', so "no maatje" is the empty string.
+  let profilePic = "";
+  if (body.profile_pic !== undefined) {
+    const validated = validateProfilePic(body.profile_pic);
+    if (validated === null)
+      return c.json({ error: "invalid profile_pic (maatje shortcode)" }, 400);
+    profilePic = validated;
+  }
+
   let player: Player | null;
   try {
     player = await c.env.DB.prepare(
-      "INSERT INTO players (badge_id, name, hunter_id) VALUES (?, ?, ?) RETURNING *",
+      "INSERT INTO players (badge_id, name, hunter_id, profile_pic) VALUES (?, ?, ?, ?) RETURNING *",
     )
-      .bind(badgeId, name, hunterId)
+      .bind(badgeId, name, hunterId, profilePic)
       .first<Player>();
   } catch (err) {
     const conflict = uniqueConflict(err);
@@ -57,6 +68,7 @@ authRoutes.post("/register", async (c) => {
     badge_id: badgeId,
     hunter_id: hunterId,
     name,
+    profile_pic: profilePic,
   });
   return c.json(player, 201);
 });

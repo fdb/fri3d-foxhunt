@@ -264,6 +264,66 @@ ACCS = [
 # backdrop swatches; the last one is the single dark option.
 BGS = [0xE9F1CF, 0xF7F0DF, 0xEFE0BB, 0xCFE0EA, 0xF0D3D6, 0xDED3EA, 0x3A4A34]
 
+# ── Wire format: the maatje as an 8-char shortcode ──────────────────────────
+#
+#   H1A003C1   =  head 1, accessories bril+snor, backdrop 1
+#   ^ ^^^^ ^
+#   | |  | +-- C: 1-based index into BGS
+#   | |  +---- A: 12-bit accessory mask, three HEX digits
+#   +-+------- H: 1-based index into HEADS
+#
+# The server stores this in players.profile_pic. It exists because the badge's
+# own head/accs/bg lists don't survive a wipe — the shortcode is what the
+# restore flow gets back, and the only thing that makes a recovered profile
+# look like the player's own maatje instead of a default fox.
+#
+# Indices are 1-based so a 0 can never be mistaken for "unset". The mask is hex
+# rather than decimal because 11 accessories need more than the 10 bits three
+# decimal digits would give; 12 bits leaves exactly one spare slot.
+#
+# BIT POSITIONS ARE APPEND-ONLY: bit i is _ACCS_WIRE[i], so a new accessory
+# goes at the END of ACCS. Inserting one in the middle silently rewrites every
+# shortcode already stored on the server.
+_ACCS_WIRE = [a["id"] for a in ACCS if a["id"] != "geen"]
+
+_DEFAULT_MAATJE = (HEADS[0]["id"], [], 0)
+
+
+def encode(head_id, accs, bg):
+    """(head id, accessory ids, backdrop index) -> "H1A003C1"."""
+    h = 1
+    for i, x in enumerate(HEADS):
+        if x["id"] == head_id:
+            h = i + 1
+            break
+    mask = 0
+    for i, aid in enumerate(_ACCS_WIRE):
+        if aid in accs:
+            mask |= 1 << i
+    c = bg + 1 if 0 <= bg < len(BGS) else 1
+    return "H%dA%03XC%d" % (h, mask, c)
+
+
+def decode(code):
+    """ "H1A003C1" -> (head id, accessory ids, backdrop index).
+
+    Anything malformed or out of range falls back to the default maatje: a
+    profile that renders beats an error dialog halfway through a restore, and
+    an old badge reading a code from a newer roster is a case we'd rather
+    degrade than refuse."""
+    try:
+        if len(code) != 8 or code[0] != "H" or code[2] != "A" or code[6] != "C":
+            return _DEFAULT_MAATJE
+        h = int(code[1])
+        mask = int(code[3:6], 16)
+        c = int(code[7])
+    except (TypeError, ValueError):
+        return _DEFAULT_MAATJE
+    head = HEADS[h - 1]["id"] if 1 <= h <= len(HEADS) else HEADS[0]["id"]
+    accs = [aid for i, aid in enumerate(_ACCS_WIRE) if mask & (1 << i)]
+    return head, accs, (c - 1 if 1 <= c <= len(BGS) else 0)
+
+
 # reference face the accessories were drawn on
 _EYE_REF, _MOUTH_REF = 7, 11
 

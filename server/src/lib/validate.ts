@@ -36,8 +36,15 @@ export function validateHunterId(raw: unknown): number | null | "invalid" {
   return raw;
 }
 
+// Profile pic: the maatje shortcode "H<head>A<mask>C<colour>", e.g. "H1A003C1"
+// — head and backdrop are 1-based indices, mask is a 12-bit accessory bitmask
+// in hex (see mascot.py, which owns the format). Stored as-is; the badge is
+// the only thing that renders it, and it tolerates indices it doesn't know.
+const MAATJE_RE = /^H[1-9]A[0-9A-F]{3}C[1-9]$/;
+
 export function validateProfilePic(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
-  if (raw.length > 255) return null;
-  return raw;
+  const code = raw.trim().toUpperCase();
+  if (!MAATJE_RE.test(code)) return null;
+  return code;
 }

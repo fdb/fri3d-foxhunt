@@ -32,8 +32,11 @@ def has_lora():
 
 
 class Registrar:
-    def register(self, name, badge, on_update):
+    def register(self, name, badge, maatje, on_update):
         """Send the profile to the cloud server and the LoRa bridge.
+
+        `maatje` is the avatar shortcode (mascot.encode) — the server keeps it
+        in profile_pic so a restore can hand the player back their own maatje.
 
         ASYNCHRONOUS BY CONTRACT (see FoxRadio.submit_code): progress arrives
         later through on_update(status), never as a return value. status:
@@ -60,11 +63,10 @@ class Registrar:
             "done" : True on the terminal update
             "found": the server knows this badge
             "name" / "hunter_id": the recovered account (with found)
+            "maatje": the avatar shortcode the server had, or None — an
+                      account registered before shortcodes existed has no
+                      profile_pic, and decodes to the default maatje
             "error": "E-01" when the server didn't answer, else None
-
-        Note the server only knows name + hunter id — the maatje is badge-local
-        art, so a restored profile starts on the default maatje and the player
-        re-picks one from the profile page.
         """
         raise NotImplementedError
 
@@ -77,8 +79,12 @@ class FakeRegistrar(Registrar):
     FAIL_BRIDGE = False  # flip to walk the E-02 error path
     RESTORE_FOUND = True  # flip to walk the "onbekende badge" restore path
     RESTORE_FAIL = False  # flip to walk the E-01 restore path
+    # A recovered maatje that is deliberately NOT the default (uil + hoed +
+    # sjaal on the third backdrop), so a restore that ignored the shortcode
+    # would be obvious on screen instead of quietly plausible.
+    RESTORE_MAATJE = "H2A084C3"
 
-    def register(self, name, badge, on_update):
+    def register(self, name, badge, maatje, on_update):
         st = {
             "cloud": "busy",
             "bridge": "wait",
@@ -142,6 +148,7 @@ class FakeRegistrar(Registrar):
                         "found": True,
                         "name": "Jager",
                         "hunter_id": "JGR-%04d" % random.randrange(10000),
+                        "maatje": self.RESTORE_MAATJE,
                         "error": None,
                     }
                 )

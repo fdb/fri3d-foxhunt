@@ -1,4 +1,4 @@
-# Foxhunt cloud server
+# Vossenjacht cloud server
 
 Cloudflare Worker (Hono + D1 + HTMX) that keeps badge registrations and
 scoring for the fox hunt. All game activity lands in the append-only
@@ -8,12 +8,28 @@ scoring for the fox hunt. All game activity lands in the append-only
 
 | Route                   | Method | Description                                                         |
 | ----------------------- | ------ | ------------------------------------------------------------------- |
-| `/api/v1/auth/register` | POST   | Register a badge: `{ badge_id, name, hunter_id? }`                  |
+| `/api/v1/auth/register` | POST   | Register a badge: `{ badge_id, name, hunter_id?, profile_pic? }`    |
 | `/api/v1/auth/user`     | GET    | Restore: look up an account by `?badge_id=...` (404 = new badge)   |
 | `/api/v1/auth/user`     | PATCH  | Update account by `badge_id`: `{ name?, hunter_id?, profile_pic? }` |
 | `/api/v1/player/found`  | POST   | Bridge relay reports `{ hunter_id, fox_id }` (Bearer `BRIDGE_KEY`)  |
 | `/`                     | GET    | Public dashboard, auto-refreshing scoreboard                        |
 | `/debug/log`            | GET    | Event log — HTML table, or JSON with `Accept: application/json`     |
+
+## The maatje shortcode (`profile_pic`)
+
+The badge's avatar is stored as an 8-character code, `H1A003C1`:
+
+| Part  | Meaning                                                          |
+| ----- | ---------------------------------------------------------------- |
+| `H1`  | head — 1-based index into the badge's head roster                 |
+| `A003` | accessories — 12-bit bitmask, three **hex** digits                |
+| `C1`  | backdrop colour — 1-based index into the badge's swatch list       |
+
+`be.fri3d.foxhunt/assets/mascot.py` owns the format (`encode` / `decode`); the
+server only validates the shape and stores it. Indices are 1-based so `0` can
+never read as "unset", and the badge degrades unknown indices to its default
+maatje rather than refusing them — that keeps an older badge able to restore an
+account minted by a newer roster.
 
 ## Development
 

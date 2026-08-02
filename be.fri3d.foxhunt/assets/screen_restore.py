@@ -105,14 +105,16 @@ class RestoreActivity(Activity):
     def _adopt(self, st):
         """Save the recovered account locally, straight away — same reasoning
         as the send screen: whatever happens next, the badge has the profile.
-        The server only knows name + hunter id, so the maatje starts at its
-        default and the player re-picks one from the profile page."""
+        The maatje comes back as a shortcode (mascot.decode), so the player
+        gets their own avatar rather than a default fox; an account from
+        before shortcodes has none and falls back to the default."""
+        head, accs, bg = mascot.decode(st.get("maatje"))
         store.save_profile(
             {
                 "name": st.get("name") or "Jager",
-                "head": "vos",
-                "accs": [],
-                "bg": 0,
+                "head": head,
+                "accs": accs,
+                "bg": bg,
                 "badge_id": self.badge,
                 "hunter_id": st.get("hunter_id"),
                 "synced": True,
@@ -147,7 +149,9 @@ class RestoreActivity(Activity):
 
         ui.label(
             s,
-            "Je maatje kies je opnieuw in je profiel.",
+            "Je maatje is mee hersteld."
+            if st.get("maatje")
+            else "Je maatje kies je opnieuw in je profiel.",
             0,
             178,
             ui.TEXT_MUTED,
