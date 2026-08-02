@@ -2,7 +2,7 @@
 # Stored at data/be.fri3d.foxhunt/config.json on both desktop and badge.
 #
 #   "caught" : list of caught creature ids
-#   "beast"  : dict {str(id): pet-state} — companion stats per caught creature
+#   "beast"  : dict {str(id): pet-state} — care stats per caught creature
 #
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
 
@@ -82,7 +82,7 @@ def add_caught(cid):
     if cid not in ids:
         ids.append(cid)
         e.put_list("caught", ids)
-    # First catch seeds the companion; a recatch never overwrites its stats.
+    # First catch seeds the pet state; a recatch never overwrites its stats.
     beast = prefs.get_dict("beast", {})
     if str(cid) not in beast:
         e.put_dict_item("beast", str(cid), pet.default_state(_today(), _PLACE, _now()))
@@ -90,7 +90,7 @@ def add_caught(cid):
 
 
 def remove_caught(cid):
-    """Forget a catch and its companion state (debug/test support)."""
+    """Forget a catch and its pet state (debug/test support)."""
     prefs = SharedPreferences(_APP)
     ids = prefs.get_list("caught", [])
     e = prefs.edit()
@@ -102,8 +102,8 @@ def remove_caught(cid):
 
 
 def _raw_state(prefs, cid):
-    """The stored companion dict for cid, seeding a default for caught-but-
-    unseeded creatures (legacy saves from before companions existed). Returns
+    """The stored pet-state dict for cid, seeding a default for caught-but-
+    unseeded creatures (legacy saves from before pet state existed). Returns
     None only if the creature isn't caught at all."""
     raw = prefs.get_dict("beast", {}).get(str(cid))
     if raw is None and cid in prefs.get_list("caught", []):
@@ -113,7 +113,7 @@ def _raw_state(prefs, cid):
 
 
 def beast_state(cid):
-    """Companion stats with time-decay applied and persisted. None if uncaught."""
+    """Pet stats with time-decay applied and persisted. None if uncaught."""
     prefs = SharedPreferences(_APP)
     raw = _raw_state(prefs, cid)
     if raw is None:
@@ -124,7 +124,7 @@ def beast_state(cid):
 
 
 def do_action(cid, action):
-    """Apply a companion action; persist; return (state, ok, message)."""
+    """Apply a pet action; persist; return (state, ok, message)."""
     prefs = SharedPreferences(_APP)
     raw = _raw_state(prefs, cid)
     if raw is None:

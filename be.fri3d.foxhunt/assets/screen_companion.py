@@ -1,4 +1,4 @@
-# screen_mascot.py — onboarding 2/3: build your maatje.
+# screen_companion.py — onboarding 2/3: build your companion ("maatje").
 #
 # Live preview on the left, three tabs on the right (KOP / EXTRA / KLEUR) over
 # one shared tile grid (design: mascotte.jsx). Most accessories are locked
@@ -12,7 +12,7 @@ import ui
 import art
 import sound
 import store
-import mascot
+import companion
 import registrar
 from screen_reg_send import RegSendActivity
 
@@ -22,7 +22,7 @@ _GRID_X, _GRID_Y, _GRID_W = 128, 62, 184
 _TILE_W = 42
 
 
-class MascotActivity(Activity):
+class CompanionActivity(Activity):
     def onCreate(self):
         # edit mode ("Maatje aanpassen" from the profile page): prefill from
         # the stored profile and save on confirm instead of registering.
@@ -54,11 +54,11 @@ class MascotActivity(Activity):
         self.screen = s
         ui.banner(s, "MAAK JE MAATJE", ui.GREEN, right=None if self.edit else "2/3")
 
-        # live preview: the maatje on its backdrop, name plate underneath
-        self.preview = ui.panel(s, ui.PAD, 32, 112, 170, bg=mascot.BGS[self.bg])
+        # live preview: the companion on its backdrop, name plate underneath
+        self.preview = ui.panel(s, ui.PAD, 32, 112, 170, bg=companion.BGS[self.bg])
         plate = ui.box(self.preview, 0, 148, 108, 18, ui.GREEN)
         ui.label(plate, self.name, 0, 2, ui.CREAM, ui.font_small(), w=108, center=True)
-        self._mascot = None
+        self._companion = None
         self._draw_preview()
 
         # tabs
@@ -95,10 +95,12 @@ class MascotActivity(Activity):
 
     # ---- preview ----------------------------------------------------------
     def _draw_preview(self):
-        if self._mascot is not None:
-            self._mascot.delete()
-        self.preview.set_style_bg_color(ui.hexc(mascot.BGS[self.bg]), 0)
-        self._mascot = mascot.draw(self.preview, self.head, self.accs, 6, x=6, y=24)
+        if self._companion is not None:
+            self._companion.delete()
+        self.preview.set_style_bg_color(ui.hexc(companion.BGS[self.bg]), 0)
+        self._companion = companion.draw(
+            self.preview, self.head, self.accs, 6, x=6, y=24
+        )
 
     # ---- tabs -------------------------------------------------------------
     def _style_tabs(self):
@@ -139,10 +141,12 @@ class MascotActivity(Activity):
         self._grid = ui.row(
             self.screen, _GRID_X, _GRID_Y, _GRID_W, 2 * th + 5, gap=5, wrap=True
         )
-        for h in mascot.HEADS:
+        for h in companion.HEADS:
             on = h["id"] == self.head
             cell = self._tile(th, on)
-            spr = art.draw_sprite(cell, mascot.head_rows(h), mascot.head_pal(h), 2)
+            spr = art.draw_sprite(
+                cell, companion.head_rows(h), companion.head_pal(h), 2
+            )
             spr.set_pos(3, 0)
             ui.label(
                 cell,
@@ -172,12 +176,12 @@ class MascotActivity(Activity):
         self._grid = ui.row(
             self.screen, _GRID_X, _GRID_Y, _GRID_W, 3 * th + 2 * 5, gap=5, wrap=True
         )
-        for a in mascot.ACCS:
+        for a in companion.ACCS:
             on = a["id"] in self.accs or (a["id"] == "geen" and not self.accs)
-            locked = not mascot.is_unlocked(a, self._caught_n, self._has_leg)
+            locked = not companion.is_unlocked(a, self._caught_n, self._has_leg)
             cell = self._tile(th, on, bg=LOCKED_BG if locked else None)
             if "rows" in a:
-                rows = mascot.crop(a["rows"])
+                rows = companion.crop(a["rows"])
                 w, h = len(rows[0]), len(rows)
                 scale = min(3, max(1, min(36 // w, 20 // h)))
                 spr = art.draw_sprite(cell, rows, a["pal"], scale)
@@ -233,11 +237,11 @@ class MascotActivity(Activity):
         self._grid = ui.row(
             self.screen, _GRID_X, _GRID_Y, _GRID_W, 2 * th + 5, gap=5, wrap=True
         )
-        for i, c in enumerate(mascot.BGS):
+        for i, c in enumerate(companion.BGS):
             on = i == self.bg
             cell = self._tile(th, on, bg=c)
             if on:
-                dark_swatch = i == len(mascot.BGS) - 1
+                dark_swatch = i == len(companion.BGS) - 1
                 ic = art.icon(cell, "check_light" if dark_swatch else "check", 2)
                 ic.align(lv.ALIGN.CENTER, 0, 0)
             ui.focusable(

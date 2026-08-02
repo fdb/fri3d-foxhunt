@@ -1,5 +1,5 @@
-# mascot.py — the "maatje" hunter avatar: a head, stackable accessories and a
-# backdrop colour, picked during registration.
+# companion.py — the hunter's companion ("maatje" in the UI): a head,
+# stackable accessories and a backdrop colour, picked during registration.
 #
 # Every sprite shares the head's 16x16 grid, so accessory layers drop straight
 # onto any head. Accessories are authored on a reference face (eye line 7,
@@ -264,7 +264,7 @@ ACCS = [
 # backdrop swatches; the last one is the single dark option.
 BGS = [0xE9F1CF, 0xF7F0DF, 0xEFE0BB, 0xCFE0EA, 0xF0D3D6, 0xDED3EA, 0x3A4A34]
 
-# ── Wire format: the maatje as an 8-char shortcode ──────────────────────────
+# ── Wire format: the companion as an 8-char shortcode ──────────────────────────
 #
 #   H1A003C1   =  head 1, accessories bril+snor, backdrop 1
 #   ^ ^^^^ ^
@@ -275,7 +275,7 @@ BGS = [0xE9F1CF, 0xF7F0DF, 0xEFE0BB, 0xCFE0EA, 0xF0D3D6, 0xDED3EA, 0x3A4A34]
 # The server stores this in players.profile_pic. It exists because the badge's
 # own head/accs/bg lists don't survive a wipe — the shortcode is what the
 # restore flow gets back, and the only thing that makes a recovered profile
-# look like the player's own maatje instead of a default fox.
+# look like the player's own companion instead of a default fox.
 #
 # Indices are 1-based so a 0 can never be mistaken for "unset". The mask is hex
 # rather than decimal because 11 accessories need more than the 10 bits three
@@ -286,7 +286,7 @@ BGS = [0xE9F1CF, 0xF7F0DF, 0xEFE0BB, 0xCFE0EA, 0xF0D3D6, 0xDED3EA, 0x3A4A34]
 # shortcode already stored on the server.
 _ACCS_WIRE = [a["id"] for a in ACCS if a["id"] != "geen"]
 
-_DEFAULT_MAATJE = (HEADS[0]["id"], [], 0)
+_DEFAULT_COMPANION = (HEADS[0]["id"], [], 0)
 
 
 def encode(head_id, accs, bg):
@@ -307,18 +307,18 @@ def encode(head_id, accs, bg):
 def decode(code):
     """ "H1A003C1" -> (head id, accessory ids, backdrop index).
 
-    Anything malformed or out of range falls back to the default maatje: a
+    Anything malformed or out of range falls back to the default companion: a
     profile that renders beats an error dialog halfway through a restore, and
     an old badge reading a code from a newer roster is a case we'd rather
     degrade than refuse."""
     try:
         if len(code) != 8 or code[0] != "H" or code[2] != "A" or code[6] != "C":
-            return _DEFAULT_MAATJE
+            return _DEFAULT_COMPANION
         h = int(code[1])
         mask = int(code[3:6], 16)
         c = int(code[7])
     except (TypeError, ValueError):
-        return _DEFAULT_MAATJE
+        return _DEFAULT_COMPANION
     head = HEADS[h - 1]["id"] if 1 <= h <= len(HEADS) else HEADS[0]["id"]
     accs = [aid for i, aid in enumerate(_ACCS_WIRE) if mask & (1 << i)]
     return head, accs, (c - 1 if 1 <= c <= len(BGS) else 0)
@@ -374,7 +374,7 @@ def crop(rows):
 
 
 def draw(parent, head_id, accs, scale, x=0, y=0):
-    """The composed maatje: head layer + each accessory layer, anchored.
+    """The composed companion: head layer + each accessory layer, anchored.
     Returns the (transparent) wrapper box, 16*scale square."""
     h = head_by_id(head_id)
     px = 16 * scale

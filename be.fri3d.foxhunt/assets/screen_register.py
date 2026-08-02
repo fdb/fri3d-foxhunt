@@ -3,7 +3,7 @@
 # First screen of the first-run flow (design: onboarding.jsx / PxRegister).
 # The OS keyboard (MposKeyboard) slides over the lower half when the field is
 # tapped; the field hops up out of its way and the rest of the chrome hides,
-# mirroring the design's "typing" state. VOLGENDE goes to the mascot builder.
+# mirroring the design's "typing" state. VOLGENDE goes to the companion builder.
 
 import lvgl as lv
 from mpos import Activity, Intent
@@ -13,7 +13,7 @@ import art
 import sound
 import store
 import registrar
-from screen_mascot import MascotActivity
+from screen_companion import CompanionActivity
 
 FIELD_BG = 0xFFF9EA
 PLACEHOLDER = 0xA89A78
@@ -181,7 +181,7 @@ class RegisterActivity(Activity):
             self.finish()
             return
         self.startActivityForResult(
-            Intent(activity_class=MascotActivity, extras={"name": name}),
+            Intent(activity_class=CompanionActivity, extras={"name": name}),
             self._child_done,
         )
 

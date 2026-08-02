@@ -24,6 +24,23 @@ board layer handles the hardware differences.
   `json.tool` via `uv`) — both Astral-runner-based, nothing installed into the
   project. `scripts/format.sh --check` reports unformatted files and exits 1 (CI).
 
+## Glossary — one word per thing
+The UI is Dutch, the code is English. Each concept has exactly one word on each
+side; using the other side's word in the wrong place is how `mascot`/`maatje`
+and two different "companions" happened.
+
+| Code (English) | UI (Dutch) | What it is |
+| --- | --- | --- |
+| **companion** | **maatje** | The player's own avatar: a head + stacked accessories + a backdrop, built at registration. `companion.py`, `screen_companion.py`, `CompanionActivity`. |
+| **creature** | **beest** | One of the huntable animals in the roster (`creatures.py`). Never a "companion". |
+| **fox** | **vos** | A physical LoRa transmitter hidden in the field. The creature is what you *get*; the fox is what you *find*. |
+| **hunter** | **jager** | The player. |
+| **pet state** | — | The per-creature care stats — bond, hunger, mood (`pet.py`, `store.beast_state`). Belongs to a creature, never to the companion. |
+| **shortcode** | — | The companion serialized for the wire: `H1A003C1` (`companion.encode` / `.decode`). |
+
+Retired words: **mascot** (say companion), **mascotte** (say maatje) — except
+as a citation of the original design bundle file `mascotte.jsx`.
+
 ## Conventions
 - **Never touch pins.** Use `mpos.*` managers (`mpos.lights`, `AudioManager`) and
   gate on availability — desktop has no LEDs and no buzzer output, so those calls

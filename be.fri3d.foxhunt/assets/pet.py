@@ -1,4 +1,4 @@
-# pet.py — the living-companion rules. PURE: no LVGL, no mpos, no I/O.
+# pet.py — the care rules for a caught creature. PURE: no LVGL, no mpos, no I/O.
 #
 # A caught creature has a state dict (see default_state). store.py persists it
 # and stamps the wall-clock; this module only does the math, so it runs under
@@ -28,7 +28,7 @@ def _clamp(v):
 
 
 def default_state(date, place, now):
-    """Fresh companion, the moment it's caught."""
+    """Fresh pet state, the moment the creature is caught."""
     return {
         "date": date,  # gevonden op (YYYY-MM-DD)
         "place": place,  # plaats

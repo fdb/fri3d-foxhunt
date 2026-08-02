@@ -1,6 +1,6 @@
-# screen_profile.py — the jagersprofiel (tap your maatje on the home header).
+# screen_profile.py — the jagersprofiel (tap your companion on the header).
 #
-# Big maatje portrait, name + ids, score, four stat tiles, and the two edit
+# Big companion portrait, name + ids, score, four stat tiles, and the two edit
 # actions that re-enter the onboarding screens in edit mode (design: home.jsx
 # PxProfile). Rebuilt on resume so an edit shows the moment you come back.
 
@@ -12,9 +12,9 @@ import art
 import pet
 import sound
 import store
-import mascot
+import companion
 from creatures import CREATURES, by_id
-from screen_mascot import MascotActivity
+from screen_companion import CompanionActivity
 from screen_register import RegisterActivity
 
 SCORE_BG = 0xF6E7CD
@@ -48,8 +48,8 @@ class ProfileActivity(Activity):
 
         ui.banner(s, "JAGERSPROFIEL", ui.GREEN)
 
-        portrait = ui.panel(s, ui.PAD, 32, 108, 108, bg=mascot.BGS[p.get("bg", 0)])
-        mascot.draw(portrait, p.get("head", "vos"), p.get("accs", []), 6, x=4, y=4)
+        portrait = ui.panel(s, ui.PAD, 32, 108, 108, bg=companion.BGS[p.get("bg", 0)])
+        companion.draw(portrait, p.get("head", "vos"), p.get("accs", []), 6, x=4, y=4)
 
         name = ui.label(s, p.get("name", "Jager"), 124, 34, ui.INK, ui.font_title())
         pencil = art.icon(s, "pencil", 2)
@@ -101,7 +101,7 @@ class ProfileActivity(Activity):
             center=True,
         )
         el.align(lv.ALIGN.CENTER, 0, 0)
-        ui.focusable(edit_btn, on_click=self._edit_mascot)
+        ui.focusable(edit_btn, on_click=self._edit_companion)
 
         name_btn = ui.box(s, 193, 196, 119, 34, ui.CARD, radius=ui.RADIUS)
         name_btn.set_style_border_width(ui.BORDER, 0)
@@ -112,9 +112,11 @@ class ProfileActivity(Activity):
         nl.align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(name_btn, on_click=self._edit_name)
 
-    def _edit_mascot(self):
+    def _edit_companion(self):
         sound.play("tap")
-        self.startActivity(Intent(activity_class=MascotActivity, extras={"edit": True}))
+        self.startActivity(
+            Intent(activity_class=CompanionActivity, extras={"edit": True})
+        )
 
     def _edit_name(self):
         sound.play("tap")

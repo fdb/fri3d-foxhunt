@@ -53,7 +53,7 @@ caretaker game:
 - Berry, nut and acorn food, with creature-specific favourites.
 - A dossier containing habitat, species, rarity and facts.
 - Stored nickname and sightings fields that can be developed further.
-- A customisable Maatje created during onboarding.
+- A customisable companion (maatje) created during onboarding.
 
 What is missing is a game economy around these screens. Food is currently
 unlimited, while petting and playing are repeatable actions, so bond can be
@@ -186,14 +186,14 @@ game when relatively few hunters are available.
 A caretaker should not begin with an empty collection and an instruction to
 find somebody with extra hardware.
 
-The existing Maatje can serve as a tutorial companion:
+The existing companion can serve as a tutorial guide:
 
 - Complete a first short activity.
 - Gather a starter berry, nut and acorn.
 - Learn how feeding and playing work.
 - Carry those resources forward when the first creature is introduced.
 
-Maatje need not become a collectible creature. Its purpose is to make the game
+The companion need not become a collectible creature. Its purpose is to make the game
 immediately playable and give every participant a personal identity.
 
 Avatar accessories should have multiple unlock paths. A hunter might unlock an
@@ -229,14 +229,14 @@ Possible rewards include:
 - A nickname editor.
 - Habitat decorations.
 - Creature-specific mini-games or difficulty levels.
-- Maatje accessories.
+- Companion accessories.
 - Playdates and mentor invitations.
 - Special postcards from expeditions.
 
 Progression should reward both breadth and depth:
 
 - **Breadth:** meet and care for several different creatures.
-- **Depth:** develop one favourite companion extensively.
+- **Depth:** develop one favourite creature extensively.
 
 The emotional centre can be one favourite creature while the wider collection
 provides variety.
@@ -307,7 +307,7 @@ can remain forgiving and locally owned.
 
 Before building a large economy, test a compact caretaker experience:
 
-1. Maatje tutorial.
+1. Companion tutorial.
 2. Hunter-to-caretaker one-time sharing code.
 3. One short foraging walk or movement mission.
 4. One motion mini-game, such as a tilt maze.
@@ -323,7 +323,7 @@ creature satisfying even when the player never performs a LoRa hunt?
 ## Open design questions
 
 - Is each roster entry one named creature shared by many players, or a species
-  from which each player receives their own individual companion?
+  from which each player receives their own individual creature?
 - Should the main caretaker fantasy emphasise one deep relationship or a broad
   sanctuary collection?
 - How many mentor invitations may a strong caretaker create?

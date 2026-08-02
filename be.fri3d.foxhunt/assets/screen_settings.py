@@ -2,7 +2,7 @@
 # badge/jager ids as plain labels at the bottom.
 #
 # Geluid mutes the app's buzzer sounds; Trillen is a stored switch waiting
-# for a vibration API. Maatje/naam editing lives on the profile screen, and
+# for a vibration API. Companion/name editing lives on the profile screen, and
 # LoRa is not optional, so neither appears here.
 
 from mpos import Activity

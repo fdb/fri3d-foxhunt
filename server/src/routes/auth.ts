@@ -38,14 +38,14 @@ authRoutes.post("/register", async (c) => {
   if (hunterId === "invalid")
     return c.json({ error: "invalid hunter_id (integer 0-31)" }, 400);
 
-  // The maatje shortcode rides along with registration: it is what a restore
+  // The companion shortcode rides along with registration: it is what a restore
   // hands back, so a badge that never sent one can never recover its avatar.
-  // The column is NOT NULL DEFAULT '', so "no maatje" is the empty string.
+  // The column is NOT NULL DEFAULT '', so "no companion" is the empty string.
   let profilePic = "";
   if (body.profile_pic !== undefined) {
     const validated = validateProfilePic(body.profile_pic);
     if (validated === null)
-      return c.json({ error: "invalid profile_pic (maatje shortcode)" }, 400);
+      return c.json({ error: "invalid profile_pic (companion shortcode)" }, 400);
     profilePic = validated;
   }
 
@@ -135,7 +135,7 @@ authRoutes.patch("/user", async (c) => {
   if (body.profile_pic !== undefined) {
     const profilePic = validateProfilePic(body.profile_pic);
     if (profilePic === null)
-      return c.json({ error: "invalid profile_pic (max 255 chars)" }, 400);
+      return c.json({ error: "invalid profile_pic (companion shortcode)" }, 400);
     fields.push("profile_pic = ?");
     values.push(profilePic);
     changes.profile_pic = profilePic;

@@ -8,7 +8,7 @@ import lvgl as lv
 from mpos import Activity, Intent
 import ui
 import art
-import mascot
+import companion
 import store
 import sound
 from creatures import CREATURES
@@ -66,7 +66,7 @@ class HomeActivity(Activity):
         awake = set(RADIO.active_foxes())
         caught = set(store.caught_ids())
 
-        # ── header: your maatje (tap -> profile) + settings gear ──────────
+        # ── header: your companion (tap -> profile) + settings gear ───────
         # Two SIBLING panels, not one panel with the gear inside: the badge's
         # directional focus navigation is geometric, and a target nested
         # inside another target's rectangle is unreachable by joystick. Side
@@ -75,12 +75,12 @@ class HomeActivity(Activity):
         header = ui.panel(s, 6, 6, 262, 40, bg=ui.CARD)
         ui.focusable(header, on_click=self._profile)
         portrait = ui.panel(
-            header, 4, 2, 32, 32, bg=mascot.BGS[p["bg"]] if p else ui.SURFACE_SOFT
+            header, 4, 2, 32, 32, bg=companion.BGS[p["bg"]] if p else ui.SURFACE_SOFT
         )
         if p:
-            # 32px maatje in a 28px opening: the art's transparent margin
+            # 32px companion in a 28px opening: the art's transparent margin
             # falls off the edges, the face stays centred.
-            mascot.draw(portrait, p["head"], p["accs"], 2, x=-2, y=-2)
+            companion.draw(portrait, p["head"], p["accs"], 2, x=-2, y=-2)
         ui.label(header, p["name"] if p else "Jager", 46, 0, ui.INK, ui.font_title())
         sub = (p.get("hunter_id") or "JGR volgt") if p else "tik om te registreren"
         ui.label(header, sub, 46, 24, ui.MYSTERY, ui.font_small())
@@ -169,7 +169,7 @@ class HomeActivity(Activity):
             )
 
             # Every tile is navigable so the grid never goes dead: caught ->
-            # companion page, huntable -> the hunt, dormant -> inert.
+            # creature page, huntable -> the hunt, dormant -> inert.
             if is_caught:
                 ui.focusable(
                     cell, on_click=lambda cc=cid: self._open(cc), focus_border=True

@@ -12,7 +12,7 @@ import ui
 import art
 import sound
 import store
-import mascot
+import companion
 from registrar import REGISTRAR
 
 SEND_BG = 0xDFEEBF
@@ -132,8 +132,8 @@ class RegSendActivity(Activity):
         s.set_style_bg_color(ui.hexc(SEND_BG), 0)
         ui.banner(s, "REGISTREREN...", ui.GREEN)
 
-        card = ui.panel(s, ui.PAD, 40, 56, 56, bg=mascot.BGS[self.p["bg"]])
-        mascot.draw(card, self.p["head"], self.p["accs"], 3, x=2, y=2)
+        card = ui.panel(s, ui.PAD, 40, 56, 56, bg=companion.BGS[self.p["bg"]])
+        companion.draw(card, self.p["head"], self.p["accs"], 3, x=2, y=2)
         ui.label(s, self.p["name"], 74, 44, ui.INK, ui.font_title())
         ui.label(s, self.p.get("badge_id", ""), 74, 70, ui.TEXT_MUTED, ui.font_small())
 
@@ -167,7 +167,7 @@ class RegSendActivity(Activity):
         REGISTRAR.register(
             self.p["name"],
             self.p.get("badge_id", ""),
-            mascot.encode(self.p["head"], self.p["accs"], self.p["bg"]),
+            companion.encode(self.p["head"], self.p["accs"], self.p["bg"]),
             self._on_update,
         )
 
@@ -225,8 +225,10 @@ class RegSendActivity(Activity):
             w=320,
             center=True,
         )
-        card = ui.panel(s, 122, 48, 76, 76, bg=mascot.BGS[self.p["bg"]], border=ui.GOLD)
-        mascot.draw(card, self.p["head"], self.p["accs"], 4, x=4, y=4)
+        card = ui.panel(
+            s, 122, 48, 76, 76, bg=companion.BGS[self.p["bg"]], border=ui.GOLD
+        )
+        companion.draw(card, self.p["head"], self.p["accs"], 4, x=4, y=4)
         ui.label(
             s, self.p["name"], 0, 130, ui.CREAM, ui.font_title(), w=320, center=True
         )

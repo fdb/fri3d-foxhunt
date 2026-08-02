@@ -2,7 +2,7 @@
 #
 # Header (portrait + name + nickname + LV + hearts), a 2-column facts grid, a
 # "WEETJE" fun-fact, and a bond-to-next-level progress bar. Static facts come
-# from creatures.py; the living bits from the companion state. Layout follows
+# from creatures.py; the living bits from the pet state. Layout follows
 # the design (detail.jsx PxDossier).
 
 import lvgl as lv
