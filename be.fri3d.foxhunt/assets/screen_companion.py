@@ -20,6 +20,9 @@ LOCKED_BG = 0xE0D6BD
 LOCKED_TX = 0x5C4F38
 _GRID_X, _GRID_Y, _GRID_W = 128, 62, 184
 _TILE_W = 42
+# EXTRA needs 11 tiles tall enough for a 32px sprite, which is three rows that
+# only fit if they start right under the tabs — hence its own top edge.
+_ACC_GRID_Y = 58
 
 
 class CompanionActivity(Activity):
@@ -40,15 +43,7 @@ class CompanionActivity(Activity):
             self.accs = []
             self.bg = 0
         self.tab = 0
-        caught = store.caught_ids()
-        self._caught_n = len(caught)
-        self._has_leg = False  # a legendary catch unlocks "sterren"
-        from creatures import by_id
-
-        for cid in caught:
-            c = by_id(cid)
-            if c and c["rarity"] == "leg":
-                self._has_leg = True
+        self._caught_n = len(store.caught_ids())
 
         s = ui.make_screen(ui.PAPER)
         self.screen = s
@@ -144,10 +139,9 @@ class CompanionActivity(Activity):
         for h in companion.HEADS:
             on = h["id"] == self.head
             cell = self._tile(th, on)
-            spr = art.draw_sprite(
-                cell, companion.head_rows(h), companion.head_pal(h), 2
-            )
-            spr.set_pos(3, 0)
+            # x=3: the cell's 2px border eats into its content box, so the
+            # 32px sprite centres in 38, not in _TILE_W.
+            art.sprite_img(cell, companion.src(h["id"]), 2, x=3)
             ui.label(
                 cell,
                 h["naam"],
@@ -172,32 +166,43 @@ class CompanionActivity(Activity):
 
     # ---- EXTRA ------------------------------------------------------------
     def _build_accs(self):
-        th = 38
+        th = 46
         self._grid = ui.row(
-            self.screen, _GRID_X, _GRID_Y, _GRID_W, 3 * th + 2 * 5, gap=5, wrap=True
+            self.screen, _GRID_X, _ACC_GRID_Y, _GRID_W, 3 * th + 2 * 5, gap=5, wrap=True
         )
+        # "Geen" leads: tapping an accessory toggles it, but taking a whole
+        # outfit off wants to be one tap, not five.
+        bare = self._tile(th, not self.accs)
+        dash = ui.label(bare, "-", 0, 10, ui.MYSTERY, ui.font_small(), w=38)
+        dash.set_style_text_align(lv.TEXT_ALIGN.CENTER, 0)
+        ui.label(
+            bare,
+            "Geen",
+            0,
+            31,
+            ui.GREEN_D if not self.accs else ui.MYSTERY,
+            ui.font_small(),
+            w=38,
+            center=True,
+        )
+        ui.focusable(bare, on_click=self._clear_accs, focus_border=True)
+
         for a in companion.ACCS:
-            on = a["id"] in self.accs or (a["id"] == "geen" and not self.accs)
-            locked = not companion.is_unlocked(a, self._caught_n, self._has_leg)
+            on = a["id"] in self.accs
+            # Already wearing it beats the threshold: a restored profile can
+            # bring back a kroon this badge hasn't re-earned, and a locked
+            # tile refuses taps — you'd never get it off again.
+            locked = not on and not companion.is_unlocked(a, self._caught_n)
             cell = self._tile(th, on, bg=LOCKED_BG if locked else None)
-            if "rows" in a:
-                rows = companion.crop(a["rows"])
-                w, h = len(rows[0]), len(rows)
-                scale = min(3, max(1, min(36 // w, 20 // h)))
-                spr = art.draw_sprite(cell, rows, a["pal"], scale)
-                spr.set_pos((38 - w * scale) // 2, max(0, (22 - h * scale) // 2))
-                if locked:
-                    spr.set_style_opa(97, 0)  # ~38%: visible, clearly not yours yet
-            else:
-                dash = ui.label(cell, "-", 0, 2, ui.MYSTERY, ui.font_small(), w=38)
-                dash.set_style_text_align(lv.TEXT_ALIGN.CENTER, 0)
+            spr = art.sprite_img(cell, companion.src(a["id"]), 2, x=3)
             if locked:
-                art.icon(cell, "lock", 1).set_pos(29, 1)
+                spr.set_style_opa(97, 0)  # ~38%: visible, clearly not yours yet
+                self._price(cell, a["unlock"])
             ui.label(
                 cell,
                 a["naam"],
                 0,
-                23,
+                31,
                 LOCKED_TX if locked else (ui.GREEN_D if on else ui.MYSTERY),
                 ui.font_small(),
                 w=38,
@@ -208,23 +213,29 @@ class CompanionActivity(Activity):
                 on_click=lambda aa=a["id"], ll=locked: self._pick_acc(aa, ll),
                 focus_border=True,
             )
-        self._hint = ui.label(
-            self.screen,
-            "speel vrij door beesten te vinden",
-            _GRID_X,
-            _GRID_Y + 3 * th + 2 * 5 + 4,
-            ui.TEXT_MUTED,
-            ui.font_small(),
-        )
+
+    def _price(self, cell, unlock):
+        """The padlock and the number of beasts that opens it, as one badge in
+        the tile's top-right. It replaces the old blanket "keep playing" hint
+        under the grid: with the unlocks spread over the whole hunt, what a
+        player wants to know is how far off *this* one is."""
+        badge = ui.box(cell, 12, 0, 26, 12, LOCKED_BG, radius=ui.RADIUS)
+        art.icon(badge, "lock", 1).set_pos(2, 2)
+        ui.label(badge, str(unlock), 11, -1, LOCKED_TX, ui.font_small(), w=14)
+        return badge
+
+    def _clear_accs(self):
+        sound.play("tap")
+        self.accs = []
+        self._draw_preview()
+        self._build_tab()
 
     def _pick_acc(self, aid, locked):
         if locked:
             sound.play("error")
             return
         sound.play("tap")
-        if aid == "geen":
-            self.accs = []
-        elif aid in self.accs:
+        if aid in self.accs:
             self.accs.remove(aid)
         else:
             self.accs.append(aid)

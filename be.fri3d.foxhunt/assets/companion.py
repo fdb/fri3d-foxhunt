@@ -1,264 +1,48 @@
 # companion.py — the hunter's companion ("maatje" in the UI): a head,
 # stackable accessories and a backdrop colour, picked during registration.
 #
-# Every sprite shares the head's 16x16 grid, so accessory layers drop straight
-# onto any head. Accessories are authored on a reference face (eye line 7,
-# mouth line 11) and shifted per head by its own eye/mouth line — one bril
-# fits five koppen. Ported from the design bundle (mascotte.jsx).
+# Every layer is a 16x16 PNG exported from artwork/companions/companion.aseprite,
+# one file per Aseprite layer. The invariant that keeps that honest:
+#
+#     aseprite layer name  ==  id here  ==  <id>.png in assets/companions/
+#
+# so nothing has to carry a filename around. Rename an id and you must rename
+# the layer and re-run scripts/bake_sprites.sh.
+#
+# All fifteen layers were drawn on one shared face in one document, so an
+# accessory drops onto any head unshifted — no per-head anchoring.
 
+import lvgl as lv
 import art
 import ui
 
-_E = "................"
-
-# eye/mouth: the row the eyes / mouth sit on, for accessory anchoring.
 HEADS = [
-    {
-        "id": "vos",
-        "naam": "Vos",
-        "shape": "fox",
-        "pal": "orange",
-        "eye": 8,
-        "mouth": 11,
-    },
-    {
-        "id": "uil",
-        "naam": "Uil",
-        "shape": "owl",
-        "pal": "bluegrey",
-        "eye": 6,
-        "mouth": 11,
-    },
-    {
-        "id": "beer",
-        "naam": "Beer",
-        "pal": "brown",
-        "eye": 7,
-        "mouth": 10,
-        "rows": [
-            "................",
-            "..kkk......kkk..",
-            ".kdddk....kdddk.",
-            ".kdrrdk..kdrrdk.",
-            ".kdrrrkkkkrrrdk.",
-            "..kdrrrrrrrrdk..",
-            "..krrrrrrrrrrk..",
-            "..krweerrweerk..",
-            "..krrrrrrrrrrk..",
-            "..krrlllllllrk..",
-            "..kdrlnnnnlrdk..",
-            "..kdrlllllllrk..",
-            "...kdrrrrrrdk...",
-            "....kkddddkk....",
-            "......kkkk......",
-            "................",
-        ],
-    },
-    {
-        "id": "konijn",
-        "naam": "Konijn",
-        "pal": "cream",
-        "eye": 8,
-        "mouth": 11,
-        "rows": [
-            "...kk......kk...",
-            "..kllk....kllk..",
-            "..kllk....kllk..",
-            "..kllk....kllk..",
-            "..kkrkkkkkkrkk..",
-            "..krrrrrrrrrrk..",
-            ".krrrrrrrrrrrrk.",
-            ".krweerrrrweerk.",
-            ".krrrrrrrrrrrrk.",
-            ".krrlllllllllrk.",
-            ".kdrlnnllnnlrdk.",
-            ".kdrlllllllllrk.",
-            "..kdrrrrrrrrdk..",
-            "...kkddddddkk...",
-            ".....kkkkkk.....",
-            "................",
-        ],
-    },
-    {
-        "id": "kikker",
-        "naam": "Kikker",
-        "pal": "green",
-        "eye": 3,
-        "mouth": 8,
-        "rows": [
-            "................",
-            "...kkk....kkk...",
-            "..kwwwkkkkwwwk..",
-            ".kkweekkkkweekk.",
-            ".krwwwrrrrwwwrk.",
-            ".krrrrnrrnrrrrk.",
-            "krrrrrrrrrrrrrrk",
-            "krrrrrrrrrrrrrrk",
-            "kddddddddddddddk",
-            "krlllllllllllllk",
-            "krlllllllllllllk",
-            "kdlllllllllllldk",
-            ".kdlllllllllldk.",
-            "..kddddddddddk..",
-            "....kkkkkkkk....",
-            "................",
-        ],
-    },
+    {"id": "vos", "naam": "Vos"},
+    {"id": "uil", "naam": "Uil"},
+    {"id": "beer", "naam": "Beer"},
+    {"id": "konijn", "naam": "Konijn"},
+    {"id": "varken", "naam": "Varken"},
 ]
 
-# anchor: which facial line the accessory rides ("eye" | "mouth" | None=fixed).
-# unlock: creatures caught before it opens up (0 = free from the start;
-# "leg" = catch a legendary). At registration everything but 0 is locked.
+# ORDER IS DRAW ORDER, bottom-up — the same stacking the artist used in the
+# .aseprite. That is why kroon sits over bril and sterren over everything.
+#
+# unlock: creatures caught before it opens up. The three freebies are what you
+# build your first maatje from; the other seven arrive one per four catches
+# (4, 8, ... 28), so the avatar keeps growing for the whole hunt and sterren is
+# the thing you only wear if you caught them all.
 ACCS = [
-    {"id": "geen", "naam": "Geen", "unlock": 0},
-    {
-        "id": "bril",
-        "naam": "Bril",
-        "unlock": 0,
-        "anchor": "eye",
-        "pal": {"k": 0x34271A, "w": 0xDFF0F6},
-        "rows": [_E] * 6
-        + ["...kkkk..kkkk...", ".kkkwwkkkkwwkkk.", "...kkkk..kkkk..."]
-        + [_E] * 7,
-    },
-    {
-        "id": "snor",
-        "naam": "Snor",
-        "unlock": 0,
-        "anchor": "mouth",
-        "pal": {"m": 0x4A3320},
-        "rows": [_E] * 10
-        + ["....mmm..mmm....", "...mmmmmmmmmm...", "....mm....mm...."]
-        + [_E] * 3,
-    },
-    {
-        "id": "hoed",
-        "naam": "Hoed",
-        "unlock": 4,
-        "pal": {"k": 0x241A12, "h": 0x4A3A5A, "b": 0xF0C64A},
-        "rows": [
-            ".....kkkkkk.....",
-            "....khhhhhhk....",
-            "....khhhhhhk....",
-            "...kkkkkkkkkk...",
-            "..kbbbbbbbbbbk..",
-            "...kkkkkkkkkk...",
-        ]
-        + [_E] * 10,
-    },
-    {
-        "id": "zonnebril",
-        "naam": "Shades",
-        "unlock": 7,
-        "anchor": "eye",
-        "pal": {"k": 0x241A12, "w": 0x4A4460},
-        "rows": [_E] * 6
-        + ["...kkkk..kkkk...", ".kkkwwkkkkwwkkk.", "...kkkk..kkkk..."]
-        + [_E] * 7,
-    },
-    {
-        "id": "koptel",
-        "naam": "Koptel.",
-        "unlock": 9,
-        "pal": {"k": 0x1A2A3A, "h": 0x3A6A8A},
-        "rows": [
-            _E,
-            ".....kkkkkk.....",
-            "...kkhhhhhhkk...",
-            "..kh........hk..",
-            ".khh........hhk.",
-            ".khh........hhk.",
-            ".khh........hhk.",
-            "..kk........kk..",
-        ]
-        + [_E] * 8,
-    },
-    {
-        "id": "strik",
-        "naam": "Strik",
-        "unlock": 8,
-        "pal": {"k": 0x7A3B50, "p": 0xE07A9A},
-        "rows": [
-            _E,
-            "...kk....kk.....",
-            "..kppk..kppk....",
-            "..kpppkkkpppk...",
-            "..kppk.k.kppk...",
-            "...kk.kkk.kk....",
-        ]
-        + [_E] * 10,
-    },
-    {
-        "id": "pleister",
-        "naam": "Pleister",
-        "unlock": 5,
-        "anchor": "mouth",
-        "pal": {"k": 0xA8794A, "p": 0xF6D3A8},
-        "rows": [_E] * 9
-        + ["..kkkkkk........", "..kppppk........", "..kkkkkk........"]
-        + [_E] * 4,
-    },
-    {
-        "id": "sjaal",
-        "naam": "Sjaal",
-        "unlock": 6,
-        "pal": {"k": 0x5A1F14, "s": 0xC2452F, "t": 0xEFE0BB},
-        "rows": [_E] * 11
-        + [
-            "..kssssssssssk..",
-            "..ksttttttttsk..",
-            "..kssssssssssk..",
-            "....kssk........",
-            "....kssk........",
-        ],
-    },
-    {
-        "id": "kroon",
-        "naam": "Kroon",
-        "unlock": 10,
-        "pal": {"k": 0x34271A, "b": 0xF0C64A},
-        "rows": [
-            "....k..k..k.....",
-            "...kbkkbkkbk....",
-            "...kbbbbbbbk....",
-            "...kkkkkkkkk....",
-        ]
-        + [_E] * 12,
-    },
-    {
-        "id": "bloem",
-        "naam": "Bloem",
-        "unlock": 6,
-        "pal": {"p": 0xE07A9A, "y": 0xF0C64A, "g": 0x5A9A3C, "k": 0x7A3B50},
-        "rows": [
-            _E,
-            "..kpk...........",
-            ".kpypk..........",
-            "..kpk...........",
-            "...g............",
-            "...g............",
-        ]
-        + [_E] * 10,
-    },
-    {
-        "id": "sterren",
-        "naam": "Sterren",
-        "unlock": "leg",
-        "pal": {"b": 0xF0C64A, "k": 0xFFF7E6},
-        "rows": [
-            _E,
-            "..b..........b..",
-            ".bkb........bkb.",
-            "..b..........b..",
-        ]
-        + [_E] * 8
-        + [
-            "..b..........b..",
-            ".bkb........bkb.",
-            "..b..........b..",
-            _E,
-        ],
-    },
+    {"id": "bril", "naam": "Bril", "unlock": 0},
+    {"id": "strik", "naam": "Strik", "unlock": 0},
+    {"id": "hoed", "naam": "Hoed", "unlock": 0},
+    {"id": "snor", "naam": "Snor", "unlock": 4},
+    {"id": "sjaal", "naam": "Sjaal", "unlock": 8},
+    {"id": "pet", "naam": "Pet", "unlock": 12},
+    {"id": "koptelefoon", "naam": "Koptel.", "unlock": 16},
+    {"id": "bloem", "naam": "Bloem", "unlock": 20},
+    {"id": "kroon", "naam": "Kroon", "unlock": 24},
+    # "Ster", not "Sterren": a tile label is 38px wide and the plural clips.
+    {"id": "sterren", "naam": "Ster", "unlock": 28},
 ]
 
 # backdrop swatches; the last one is the single dark option.
@@ -266,7 +50,7 @@ BGS = [0xE9F1CF, 0xF7F0DF, 0xEFE0BB, 0xCFE0EA, 0xF0D3D6, 0xDED3EA, 0x3A4A34]
 
 # ── Wire format: the companion as an 8-char shortcode ──────────────────────────
 #
-#   H1A003C1   =  head 1, accessories bril+snor, backdrop 1
+#   H1A003C1   =  head 1, accessories bril+strik, backdrop 1
 #   ^ ^^^^ ^
 #   | |  | +-- C: 1-based index into BGS
 #   | |  +---- A: 12-bit accessory mask, three HEX digits
@@ -278,13 +62,16 @@ BGS = [0xE9F1CF, 0xF7F0DF, 0xEFE0BB, 0xCFE0EA, 0xF0D3D6, 0xDED3EA, 0x3A4A34]
 # look like the player's own companion instead of a default fox.
 #
 # Indices are 1-based so a 0 can never be mistaken for "unset". The mask is hex
-# rather than decimal because 11 accessories need more than the 10 bits three
-# decimal digits would give; 12 bits leaves exactly one spare slot.
+# rather than decimal because 10 accessories need more than the 10 bits three
+# decimal digits would give once a single one is added; 12 bits leaves two
+# spare slots.
 #
-# BIT POSITIONS ARE APPEND-ONLY: bit i is _ACCS_WIRE[i], so a new accessory
-# goes at the END of ACCS. Inserting one in the middle silently rewrites every
-# shortcode already stored on the server.
-_ACCS_WIRE = [a["id"] for a in ACCS if a["id"] != "geen"]
+# BIT POSITIONS ARE APPEND-ONLY: bit i is ACCS[i], so a new accessory goes at
+# the END of the list. Inserting one in the middle silently rewrites every
+# shortcode already stored on the server — and because ACCS order is also draw
+# order, "append-only" and "draw on top" are now the same constraint: a new
+# accessory joins above sterren, or the wire format breaks.
+_ACCS_WIRE = [a["id"] for a in ACCS]
 
 _DEFAULT_COMPANION = (HEADS[0]["id"], [], 0)
 
@@ -324,73 +111,63 @@ def decode(code):
     return head, accs, (c - 1 if 1 <= c <= len(BGS) else 0)
 
 
-# reference face the accessories were drawn on
-_EYE_REF, _MOUTH_REF = 7, 11
-
-
 def head_by_id(hid):
+    """Unknown ids fall back to the fox — a profile saved by an older roster
+    (it had a kikker) must still render something."""
     for h in HEADS:
         if h["id"] == hid:
             return h
     return HEADS[0]
 
 
-def acc_by_id(aid):
-    for a in ACCS:
-        if a["id"] == aid:
-            return a
-    return None
+def src(part_id):
+    """The baked PNG for a head or accessory id."""
+    return art.COMPANION_DIR + part_id + ".png"
 
 
-def head_rows(h):
-    return h.get("rows") or art.SH[h["shape"]]
+def is_unlocked(acc, caught_count):
+    return caught_count >= acc["unlock"]
 
 
-def head_pal(h):
-    return art.PALS[h["pal"]]
+# One art pixel up, held, then back — a twinkle you notice without it ever
+# pulling the eye off the portrait.
+_TWINKLE_MS = 500
 
 
-def is_unlocked(acc, caught_count, has_legendary):
-    u = acc.get("unlock", 0)
-    if u == "leg":
-        return has_legendary
-    return caught_count >= u
+def _twinkle(layer, scale):
+    """Make the sterren layer hop one source pixel, forever.
+
+    An lv.anim_t rather than an lv.timer because LVGL kills an animation when
+    its var is deleted (lv_obj.c drops them in the destructor) — the profile
+    screen rebuilds itself on every resume, and a timer would outlive the
+    widget it pokes. path_step holds each end instead of sliding between them,
+    so the stars jump a whole pixel like pixel art should."""
+    a = lv.anim_t()
+    a.init()
+    a.set_var(layer)
+    a.set_values(0, -scale)
+    a.set_duration(_TWINKLE_MS)
+    a.set_reverse_duration(_TWINKLE_MS)
+    a.set_repeat_count(lv.ANIM_REPEAT_INFINITE)
+    a.set_path_cb(lv.anim_t.path_step)
+    a.set_custom_exec_cb(lambda _a, v: layer.set_y(v))
+    a.start()
 
 
-def crop(rows):
-    """Trim a sprite grid to its ink, so an accessory can be shown centred on
-    a tile instead of floating in its (mostly empty) 16x16 frame."""
-    top, bottom, left, right = 1000, -1, 1000, -1
-    for y, row in enumerate(rows):
-        for x, ch in enumerate(row):
-            if ch != "." and ch != " ":
-                top = min(top, y)
-                bottom = max(bottom, y)
-                left = min(left, x)
-                right = max(right, x)
-    if bottom < 0:
-        return rows
-    return [row[left : right + 1] for row in rows[top : bottom + 1]]
+def draw(parent, head_id, accs, scale, x=0, y=0, animate=False):
+    """The composed companion: head layer + every accessory the player owns.
 
-
-def draw(parent, head_id, accs, scale, x=0, y=0):
-    """The composed companion: head layer + each accessory layer, anchored.
+    Layers go down in ACCS order, never in the order they were picked, so the
+    same set always stacks the same way. `animate` opts into the sterren
+    twinkle — the portrait screens want it, a 32px header thumbnail doesn't.
     Returns the (transparent) wrapper box, 16*scale square."""
-    h = head_by_id(head_id)
     px = 16 * scale
     wrap = ui.box(parent, x, y, px, px, None)
-    art.draw_sprite(wrap, head_rows(h), head_pal(h), scale)
-    for aid in accs:
-        a = acc_by_id(aid)
-        if a is None or "rows" not in a:
+    art.sprite_img(wrap, src(head_by_id(head_id)["id"]), scale)
+    for a in ACCS:
+        if a["id"] not in accs:
             continue
-        anchor = a.get("anchor")
-        if anchor == "eye":
-            dy = h["eye"] - _EYE_REF
-        elif anchor == "mouth":
-            dy = h["mouth"] - _MOUTH_REF
-        else:
-            dy = 0
-        spr = art.draw_sprite(wrap, a["rows"], a["pal"], scale)
-        spr.set_pos(0, dy * scale)
+        layer = art.sprite_img(wrap, src(a["id"]), scale)
+        if animate and a["id"] == "sterren":
+            _twinkle(layer, scale)
     return wrap

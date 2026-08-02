@@ -46,8 +46,9 @@ as a citation of the original design bundle file `mascotte.jsx`.
   gate on availability — desktop has no LEDs and no buzzer output, so those calls
   must no-op and fall back (e.g. the on-screen LED mirror).
 - **Artwork:** PNGs (with their Aseprite sources) live in `artwork/<folder>/` —
-  `animals/` are the huntable creatures (16×16 RGBA), `companion/` the maatje,
-  `title-screen/` the 320×120 welcome banner. `scripts/bake_sprites.sh` mirrors
+  `animals/` are the huntable creatures (16×16 RGBA), `companions/` the maatje's
+  heads and accessories (16×16 RGBA, one PNG per Aseprite layer, filename ==
+  the id in `companion.py`), `title-screen/` the 320×120 welcome banner. `scripts/bake_sprites.sh` mirrors
   the PNGs (only) into `be.fri3d.foxhunt/assets/`, **keeping the folder
   structure**, so `artwork/animals/vos.png` → `assets/animals/vos.png`. Re-run
   it after changing artwork; `--check` reports drift. Both sides are committed,
@@ -57,7 +58,9 @@ as a citation of the original design bundle file `mascotte.jsx`.
   procedural placeholder shape.
 - **Don't name an asset dir after an imported module** — a folder `creatures/`
   shadows `creatures.py` on import. That's why creature art lives in
-  `assets/animals/`.
+  `assets/animals/` and companion art in `assets/companions/` (plural). The
+  failure is silent and confusing: the import succeeds, then the module has no
+  attributes.
 - **Fonts** are 1-bit bitmap fonts in `assets/fonts/*.bin`, loaded with
   `lv.binfont_create`. Edit the source `.bdf` in `tools/bitmap_fonts/` (editor)
   and re-bake the deployed `.bin` with `scripts/bake_fonts.sh`

@@ -82,7 +82,7 @@ class FakeRegistrar(Registrar):
     # A recovered companion that is deliberately NOT the default (uil + hoed +
     # sjaal on the third backdrop), so a restore that ignored the shortcode
     # would be obvious on screen instead of quietly plausible.
-    RESTORE_COMPANION = "H2A084C3"
+    RESTORE_COMPANION = "H2A014C3"
 
     def register(self, name, badge, companion, on_update):
         st = {

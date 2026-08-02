@@ -414,8 +414,24 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
 # that would shadow creatures.py on import).
 _ART_DIR = "M:apps/be.fri3d.foxhunt/assets/"
 _CREATURE_DIR = _ART_DIR + "animals/"
+COMPANION_DIR = _ART_DIR + "companions/"  # plural: companion/ shadows companion.py
 TITLE_SRC = _ART_DIR + "title-screen/title-screen.png"
 _IMG_SRC = 16
+
+
+def sprite_img(parent, src, scale, x=0, y=0):
+    """A baked 16x16 sprite blown up to 16*scale, nearest-neighbour, at (x, y).
+    The image counterpart of draw_sprite() — same grid, same scale factor, so
+    a caller can swap art backends without moving anything else."""
+    px = _IMG_SRC * scale
+    w = lv.image(parent)
+    w.set_src(src)
+    w.set_pos(x, y)
+    w.set_size(px, px)
+    w.set_inner_align(lv.image.ALIGN.STRETCH)  # scale src(16) to fill px x px
+    w.set_antialias(False)  # nearest-neighbour -> crisp
+    w.remove_flag(lv.obj.FLAG.CLICKABLE)  # let taps fall through to the cell
+    return w
 
 
 def picture(parent, src, x=0, y=0):
@@ -447,21 +463,15 @@ def _layer(parent, c, scale, tint=None):
     fill and skips its outline. That is a difference you can only see by
     hunting for it, and the alternative — recolouring at partial opacity —
     would leak the real colours, which is the whole thing we are hiding."""
-    px = 16 * scale
     if c.get("img"):
-        w = lv.image(parent)
-        w.set_src(_CREATURE_DIR + c["img"])
-        w.set_pos(0, 0)
-        w.set_size(px, px)
-        w.set_inner_align(lv.image.ALIGN.STRETCH)  # scale src(16) to fill px x px
-        w.set_antialias(False)  # nearest-neighbour -> crisp
+        w = sprite_img(parent, _CREATURE_DIR + c["img"], scale)
         if tint is not None:
             w.set_style_image_recolor(lv.color_hex(tint[0]), 0)
             w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
     else:
         w = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, tint)
         w.set_pos(0, 0)
-    w.remove_flag(lv.obj.FLAG.CLICKABLE)
+        w.remove_flag(lv.obj.FLAG.CLICKABLE)
     return w
 
 

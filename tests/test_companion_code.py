@@ -18,9 +18,9 @@ import companion  # noqa: E402
 
 class CompanionCodeTest(unittest.TestCase):
     def test_documented_example(self):
-        # The format's reference vector: head 1, bril + snor, backdrop 1.
-        self.assertEqual(companion.encode("vos", ["bril", "snor"], 0), "H1A003C1")
-        self.assertEqual(companion.decode("H1A003C1"), ("vos", ["bril", "snor"], 0))
+        # The format's reference vector: head 1, bril + strik, backdrop 1.
+        self.assertEqual(companion.encode("vos", ["bril", "strik"], 0), "H1A003C1")
+        self.assertEqual(companion.decode("H1A003C1"), ("vos", ["bril", "strik"], 0))
 
     def test_round_trips_every_head_and_backdrop(self):
         for h, head in enumerate(companion.HEADS):
@@ -36,13 +36,13 @@ class CompanionCodeTest(unittest.TestCase):
 
     def test_all_accessories_at_once_fits_the_mask(self):
         every = list(companion._ACCS_WIRE)
-        code = companion.encode("kikker", every, 6)
+        code = companion.encode("varken", every, 6)
         self.assertEqual(len(code), 8)
-        self.assertEqual(companion.decode(code), ("kikker", every, 6))
+        self.assertEqual(companion.decode(code), ("varken", every, 6))
 
     def test_geen_is_not_an_accessory_bit(self):
-        # "geen" is the UI's none-sentinel; it must never consume a bit, or
-        # every accessory after it shifts.
+        # "geen" is the builder screen's take-it-all-off tile, not a member of
+        # the roster; it must never consume a bit, or every accessory shifts.
         self.assertNotIn("geen", companion._ACCS_WIRE)
         self.assertEqual(companion.encode("vos", ["geen"], 0), "H1A000C1")
 

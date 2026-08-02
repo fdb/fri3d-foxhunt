@@ -49,7 +49,11 @@ class ProfileActivity(Activity):
         ui.banner(s, "JAGERSPROFIEL", ui.GREEN)
 
         portrait = ui.panel(s, ui.PAD, 32, 108, 108, bg=companion.BGS[p.get("bg", 0)])
-        companion.draw(portrait, p.get("head", "vos"), p.get("accs", []), 6, x=4, y=4)
+        # animate=True: the one screen big and still enough for the sterren
+        # twinkle to read as a reward rather than as a flicker.
+        companion.draw(
+            portrait, p.get("head", "vos"), p.get("accs", []), 6, x=4, y=4, animate=True
+        )
 
         name = ui.label(s, p.get("name", "Jager"), 124, 34, ui.INK, ui.font_title())
         pencil = art.icon(s, "pencil", 2)
