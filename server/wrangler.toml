@@ -10,6 +10,4 @@ directory = "static"
 [[d1_databases]]
 binding = "DB"
 database_name = "foxhunt"
-# Replace with the real id from `wrangler d1 create foxhunt` before deploying.
-# Local dev (`npm run dev`) works with the placeholder.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "933bb867-c2c0-4c79-867e-b0d9de3e4507"
