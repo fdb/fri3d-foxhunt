@@ -88,23 +88,26 @@ class HomeActivity(Activity):
         art.icon(gear, "gear", 2).align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(gear, on_click=self._settings)
 
-        # ── nu in de buurt: transmitting, not-yet-caught foxes ────────────
+        # ── nu in de buurt: every transmitting fox, caught or not ─────────
         self._section(52, "NU IN DE BUURT", ui.TERRA)
         nearby = []
         for c in CREATURES:
-            if c["id"] in awake and c["id"] not in caught:
+            if c["id"] in awake:
                 r = RADIO.reading(c["id"])
                 heat = max(1, min(3, (r.level * 3 + 4) // 5))
                 nearby.append((c, heat))
-        nearby.sort(key=lambda ch: -ch[1])
+        # still-huntable first (the row is a hunt shortcut), warmest leading;
+        # already-caught ones trail as "she's out there" sightings
+        nearby.sort(key=lambda ch: (ch[0]["id"] in caught, -ch[1]))
         if nearby:
             cards = ui.row(s, 6, 68, 308, 52, gap=5)
             for i, (c, heat) in enumerate(nearby[:4]):
+                is_caught = c["id"] in caught
                 cell = ui.box(cards, 0, 0, 73, 52, _NEAR_BG, radius=ui.RADIUS)
                 cell.set_style_border_width(ui.BORDER, 0)
                 # warmest card wears gold, the rest the hunt's terra
                 cell.set_style_border_color(ui.hexc(ui.GOLD if i == 0 else ui.TERRA), 0)
-                spr = art.creature_panel(cell, c, 2, silhouette=True)
+                spr = art.creature_panel(cell, c, 2, silhouette=not is_caught)
                 spr.set_pos(18, 2)
                 for d in range(3):
                     seg = ui.box(
@@ -112,8 +115,11 @@ class HomeActivity(Activity):
                     )
                     seg.set_style_border_width(ui.BORDER_THIN, 0)
                     seg.set_style_border_color(ui.hexc(ui.INK), 0)
+                on_click = self._open if is_caught else self._hunt
                 ui.focusable(
-                    cell, on_click=lambda cc=c["id"]: self._hunt(cc), focus_border=True
+                    cell,
+                    on_click=lambda cc=c["id"], fn=on_click: fn(cc),
+                    focus_border=True,
                 )
         else:
             ui.label(
@@ -125,7 +131,7 @@ class HomeActivity(Activity):
                 ui.font_small(),
             )
 
-        # ── je boek: every creature, roster order, scrolls ────────────────
+        # ── je boek: every creature, found first (roster order within), scrolls ──
         self._section(
             126, "JE BOEK", ui.MYSTERY, right="%d/%d" % (len(caught), len(CREATURES))
         )
@@ -133,7 +139,7 @@ class HomeActivity(Activity):
         grid.add_flag(lv.obj.FLAG.SCROLLABLE)
         grid.set_scroll_dir(lv.DIR.VER)
 
-        for c in CREATURES:
+        for c in sorted(CREATURES, key=lambda c: c["id"] not in caught):
             cid = c["id"]
             is_caught = cid in caught
             huntable = (cid in awake) and not is_caught
