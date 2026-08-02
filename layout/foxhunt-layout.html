@@ -250,7 +250,9 @@
   function scrHunt(){
     const s=makeStage();
     s.style.background='#cfe2ad';
-    banner(s,'Everzwaan',{back:true,right:'zeldzaam',color:'var(--terra)',dark:'var(--terra-d)'});
+    // No name — you don't know WHICH beast you're chasing until its code is
+    // verified. Only the rarity is teased, as a difficulty cue.
+    banner(s,'?????',{back:true,right:'zeldzaam',color:'var(--terra)',dark:'var(--terra-d)'});
     const c=ROSTER[3];
     // wide scan card: 6,30 → 308×146
     const card=box(6,30,308,146, panelStyle('#e9f1cf','var(--terra)'));
@@ -351,14 +353,20 @@
       if(i===0) d.appendChild(box(6,8,8,8,{background:'var(--ink)'}));
       s.appendChild(d);
     }
-    // filling silhouette panel 92×96 centered in column
+    // filling MASK panel 92×96 centered in column. Dark ground, and the shape
+    // fills in FLAT WHITE — never the real art. This screen shows progress
+    // only; which creature it is stays secret until the win screen, after a
+    // full and verified code.
     const px0=RX+Math.round((116-92)/2), py0=RY+32;
-    const fp=box(px0,py0,92,96, panelStyle('#eef4d6','var(--terra)'));
+    const fp=box(px0,py0,92,96, panelStyle('var(--ink)','var(--terra)'));
     fp.style.overflow='hidden';
-    fp.appendChild(center(creature(c,4,false)));        // scale 4 → 64px
+    const mask=(col)=>sprite(SH[c.sh],PALS[c.pal],4,{silhouette:true,silColor:col});
+    fp.appendChild(center(mask('#2b241d')));            // scale 4 → 64px
+    const fill=box(0,0,92,Math.round(96*.28),{left:'0',overflow:'hidden'});
+    const full=box(0,0,92,96,{left:'0'});               // keeps the sprite aligned
+    full.appendChild(center(mask('#fff7e6')));
+    fill.appendChild(full); fp.appendChild(fill);
     fp.appendChild(box(0,Math.round(96*.28),92,3,{background:'var(--gold)',left:'0'}));
-    fp.appendChild(box(0,Math.round(96*.28)+3,92,96-(Math.round(96*.28)+3),
-      {background:'repeating-linear-gradient(45deg,rgba(40,32,20,.82) 0 3px,rgba(40,32,20,.7) 3px 6px)',left:'0'}));
     fp.appendChild(text('1/4',0,96-16,92,13,{size:11,font:'var(--mono)',color:'#fff7e6',align:'center'}));
     s.appendChild(fp);
     s.appendChild(text('vult zich op terwijl je typt',RX,py0+100,116,12,
@@ -411,7 +419,7 @@
   const SCREENS = [
     ['home','Hoofdscherm · Pokédex-raster', scrHome],
     ['hunt','Jagen · klassieke ARDF (5 LEDs = warm/koud)', scrHunt],
-    ['code','Code invoeren · keypad + live onthulling', scrCode],
+    ['code','Code invoeren · keypad + blinde vulling', scrCode],
     ['win','Gevangen! · payoff, één knop → home', scrCaught],
   ];
   function render(){
