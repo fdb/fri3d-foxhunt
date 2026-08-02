@@ -67,7 +67,6 @@ class HomeActivity(Activity):
 
         # ── header: your maatje (tap -> profile) + settings gear ──────────
         header = ui.panel(s, 6, 6, 308, 40, bg=ui.CARD)
-        ui.focusable(header, on_click=self._profile)
         portrait = ui.panel(
             header, 4, 2, 32, 32, bg=mascot.BGS[p["bg"]] if p else ui.SURFACE_SOFT
         )
@@ -78,6 +77,15 @@ class HomeActivity(Activity):
         ui.label(header, p["name"] if p else "Jager", 46, 0, ui.INK, ui.font_title())
         sub = (p.get("hunter_id") or "JGR volgt") if p else "tik om te registreren"
         ui.label(header, sub, 46, 24, ui.MYSTERY, ui.font_small())
+        # Identity hit-target: portrait + name act as ONE tappable/focusable
+        # area, the gear is its own — so joystick focus steps identity ->
+        # gear instead of one ring swallowing the whole header. Drawn last so
+        # it sits on top of the portrait for hit-testing; its rest border is
+        # card-on-card (invisible) and snaps to ink+gold when focused.
+        ident = ui.box(header, 2, 2, 262, 32, None)
+        ident.set_style_border_width(ui.BORDER, 0)
+        ident.set_style_border_color(ui.hexc(ui.CARD), 0)
+        ui.focusable(ident, on_click=self._profile, focus_border=True)
         gear = ui.box(header, 272, 4, 28, 28, ui.CARD, radius=ui.RADIUS)
         gear.set_style_border_width(ui.BORDER, 0)
         gear.set_style_border_color(ui.hexc(ui.INK), 0)
