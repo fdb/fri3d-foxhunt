@@ -1,11 +1,21 @@
+/* Palette mirrors the badge app tokens in be.fri3d.foxhunt/assets/ui.py */
 :root {
-  --primary-h: 40;
-  --primary-c: 0.15;
-  --primary: oklch(65% var(--primary-c) var(--primary-h));
-  --black: oklch(10% 0 0);
-  --white: oklch(100% 0 0);
-  --gray: oklch(50% 0 0);
-  --light-gray: oklch(90% 0 0);
+  --ink: #34271a;
+  --paper: #efe0bb;
+  --card: #fbf3dd;
+  --green: #5a9a3c;
+  --green-d: #3c6b2e;
+  --gold: #e8b23a;
+  --gold-d: #a8761f;
+  --terra: #cf6a3f;
+  --terra-d: #9c4422;
+  --cream: #fff7e6;
+  --text-muted: #5e6b44;
+  --mystery: #8a7d5e;
+  --surface-soft: #e9f1cf;
+  --dormant: #d8c9a4;
+  --border-rest: #cdb67d;
+  --focus-gold: #ffcb45;
 }
 
 * {
@@ -14,25 +24,57 @@
 
 body {
   margin: 0;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  background: var(--white);
-  color: var(--black);
+  font-family: "Pixelify Sans", "Courier New", monospace;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 18px;
 }
 
+/* Green banner, like ui.banner(): cream title left, small counter right */
 header {
-  padding: 1rem 1.5rem;
-  border-bottom: 2px solid var(--black);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: var(--green);
+  border-bottom: 3px solid var(--green-d);
+  color: var(--cream);
+}
+
+header img {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
 }
 
 header h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 var(--green-d);
+}
+
+header .banner-right {
+  margin-left: auto;
+  font-size: 0.9rem;
 }
 
 main {
-  padding: 1.5rem;
-  max-width: 960px;
+  padding: 1.25rem;
+  max-width: 720px;
   margin: 0 auto;
+}
+
+/* Card panel: 2px ink frame + tiny radius, like ui.panel() */
+section,
+.panel {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
 }
 
 table {
@@ -43,29 +85,83 @@ table {
 th,
 td {
   text-align: left;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--light-gray);
+  padding: 0.5rem 0.6rem;
+  border-bottom: 2px solid var(--border-rest);
+}
+
+tr:last-child td {
+  border-bottom: none;
 }
 
 th {
-  border-bottom: 2px solid var(--black);
+  color: var(--text-muted);
   text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  border-bottom: 3px solid var(--ink);
+}
+
+/* Top of the leaderboard gets the soft green card interior */
+#scoreboard tbody tr:first-child td {
+  background: var(--surface-soft);
+}
+
+td.rank {
+  color: var(--gold-d);
+  font-weight: 700;
+}
+
+td.muted,
+td code {
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.85rem;
 }
 
 td code {
-  font-size: 0.8rem;
-  color: var(--gray);
+  word-break: break-all;
+}
+
+td.muted {
+  white-space: nowrap;
+}
+
+/* Fox progress: segmented bar like the Humeur/Energie stat rows */
+.seg {
+  display: inline-block;
+  width: 24px;
+  height: 14px;
+  margin-right: 5px;
+  background: var(--dormant);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.seg-on {
+  background: var(--green);
+}
+
+.empty {
+  color: var(--mystery);
+  text-align: center;
+  padding: 1.5rem 0;
 }
 
 @media (max-width: 480px) {
+  body {
+    font-size: 15px;
+  }
   main {
     padding: 0.75rem;
   }
   th,
   td {
-    padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
+    padding: 0.35rem 0.4rem;
+  }
+  .seg {
+    width: 16px;
+    height: 11px;
+    margin-right: 3px;
   }
 }
