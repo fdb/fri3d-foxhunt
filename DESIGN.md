@@ -1,4 +1,4 @@
-# Foxhunt — design & UI house rules
+# Vossenjacht — design & UI house rules
 
 Two lenses, one goal: a consistent, legible, tactile little game that builds the
 same on the Fri3d badge and the desktop emulator. The first lens is **LVGL done

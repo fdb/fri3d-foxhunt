@@ -1,4 +1,4 @@
-# Foxhunt 🦊
+# Vossenjacht 🦊
 
 A "fox hunting" (ARDF) game for the **Fri3d Camp 2026 badge**. Kids hunt hidden
 LoRa beacons ("foxes") with a directional antenna and collect them in a

@@ -1,8 +1,8 @@
-# Foxhunt — Game Design
+# Vossenjacht — Game Design
 
 ## Purpose
 
-Foxhunt is an ARDF game for Fri3d Camp. Players with a LoRa antenna can hunt
+Vossenjacht is an ARDF game for Fri3d Camp. Players with a LoRa antenna can hunt
 physical transmitters and discover creatures. Not every player will have an
 antenna, so the game also needs a complete experience for players who cannot
 participate in the physical hunt.

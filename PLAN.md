@@ -1,4 +1,4 @@
-# Foxhunt — implementatieplan
+# Vossenjacht — implementatieplan
 
 Fox-hunt badge-app voor Fri3d Camp 2026. Kinderen (6–12) jagen op verstopte
 RF-zenders ("beesten") met een directionele antenne, en verzamelen ze in een
@@ -68,7 +68,7 @@ Vier schermen, één lineaire lus (de "catch loop"):
 Alle coördinaten zijn **logische pixels** in 320×240. Banner = `0,0 → 320×26`.
 
 ### Hoofdscherm — Pokédex-raster
-- Banner met titel `FOXHUNT` + teller `4/12` rechts.
+- Banner met titel `VOSSENJACHT` + teller `4/12` rechts.
 - Raster 4×3, **cel = 74×66**, gap 4, marges links/rechts 6, top 30.
   - kolom-x: `6, 84, 162, 240` · rij-y: `30, 100, 170`
   - (controle: 4·74 + 3·4 + 2·6 = 320 ✓ · 30 + 3·66 + 2·4 = 236, 4px onderaan ✓)

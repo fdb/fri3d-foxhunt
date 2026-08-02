@@ -1,4 +1,4 @@
-# Foxhunt notifications — design
+# Vossenjacht notifications — design
 
 Push "a creature became active" to interested players' badges, delivered
 appropriately for whatever state the badge is in. Research verified on the
