@@ -17,7 +17,7 @@ from screen_hunt import HuntActivity
 from screen_beast import BeastActivity
 from screen_register import RegisterActivity
 from screen_profile import ProfileActivity
-from screen_settings import SettingsActivity
+from screen_settings import SettingsActivity, apply_brightness
 
 _CELL_W, _CELL_H, _GAP = 74, 52, 4  # boek tiles
 _HAIR = 0xDCCFA9  # section hairline on paper
@@ -29,6 +29,7 @@ _RARITY_FRAME = {"rare": ui.TERRA, "leg": ui.GOLD}
 class HomeActivity(Activity):
     def onCreate(self):
         self._fresh = True
+        apply_brightness()  # restore the saved helderheid level at startup
         self.screen = ui.make_screen(ui.PAPER)
         self._populate()
         self.setContentView(self.screen)

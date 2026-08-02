@@ -35,6 +35,10 @@ def play(event):
     tune = _TUNES.get(event)
     if not tune:
         return
+    import store
+
+    if not store.settings()["geluid"]:  # muted from the instellingen screen
+        return
     out = _buzzer_output()
     if not out:  # desktop: no buzzer -> stay silent
         return

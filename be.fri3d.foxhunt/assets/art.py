@@ -272,6 +272,20 @@ ICONS = {
         "rows": ["..b..", "..b..", "bbkbb", "..b..", "..b.."],
         "pal": {"k": 0xFFF7E6, "b": 0xF0C64A},
     },
+    # Chevron: "this row opens something" (settings rows).
+    "chev": {
+        "rows": [
+            "k...",
+            "kk..",
+            ".kk.",
+            "..kk",
+            "..kk",
+            ".kk.",
+            "kk..",
+            "k...",
+        ],
+        "pal": {"k": 0x8A7D5E},
+    },
     # Settings gear (home header) and the edit pencil (profile page).
     "gear": {
         "rows": [
