@@ -56,7 +56,7 @@ class CodeActivity(Activity):
                 # An icon says "wist een cijfer" where a "<" only says "left",
                 # and the red frame sets it apart from the digits at a glance.
                 b.set_style_border_color(ui.hexc(RED), 0)
-                art.icon(b, "backspace", 3).align(lv.ALIGN.CENTER, 0, 0)
+                art.icon(b, "backspace", 2).align(lv.ALIGN.CENTER, 0, 0)
             else:
                 b.set_style_border_color(ui.hexc(ui.INK), 0)
                 kl = ui.label(b, k, 0, 0, ui.INK, ui.font_title(), w=kw, center=True)

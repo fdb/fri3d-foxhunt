@@ -99,7 +99,7 @@ HEART = [
 # ── UI icons (action bar + foods), ported from the design ───────────────────
 # Mostly 8x8; each has its own palette, and chars not in the palette are
 # skipped (transparent). draw_sprite() reads the grid off the rows, so an icon
-# is free to be a different size — "backspace" is 17x11.
+# is free to be a different size — "backspace" is 13x9.
 ICONS = {
     "food": {
         "rows": [
@@ -167,22 +167,21 @@ ICONS = {
         "pal": {"k": 0x34271A, "b": 0xCAA05A, "d": 0x8A5F2C},
     },
     # The classic backspace key: a tag pointing left, with the X knocked out of
-    # it. Red, because it is the one key that destroys what you typed. 17x11,
-    # because the X needs 2px-thick arms — 1px diagonals never touch, so they
-    # read as loose dots instead of a cross.
+    # it. Red, because it is the one key that destroys what you typed. 13x9 at
+    # scale 2 stands as tall as a digit on the neighbouring keys, and the X
+    # arms are 2px because 1px diagonals never touch — they read as loose dots
+    # instead of a cross, however big you draw them.
     "backspace": {
         "rows": [
-            ".....kkkkkkkkkkkk",
-            "....krrrrrrrrrrrk",
-            "...krrrwwrrrrwwrk",
-            "..krrrrrwwrrwwrrk",
-            ".krrrrrrrwwwwrrrk",
-            "krrrrrrrrrwwrrrrk",
-            ".krrrrrrrwwwwrrrk",
-            "..krrrrrwwrrwwrrk",
-            "...krrrwwrrrrwwrk",
-            "....krrrrrrrrrrrk",
-            ".....kkkkkkkkkkkk",
+            "....kkkkkkkkk",
+            "...krrrrrrrrk",
+            "..krrwwrrwwrk",
+            ".krrrrwwwwrrk",
+            "krrrrrrwwrrrk",
+            ".krrrrwwwwrrk",
+            "..krrwwrrwwrk",
+            "...krrrrrrrrk",
+            "....kkkkkkkkk",
         ],
         "pal": {"k": 0x34271A, "r": 0xD6483A, "w": 0xFFF7E6},
     },

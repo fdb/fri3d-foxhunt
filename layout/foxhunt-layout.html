@@ -91,13 +91,13 @@
   };
   const HEART = ['.kk...kk.','krrkkkrrk','krrrrrrrk','krrrrrrrk','.krrrrrk.','..krrrk..','...krk...','....k....'];
   const SPK   = ['..b..','..b..','bbkbb','..b..','..b..'];
-  // backspace, 17x11: a tag pointing left with the X knocked out of it. The X
-  // arms are 2px because 1px diagonals never touch — they read as loose dots.
+  // backspace, 13x9 at scale 2 — as tall as a digit on the neighbouring keys.
+  // A tag pointing left with the X knocked out of it; the X arms are 2px
+  // because 1px diagonals never touch and read as loose dots.
   const BSP_RED = '#d6483a';
-  const BSP = ['.....kkkkkkkkkkkk','....krrrrrrrrrrrk','...krrrwwrrrrwwrk',
-               '..krrrrrwwrrwwrrk','.krrrrrrrwwwwrrrk','krrrrrrrrrwwrrrrk',
-               '.krrrrrrrwwwwrrrk','..krrrrrwwrrwwrrk','...krrrwwrrrrwwrk',
-               '....krrrrrrrrrrrk','.....kkkkkkkkkkkk'];
+  const BSP = ['....kkkkkkkkk','...krrrrrrrrk','..krrwwrrwwrk',
+               '.krrrrwwwwrrk','krrrrrrwwrrrk','.krrrrwwwwrrk',
+               '..krrwwrrwwrk','...krrrrrrrrk','....kkkkkkkkk'];
   const PIX_BASE = { k:'#34271a', w:'#fff7e6', e:'#241a12', n:'#cf6a4e', b:'#f0c64a' };
   const bp=(r,d,l)=>({...PIX_BASE,r,d,l});
   const PALS = {
@@ -357,7 +357,7 @@
       b.style.boxShadow=`0 0 0 ${SCALE}px ${frame}, 0 ${3*SCALE}px 0 ${frame}, `
         +`inset 0 ${2*SCALE}px 0 rgba(255,255,255,.6)`;
       if(del){
-        b.appendChild(center(sprite(BSP,{k:'#34271a',r:BSP_RED,w:'#fff7e6'},3)));
+        b.appendChild(center(sprite(BSP,{k:'#34271a',r:BSP_RED,w:'#fff7e6'},2)));
       }else{
         b.appendChild(text(k,0,0,KW,KH,{size:16,weight:600,align:'center',
           color:'var(--ink)'}));
