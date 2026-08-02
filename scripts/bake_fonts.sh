@@ -72,9 +72,8 @@ for bdf in "$src_dir"/*.bdf; do
     fi
 done
 
-# A .bin with no .bdf beside it can't be regenerated — pixelify_b22 is one of
-# these (imported before the editor existed). Flag it so it doesn't quietly
-# become unmaintainable.
+# A .bin with no .bdf beside it can't be regenerated. Flag it so it doesn't
+# quietly become unmaintainable.
 for bin in "$out_dir"/*.bin; do
     name="$(basename "$bin" .bin)"
     [[ -f "$src_dir/$name.bdf" ]] || echo "note: $bin has no .bdf source — cannot be re-baked"
