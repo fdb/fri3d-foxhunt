@@ -272,6 +272,33 @@ ICONS = {
         "rows": ["..b..", "..b..", "bbkbb", "..b..", "..b.."],
         "pal": {"k": 0xFFF7E6, "b": 0xF0C64A},
     },
+    # Settings gear (home header) and the edit pencil (profile page).
+    "gear": {
+        "rows": [
+            "..k..k..",
+            ".kkkkkk.",
+            ".kk..kk.",
+            "kk....kk",
+            "kk....kk",
+            ".kk..kk.",
+            ".kkkkkk.",
+            "..k..k..",
+        ],
+        "pal": {"k": 0x34271A},
+    },
+    "pencil": {
+        "rows": [
+            "......kk",
+            ".....kbk",
+            "....kbbk",
+            "...kbbk.",
+            "..kbbk..",
+            ".kwbk...",
+            "kwwk....",
+            "kkk.....",
+        ],
+        "pal": {"k": 0x34271A, "b": 0xD9A441, "w": 0xEFE0BB},
+    },
     # Checkmark on the picked colour swatch (dark, plus a light variant for
     # the one dark swatch).
     "check": {

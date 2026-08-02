@@ -68,6 +68,9 @@ STAGE="$STAGE_ROOT/$APP_ID"
 cp -RL "$APP_SRC" "$STAGE"
 # Aseprite sources are editor-only; the badge loads the exported PNGs.
 find "$STAGE" -name '*.aseprite' -delete
+# Desktop-only cruft: CPython bytecode caches and Finder metadata.
+find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} +
+find "$STAGE" -name '.DS_Store' -delete
 
 echo "Deploying $APP_ID -> $PORT"
 

@@ -33,6 +33,7 @@ def profile():
 
 
 def save_profile(p):
+    p.setdefault("since", _now())  # registration day, for the DAGEN stat
     SharedPreferences(_APP).edit().put_dict("profile", p).commit()
 
 

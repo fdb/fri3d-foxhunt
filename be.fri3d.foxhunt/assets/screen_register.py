@@ -11,6 +11,7 @@ from mpos.ui.keyboard import MposKeyboard
 import ui
 import art
 import sound
+import store
 import registrar
 from screen_mascot import MascotActivity
 
@@ -29,8 +30,16 @@ _FIELD_Y_KB = 30  # hopped up while the keyboard is open
 
 class RegisterActivity(Activity):
     def onCreate(self):
+        # edit mode ("Naam wijzigen" from the profile page): prefill the
+        # current name, save on confirm, and skip the rest of the flow.
+        extras = self.getIntent().extras or {}
+        self.edit = extras.get("edit", False)
+
         s = ui.make_screen(ui.PAPER)
-        ui.banner(s, "WELKOM, JAGER!", ui.GREEN, right="1/3")
+        if self.edit:
+            ui.banner(s, "NAAM WIJZIGEN", ui.GREEN)
+        else:
+            ui.banner(s, "WELKOM, JAGER!", ui.GREEN, right="1/3")
 
         self.prompt = ui.label(
             s,
@@ -62,6 +71,8 @@ class RegisterActivity(Activity):
             ta.set_style_text_color(ui.hexc(PLACEHOLDER), lv.PART.TEXTAREA_PLACEHOLDER)
         except AttributeError:
             pass
+        if self.edit:
+            ta.set_text((store.profile() or {}).get("name", ""))
         self.ta = ta
 
         # id strip: badge id (the recovery anchor) + hunter id (still to come)
@@ -71,7 +82,8 @@ class RegisterActivity(Activity):
         ui.box(strip, 170, 2, 2, 14, 0xD8CBAA)
         ui.label(strip, "JAGER ID", 180, 3, ui.MYSTERY, ui.font_small())
         art.icon(strip, "ant", 1).set_pos(236, 5)
-        ui.label(strip, "volgt", 250, 3, ui.TEXT_MUTED, ui.font_small())
+        hunter = (store.profile() or {}).get("hunter_id") or "volgt"
+        ui.label(strip, hunter, 250, 3, ui.TEXT_MUTED, ui.font_small())
         self.strip = strip
 
         # why we ask: the badge id keeps your catches across a reset
@@ -92,7 +104,7 @@ class RegisterActivity(Activity):
         self.btn.set_style_border_width(ui.BORDER, 0)
         self.btn_label = ui.label(
             self.btn,
-            "VOLGENDE >",
+            "OPSLAAN" if self.edit else "VOLGENDE >",
             0,
             0,
             BTN_OFF_TX,
@@ -164,6 +176,10 @@ class RegisterActivity(Activity):
             sound.play("error")
             return
         sound.play("tap")
+        if self.edit:
+            store.update_profile(name=name)
+            self.finish()
+            return
         self.startActivityForResult(
             Intent(activity_class=MascotActivity, extras={"name": name}),
             self._child_done,

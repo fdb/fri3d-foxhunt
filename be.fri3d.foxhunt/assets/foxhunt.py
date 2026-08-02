@@ -1,4 +1,5 @@
-# foxhunt.py — app entry. HomeActivity: the Pokedex grid (the "boek").
+# foxhunt.py — app entry. HomeActivity: profile header, "nu in de buurt"
+# hunt shortcuts, and the scrolling boek (design: home.jsx PxHomeNew).
 #
 # Loaded by MicroPythonOS via MANIFEST.JSON (classname HomeActivity). The
 # assets/ dir is on sys.path, so the flat `import ui`, `import art`, etc. work.
@@ -7,6 +8,7 @@ import lvgl as lv
 from mpos import Activity, Intent
 import ui
 import art
+import mascot
 import store
 import sound
 from creatures import CREATURES
@@ -14,8 +16,14 @@ from fox_radio import RADIO
 from screen_hunt import HuntActivity
 from screen_beast import BeastActivity
 from screen_register import RegisterActivity
+from screen_profile import ProfileActivity
+from screen_settings import SettingsActivity
 
-_CELL_W, _CELL_H, _GAP = 74, 66, 4
+_CELL_W, _CELL_H, _GAP = 74, 52, 4  # boek tiles
+_HAIR = 0xDCCFA9  # section hairline on paper
+_NEAR_BG = 0xF6E7CD  # nearby-card fill
+_SEG_OFF = 0xE4D6BC  # unlit heat segment
+_RARITY_FRAME = {"rare": ui.TERRA, "leg": ui.GOLD}
 
 
 class HomeActivity(Activity):
@@ -40,71 +48,124 @@ class HomeActivity(Activity):
         self.screen.clean()
         self._populate()
 
+    def _section(self, y, text, color, right=None):
+        """Small section header: label + hairline (+ count on the right)."""
+        s = self.screen
+        ui.label(s, text, 6, y, color, ui.font_small())
+        x0 = 6 + len(text) * 7 + 8  # crude r11 width; the hairline just fills
+        x1 = 270 if right else 314
+        ui.box(s, x0, y + 5, max(4, x1 - x0), 2, _HAIR)
+        if right is not None:
+            rl = ui.label(s, right, 274, y, ui.MYSTERY, ui.font_small(), w=40)
+            rl.set_style_text_align(lv.TEXT_ALIGN.RIGHT, 0)
+
     def _populate(self):
         s = self.screen
+        p = store.profile()
         awake = set(RADIO.active_foxes())
         caught = set(store.caught_ids())
-        ui.banner(s, "FOXHUNT", ui.GREEN, right="%d/%d" % (len(caught), len(CREATURES)))
 
-        # 4 cells per row; +2px slack so the exact-fit 4th column never wraps early.
-        # The window shows 3 rows; with more creatures the grid scrolls
-        # vertically (box() strips SCROLLABLE, so re-add it here).
-        grid = ui.row(
-            s,
-            6,
-            30,
-            4 * _CELL_W + 3 * _GAP + 2,
-            3 * _CELL_H + 2 * _GAP,
-            gap=_GAP,
-            wrap=True,
+        # ── header: your maatje (tap -> profile) + settings gear ──────────
+        header = ui.panel(s, 6, 6, 308, 40, bg=ui.CARD)
+        ui.focusable(header, on_click=self._profile)
+        portrait = ui.panel(
+            header, 4, 2, 32, 32, bg=mascot.BGS[p["bg"]] if p else ui.SURFACE_SOFT
         )
+        if p:
+            # 32px maatje in a 28px opening: the art's transparent margin
+            # falls off the edges, the face stays centred.
+            mascot.draw(portrait, p["head"], p["accs"], 2, x=-2, y=-2)
+        ui.label(header, p["name"] if p else "Jager", 46, 0, ui.INK, ui.font_title())
+        sub = (p.get("hunter_id") or "JGR volgt") if p else "tik om te registreren"
+        ui.label(header, sub, 46, 24, ui.MYSTERY, ui.font_small())
+        gear = ui.box(header, 272, 4, 28, 28, ui.CARD, radius=ui.RADIUS)
+        gear.set_style_border_width(ui.BORDER, 0)
+        gear.set_style_border_color(ui.hexc(ui.INK), 0)
+        art.icon(gear, "gear", 2).align(lv.ALIGN.CENTER, 0, 0)
+        ui.focusable(gear, on_click=self._settings)
+
+        # ── nu in de buurt: transmitting, not-yet-caught foxes ────────────
+        self._section(52, "NU IN DE BUURT", ui.TERRA)
+        nearby = []
+        for c in CREATURES:
+            if c["id"] in awake and c["id"] not in caught:
+                r = RADIO.reading(c["id"])
+                heat = max(1, min(3, (r.level * 3 + 4) // 5))
+                nearby.append((c, heat))
+        nearby.sort(key=lambda ch: -ch[1])
+        if nearby:
+            cards = ui.row(s, 6, 68, 308, 52, gap=5)
+            for i, (c, heat) in enumerate(nearby[:4]):
+                cell = ui.box(cards, 0, 0, 73, 52, _NEAR_BG, radius=ui.RADIUS)
+                cell.set_style_border_width(ui.BORDER, 0)
+                # warmest card wears gold, the rest the hunt's terra
+                cell.set_style_border_color(ui.hexc(ui.GOLD if i == 0 else ui.TERRA), 0)
+                spr = art.creature_panel(cell, c, 2, silhouette=True)
+                spr.set_pos(18, 2)
+                for d in range(3):
+                    seg = ui.box(
+                        cell, 20 + d * 10, 40, 8, 5, ui.TERRA if d < heat else _SEG_OFF
+                    )
+                    seg.set_style_border_width(ui.BORDER_THIN, 0)
+                    seg.set_style_border_color(ui.hexc(ui.INK), 0)
+                ui.focusable(
+                    cell, on_click=lambda cc=c["id"]: self._hunt(cc), focus_border=True
+                )
+        else:
+            ui.label(
+                s,
+                "alles slaapt - kom straks terug",
+                6,
+                86,
+                ui.TEXT_MUTED,
+                ui.font_small(),
+            )
+
+        # ── je boek: every creature, roster order, scrolls ────────────────
+        self._section(
+            126, "JE BOEK", ui.MYSTERY, right="%d/%d" % (len(caught), len(CREATURES))
+        )
+        grid = ui.row(s, 6, 142, 4 * _CELL_W + 3 * _GAP + 2, 92, gap=_GAP, wrap=True)
         grid.add_flag(lv.obj.FLAG.SCROLLABLE)
         grid.set_scroll_dir(lv.DIR.VER)
 
-        # Auto-sort: huntable (transmitting, not yet caught) first, then caught,
-        # then still-hidden. Stable, so roster order holds within each group.
-        def _rank(c):
-            cid = c["id"]
-            if cid in awake and cid not in caught:
-                return 0
-            return 1 if cid in caught else 2
-
-        for c in sorted(CREATURES, key=_rank):
+        for c in CREATURES:
             cid = c["id"]
             is_caught = cid in caught
             huntable = (cid in awake) and not is_caught
 
-            # Only CAUGHT beasts are revealed (full art + name). Everything else
-            # is a mystery silhouette — the catch is the reveal. Huntable ones
-            # (transmitting right now) get an active green frame so the player
-            # knows what's out there to find.
-            bg = ui.CARD if (is_caught or huntable) else ui.DORMANT
-            cell = ui.box(grid, 0, 0, _CELL_W, _CELL_H, bg, radius=2)
-
-            # Every cell wears the same quiet tan frame at rest; focus recolours
-            # it to gold (same width, so the contents never shift). State is read
-            # from the cell bg (lighter = caught/huntable) and the reveal itself,
-            # not the border.
+            cell = ui.box(
+                grid,
+                0,
+                0,
+                _CELL_W,
+                _CELL_H,
+                ui.CARD if is_caught else ui.DORMANT,
+                radius=2,
+            )
             cell.set_style_border_width(ui.BORDER, 0)
-            cell.set_style_border_color(ui.hexc(ui.BORDER_REST), 0)
+            frame = _RARITY_FRAME.get(c["rarity"]) if is_caught else None
+            cell.set_style_border_color(ui.hexc(frame or ui.BORDER_REST), 0)
 
-            sp = art.creature_panel(cell, c, 3, silhouette=not is_caught)
-            sp.align(lv.ALIGN.TOP_MID, 0, 3)
-
+            sp = art.creature_panel(cell, c, 2, silhouette=not is_caught)
+            sp.align(lv.ALIGN.TOP_MID, 0, 1)
+            if is_caught and c["rarity"] == "leg":
+                art.icon(cell, "spark", 1).set_pos(2, 2)
+            if is_caught:
+                ui.box(cell, 0, 35, _CELL_W - 4, 13, 0xF0E8D4)
             ui.label(
                 cell,
                 c["naam"] if is_caught else "???",
                 0,
-                51,
+                36,
                 ui.INK if is_caught else ui.MYSTERY,
                 ui.font_small(),
-                w=_CELL_W,
+                w=_CELL_W - 4,
                 center=True,
             )
 
-            # Every tile is navigable (arrows/click) so the grid never goes
-            # dead: caught -> companion page, huntable -> the hunt, dormant ->
-            # selectable but inert (still sleeping).
+            # Every tile is navigable so the grid never goes dead: caught ->
+            # companion page, huntable -> the hunt, dormant -> inert.
             if is_caught:
                 ui.focusable(
                     cell, on_click=lambda cc=cid: self._open(cc), focus_border=True
@@ -123,3 +184,14 @@ class HomeActivity(Activity):
     def _open(self, cid):
         sound.play("tap")
         self.startActivity(Intent(activity_class=BeastActivity, extras={"fox_id": cid}))
+
+    def _profile(self):
+        sound.play("tap")
+        if store.profile() is None:
+            self.startActivity(Intent(activity_class=RegisterActivity))
+        else:
+            self.startActivity(Intent(activity_class=ProfileActivity))
+
+    def _settings(self):
+        sound.play("tap")
+        self.startActivity(Intent(activity_class=SettingsActivity))

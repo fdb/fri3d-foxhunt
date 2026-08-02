@@ -24,10 +24,21 @@ _TILE_W = 42
 
 class MascotActivity(Activity):
     def onCreate(self):
-        self.name = self.getIntent().extras.get("name", "Jager")
-        self.head = "vos"
-        self.accs = []
-        self.bg = 0
+        # edit mode ("Maatje aanpassen" from the profile page): prefill from
+        # the stored profile and save on confirm instead of registering.
+        extras = self.getIntent().extras or {}
+        self.edit = extras.get("edit", False)
+        p = store.profile() if self.edit else None
+        if p:
+            self.name = p.get("name", "Jager")
+            self.head = p.get("head", "vos")
+            self.accs = list(p.get("accs", []))
+            self.bg = p.get("bg", 0)
+        else:
+            self.name = extras.get("name", "Jager")
+            self.head = "vos"
+            self.accs = []
+            self.bg = 0
         self.tab = 0
         caught = store.caught_ids()
         self._caught_n = len(caught)
@@ -41,7 +52,7 @@ class MascotActivity(Activity):
 
         s = ui.make_screen(ui.PAPER)
         self.screen = s
-        ui.banner(s, "MAAK JE MAATJE", ui.GREEN, right="2/3")
+        ui.banner(s, "MAAK JE MAATJE", ui.GREEN, right=None if self.edit else "2/3")
 
         # live preview: the maatje on its backdrop, name plate underneath
         self.preview = ui.panel(s, ui.PAD, 32, 112, 170, bg=mascot.BGS[self.bg])
@@ -68,7 +79,16 @@ class MascotActivity(Activity):
         btn = ui.box(s, ui.PAD, 208, 304, 26, ui.GREEN, radius=ui.RADIUS)
         btn.set_style_border_width(ui.BORDER, 0)
         btn.set_style_border_color(ui.hexc(ui.INK), 0)
-        ui.label(btn, "REGISTREER", 0, 0, ui.CREAM, ui.font_title(), w=300, center=True)
+        ui.label(
+            btn,
+            "OPSLAAN" if self.edit else "REGISTREER",
+            0,
+            0,
+            ui.CREAM,
+            ui.font_title(),
+            w=300,
+            center=True,
+        )
         ui.focusable(btn, on_click=self._register)
 
         self.setContentView(s)
@@ -254,6 +274,10 @@ class MascotActivity(Activity):
     # ---- REGISTREER -------------------------------------------------------
     def _register(self):
         sound.play("tap")
+        if self.edit:
+            store.update_profile(head=self.head, accs=self.accs, bg=self.bg)
+            self.finish()
+            return
         # Save first: whatever the network does, the profile is on the badge.
         store.save_profile(
             {
