@@ -15,7 +15,7 @@ from creatures import CREATURES
 from fox_radio import RADIO
 from screen_hunt import HuntActivity
 from screen_beast import BeastActivity
-from screen_register import RegisterActivity
+from screen_welcome import WelcomeActivity
 from screen_profile import ProfileActivity
 from screen_settings import SettingsActivity
 
@@ -40,10 +40,11 @@ class HomeActivity(Activity):
         # buffers!). clean() frees the previous cells before repopulating.
         if self._fresh:
             self._fresh = False
-            # First run: no profile yet -> the registration flow opens on top
-            # of the book and unwinds back here when it's done (or skipped).
+            # First run: no profile yet -> the welcome screen opens on top of
+            # the book and the onboarding flow unwinds back here when it's
+            # done (registered or restored).
             if store.profile() is None:
-                self.startActivity(Intent(activity_class=RegisterActivity))
+                self.startActivity(Intent(activity_class=WelcomeActivity))
             return
         self.screen.clean()
         self._populate()
@@ -191,7 +192,7 @@ class HomeActivity(Activity):
     def _profile(self):
         sound.play("tap")
         if store.profile() is None:
-            self.startActivity(Intent(activity_class=RegisterActivity))
+            self.startActivity(Intent(activity_class=WelcomeActivity))
         else:
             self.startActivity(Intent(activity_class=ProfileActivity))
 

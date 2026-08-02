@@ -61,6 +61,24 @@ authRoutes.post("/register", async (c) => {
   return c.json(player, 201);
 });
 
+// GET /api/v1/auth/user?badge_id=...
+// The badge's "restore" route: a badge that lost its filesystem still knows
+// its own MAC, so that is the key it recovers an account with. 404 means the
+// badge is simply new — the app sends it to registration.
+authRoutes.get("/user", async (c) => {
+  const badgeId = validateBadgeId(c.req.query("badge_id"));
+  if (!badgeId) return c.json({ error: "invalid badge_id" }, 400);
+
+  const player = await c.env.DB.prepare(
+    "SELECT * FROM players WHERE badge_id = ?",
+  )
+    .bind(badgeId)
+    .first<Player>();
+  if (!player) return c.json({ error: "unknown badge_id" }, 404);
+
+  return c.json(player);
+});
+
 // PATCH /api/v1/auth/user
 // Body: { badge_id, name?, hunter_id?, profile_pic? } — badge_id identifies
 // the account, the other fields are applied when present.

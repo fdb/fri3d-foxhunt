@@ -49,6 +49,25 @@ class Registrar:
         """
         raise NotImplementedError
 
+    def restore(self, badge, on_update):
+        """Ask the cloud server whether this badge is already registered
+        (server/: GET /api/v1/auth/user?badge_id=...).
+
+        ASYNCHRONOUS BY CONTRACT, same as register(); the verdict arrives
+        through on_update(status), and today that is the single terminal
+        update. status:
+
+            "done" : True on the terminal update
+            "found": the server knows this badge
+            "name" / "hunter_id": the recovered account (with found)
+            "error": "E-01" when the server didn't answer, else None
+
+        Note the server only knows name + hunter id — the maatje is badge-local
+        art, so a restored profile starts on the default maatje and the player
+        re-picks one from the profile page.
+        """
+        raise NotImplementedError
+
 
 class FakeRegistrar(Registrar):
     """Fakes the round trips with one-shot lv timers, like FakeFoxRadio."""
@@ -56,6 +75,8 @@ class FakeRegistrar(Registrar):
     STEP_MS = 700
     SIMULATE_LORA = True  # desktop has no radio; pretend, so the flow is testable
     FAIL_BRIDGE = False  # flip to walk the E-02 error path
+    RESTORE_FOUND = True  # flip to walk the "onbekende badge" restore path
+    RESTORE_FAIL = False  # flip to walk the E-01 restore path
 
     def register(self, name, badge, on_update):
         st = {
@@ -109,6 +130,26 @@ class FakeRegistrar(Registrar):
 
         push()
         at(self.STEP_MS, cloud_done)
+
+    def restore(self, badge, on_update):
+        def answer():
+            if self.RESTORE_FAIL:
+                on_update({"done": True, "found": False, "error": "E-01"})
+            elif self.RESTORE_FOUND:
+                on_update(
+                    {
+                        "done": True,
+                        "found": True,
+                        "name": "Jager",
+                        "hunter_id": "JGR-%04d" % random.randrange(10000),
+                        "error": None,
+                    }
+                )
+            else:
+                on_update({"done": True, "found": False, "error": None})
+
+        t = lv.timer_create(lambda _t: answer(), self.STEP_MS + 500, None)
+        t.set_repeat_count(1)
 
 
 # Shared singleton — the send screen talks to this.

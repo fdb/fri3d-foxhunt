@@ -9,6 +9,7 @@ scoring for the fox hunt. All game activity lands in the append-only
 | Route                   | Method | Description                                                         |
 | ----------------------- | ------ | ------------------------------------------------------------------- |
 | `/api/v1/auth/register` | POST   | Register a badge: `{ badge_id, name, hunter_id? }`                  |
+| `/api/v1/auth/user`     | GET    | Restore: look up an account by `?badge_id=...` (404 = new badge)   |
 | `/api/v1/auth/user`     | PATCH  | Update account by `badge_id`: `{ name?, hunter_id?, profile_pic? }` |
 | `/api/v1/player/found`  | POST   | Bridge relay reports `{ hunter_id, fox_id }` (Bearer `BRIDGE_KEY`)  |
 | `/`                     | GET    | Public dashboard, auto-refreshing scoreboard                        |

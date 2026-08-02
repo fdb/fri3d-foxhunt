@@ -187,4 +187,7 @@ class RegisterActivity(Activity):
 
     def _child_done(self, result):
         if result and result.get("result_code") == "registered":
+            # Pass the verdict on up: the welcome screen (and the restore
+            # screen's "registreer dan maar" route) close on it too.
+            self.setResult("registered")
             self.finish()
