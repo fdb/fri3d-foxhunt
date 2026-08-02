@@ -178,6 +178,10 @@ def box(parent, x, y, w, h, bg=None, radius=0):
     o.add_style(_RESET, 0)  # shared pad/border reset
     o.set_style_radius(radius, 0)  # radius varies per call -> local
     o.remove_flag(lv.obj.FLAG.SCROLLABLE)
+    # lv.obj is CLICKABLE by default, so a decorative child (a portrait inside
+    # a tappable header) eats the tap instead of letting it reach the parent.
+    # Boxes are scenery until focusable() opts them in.
+    o.remove_flag(lv.obj.FLAG.CLICKABLE)
     if bg is None:
         o.set_style_bg_opa(lv.OPA.TRANSP, 0)
     else:
