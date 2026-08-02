@@ -85,7 +85,6 @@ class Fireworks:
                 RAINBOW[i],
                 radius=size // 2,
             )
-            ring.remove_flag(lv.obj.FLAG.CLICKABLE)
             self.rings.append(ring)
 
         # 2. a cream backing disc, just for contrast against the busy rings —
@@ -93,13 +92,11 @@ class Fireworks:
         self.disc = ui.box(s, _CX - 50, _CY - 50, 100, 100, ui.CREAM, radius=50)
         self.disc.set_style_border_width(4, 0)
         self.disc.set_style_border_color(ui.hexc(ui.GOLD), 0)
-        self.disc.remove_flag(lv.obj.FLAG.CLICKABLE)
 
         # the beast itself: big, and drawn straight onto the screen (NOT a child
         # of the disc, so it isn't clipped) so it floats ON TOP of the rings —
         # its silhouette spills past the disc onto the rainbow. It bounces.
         self.sprite = art.creature_panel(s, self.c, 8)  # scale 8 -> 128px
-        self.sprite.remove_flag(lv.obj.FLAG.CLICKABLE)
         self.sprite.align(lv.ALIGN.CENTER, 0, _CY - 120)
 
         # 3. flashing title + cycling praise.
@@ -127,14 +124,11 @@ class Fireworks:
 
         # 5. confetti — a full-screen, click-through layer of falling chips.
         self.layer = ui.box(s, 0, 0, 320, 240)
-        self.layer.remove_flag(lv.obj.FLAG.CLICKABLE)
-        self.layer.remove_flag(lv.obj.FLAG.SCROLLABLE)
         self.cf = []  # (widget, x, y, vy, sway_phase)
         for i in range(_CONFETTI):
             w = random.randint(5, 8)
             h = random.randint(6, 11)
             piece = ui.box(self.layer, 0, 0, w, h, RAINBOW[i % len(RAINBOW)], radius=1)
-            piece.remove_flag(lv.obj.FLAG.CLICKABLE)
             x = random.randint(0, 312)
             y = random.randint(-240, 0)
             self.cf.append([piece, x, y, random.randint(4, 9), random.uniform(0, 6.2)])
@@ -145,7 +139,6 @@ class Fireworks:
         for sx, sy in ((96, 52), (224, 56), (84, 150), (236, 146), (152, 28)):
             star = art.draw_sprite(self.layer, _STAR, {"w": 0xFFFFFF}, 3)
             star.set_pos(sx, sy)
-            star.remove_flag(lv.obj.FLAG.CLICKABLE)
             self.sparks.append(star)
 
     # ── lifecycle ──────────────────────────────────────────────────────────
