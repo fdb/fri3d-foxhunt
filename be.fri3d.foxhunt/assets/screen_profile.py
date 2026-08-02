@@ -15,6 +15,7 @@ import store
 import companion
 from creatures import CREATURES, by_id
 from screen_companion import CompanionActivity
+from screen_hello import HelloActivity
 from screen_register import RegisterActivity
 
 SCORE_BG = 0xF6E7CD
@@ -86,31 +87,20 @@ class ProfileActivity(Activity):
             ui.label(t, value, 0, 4, colour, ui.font_title(), w=68, center=True)
             ui.label(t, label, 0, 28, ui.MYSTERY, ui.font_small(), w=68, center=True)
 
-        # actions: re-enter the onboarding screens in edit mode
-        edit_btn = ui.box(s, ui.PAD, 196, 179, 34, ui.GREEN, radius=ui.RADIUS)
-        edit_btn.set_style_border_width(ui.BORDER, 0)
-        edit_btn.set_style_border_color(ui.hexc(ui.INK), 0)
-        el = ui.label(
-            edit_btn,
-            "MAATJE AANPASSEN",
-            0,
-            0,
-            ui.CREAM,
-            ui.font_small(),
-            w=175,
-            center=True,
+        # actions: the two edit re-entries + the snuffeltest (hallo-spike)
+        self._action(
+            s, ui.PAD, 147, "MAATJE AANPASSEN", ui.GREEN, ui.CREAM, self._edit_companion
         )
-        el.align(lv.ALIGN.CENTER, 0, 0)
-        ui.focusable(edit_btn, on_click=self._edit_companion)
+        self._action(s, 161, 60, "NAAM", ui.CARD, ui.INK, self._edit_name)
+        self._action(s, 227, 85, "SNUFFELEN", ui.GOLD, ui.INK, self._snuffel)
 
-        name_btn = ui.box(s, 193, 196, 119, 34, ui.CARD, radius=ui.RADIUS)
-        name_btn.set_style_border_width(ui.BORDER, 0)
-        name_btn.set_style_border_color(ui.hexc(ui.INK), 0)
-        nl = ui.label(
-            name_btn, "NAAM", 0, 0, ui.INK, ui.font_small(), w=115, center=True
-        )
-        nl.align(lv.ALIGN.CENTER, 0, 0)
-        ui.focusable(name_btn, on_click=self._edit_name)
+    def _action(self, s, x, w, text, bg, fg, on_click):
+        btn = ui.box(s, x, 196, w, 34, bg, radius=ui.RADIUS)
+        btn.set_style_border_width(ui.BORDER, 0)
+        btn.set_style_border_color(ui.hexc(ui.INK), 0)
+        lbl = ui.label(btn, text, 0, 0, fg, ui.font_small(), w=w - 4, center=True)
+        lbl.align(lv.ALIGN.CENTER, 0, 0)
+        ui.focusable(btn, on_click=on_click)
 
     def _edit_companion(self):
         sound.play("tap")
@@ -123,3 +113,7 @@ class ProfileActivity(Activity):
         self.startActivity(
             Intent(activity_class=RegisterActivity, extras={"edit": True})
         )
+
+    def _snuffel(self):
+        sound.play("tap")
+        self.startActivity(Intent(activity_class=HelloActivity))
