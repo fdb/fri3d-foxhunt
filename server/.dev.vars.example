@@ -1,0 +1,3 @@
+# Copy to .dev.vars for local dev. In production, set with:
+#   wrangler secret put BRIDGE_KEY
+BRIDGE_KEY=dev-bridge-key

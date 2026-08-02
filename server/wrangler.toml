@@ -1,0 +1,15 @@
+name = "foxhunt-server"
+main = "src/index.tsx"
+compatibility_date = "2026-07-01"
+
+# Static files (styles.css) are served directly; every other path falls
+# through to the worker.
+[assets]
+directory = "static"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "foxhunt"
+# Replace with the real id from `wrangler d1 create foxhunt` before deploying.
+# Local dev (`npm run dev`) works with the placeholder.
+database_id = "00000000-0000-0000-0000-000000000000"

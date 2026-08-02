@@ -1,0 +1,22 @@
+{
+  "name": "foxhunt-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "db:init:local": "wrangler d1 execute foxhunt --local --file=schema.sql",
+    "db:init:remote": "wrangler d1 execute foxhunt --remote --file=schema.sql"
+  },
+  "dependencies": {
+    "hono": "^4.9.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260730.1",
+    "prettier": "^3.6.0",
+    "typescript": "^5.9.0",
+    "wrangler": "^4.28.0"
+  }
+}
