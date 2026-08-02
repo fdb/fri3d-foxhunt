@@ -76,6 +76,17 @@ as a citation of the original design bundle file `mascotte.jsx`.
 Base URL: **https://foxhunt.enigmeta.workers.dev/** — the badge's `registrar.py`
 talks to `/api/v1/auth/*` there.
 
+- **Test against a local worker, not prod.** `cd server && npm run dev` (plus
+  `npm run db:init:local` once), then point the app at it from the emulator
+  REPL before touching a screen:
+  `import sys; sys.modules["registrar"].BASE_URL = "http://localhost:8787"`.
+  The transport is drivable straight from the REPL, no UI needed —
+  `sys.modules["registrar"].REGISTRAR.restore(badge, print)`.
+- Only the **cloud** leg of `register()` is real. The bridge/hunter legs report
+  `"skip"` because no LoRa bridge protocol exists yet (`fox_radio.py` is a stub
+  too); a cloud save alone counts as success, which is the rule the flow
+  already applied to an antenna-less badge.
+
 - **Catches never flow badge → server.** That is an auth decision, not an
   unfinished wire: the only writer of `players_creatures` is
   `POST /api/v1/player/found`, held by the LoRa bridge behind a `BRIDGE_KEY`
