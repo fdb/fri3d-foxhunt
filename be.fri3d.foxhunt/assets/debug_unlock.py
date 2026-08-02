@@ -2,6 +2,22 @@
 
 _CLEARED_CODES = ("1", "22", "333")
 _FINAL_CODE = "4444"
+DEBUG_CODE = "1111"
+_debug_code_enabled = False
+
+
+def enable_debug_code():
+    global _debug_code_enabled
+    _debug_code_enabled = True
+
+
+def disable_debug_code():
+    global _debug_code_enabled
+    _debug_code_enabled = False
+
+
+def accepts_debug_code(code):
+    return _debug_code_enabled and code == DEBUG_CODE
 
 
 class DebugUnlock:

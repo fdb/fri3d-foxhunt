@@ -5,10 +5,19 @@ from pathlib import Path
 ASSETS = Path(__file__).parents[1] / "be.fri3d.foxhunt" / "assets"
 sys.path.insert(0, str(ASSETS))
 
-from debug_unlock import DebugUnlock
+from debug_unlock import (
+    DEBUG_CODE,
+    DebugUnlock,
+    accepts_debug_code,
+    disable_debug_code,
+    enable_debug_code,
+)
 
 
 class DebugUnlockTest(unittest.TestCase):
+    def setUp(self):
+        disable_debug_code()
+
     def test_exact_sequence_unlocks(self):
         unlock = DebugUnlock()
         for code in ("1", "22", "333"):
@@ -32,6 +41,12 @@ class DebugUnlockTest(unittest.TestCase):
             unlock.cleared(code)
         self.assertTrue(unlock.entered("4444"))
         self.assertFalse(unlock.entered("4444"))
+
+    def test_debug_code_only_works_after_debug_mode_is_enabled(self):
+        self.assertFalse(accepts_debug_code(DEBUG_CODE))
+        enable_debug_code()
+        self.assertTrue(accepts_debug_code(DEBUG_CODE))
+        self.assertFalse(accepts_debug_code("1234"))
 
 
 if __name__ == "__main__":

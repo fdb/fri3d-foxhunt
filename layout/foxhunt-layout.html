@@ -404,34 +404,36 @@
   function scrDebug(){
     const s=makeStage();
     s.style.background='var(--paper)';
-    banner(s,'DEBUG',{right:'TEST',color:'var(--terra)',dark:'var(--terra-d)'});
+    banner(s,'DEBUG',{right:'1111',color:'var(--terra)',dark:'var(--terra-d)'});
 
-    const add=box(6,34,308,54,panelStyle('var(--card)'));
-    add.appendChild(text('VASTE VANGST',8,5,180,13,
+    const code=box(6,34,308,42,panelStyle('var(--card)'));
+    code.appendChild(text('TESTCODE ACTIEF',8,5,180,13,
       {size:10,color:'var(--terra-d)'}));
-    add.appendChild(text('Paauwpegaai  -  code 1111',8,25,190,13,
+    code.appendChild(text('elk beest vang je nu met code 1111',8,22,260,13,
       {size:10,color:'var(--ink)'}));
-    const catchBtn=box(202,8,96,34,panelStyle('var(--green)'));
-    catchBtn.appendChild(text('VANG 1111',0,0,96,34,
-      {size:11,weight:600,align:'center',color:'#fff7e6'}));
-    add.appendChild(catchBtn); s.appendChild(add);
+    s.appendChild(code);
 
-    s.appendChild(text('GEVONDEN BEESTEN',8,94,200,13,
+    s.appendChild(text('BEESTENBOEK',8,84,200,13,
       {size:10,color:'var(--green-d)'}));
-    const found=box(6,108,308,74,panelStyle('#e9f1cf'));
-    [['Knoricorn',4],['Paauwpegaai',37]].forEach(([name,y])=>{
-      const row=box(4,y,294,30,panelStyle('var(--card)','#cdb67d'));
-      row.appendChild(text(name,7,0,188,30,{size:10,color:'var(--ink)'}));
-      const del=box(204,3,84,24,panelStyle('var(--terra)'));
-      del.appendChild(text('VERWIJDER',0,0,84,24,
-        {size:10,weight:600,align:'center',color:'#fff7e6'}));
-      row.appendChild(del); found.appendChild(row);
+    const roster=box(6,98,308,101,panelStyle('#e9f1cf'));
+    ROSTER.slice(0,3).forEach((c,i)=>{
+      const caught=i===0, y=4+i*45;
+      const row=box(4,y,294,42,panelStyle('var(--card)','#cdb67d'));
+      const icon=creature(c,2,false);
+      icon.style.position='absolute'; icon.style.left=px(6)+'px'; icon.style.top=px(5)+'px';
+      row.appendChild(icon);
+      row.appendChild(text(c.naam,45,0,130,42,{size:10,color:'var(--ink)'}));
+      const state=box(178,7,110,28,panelStyle(caught?'var(--green)':'#d8c9a4',
+        caught?'var(--green-d)':'#cdb67d'));
+      state.appendChild(text(caught?'GEVANGEN':'NIET GEV.',0,0,110,28,
+        {size:10,weight:600,align:'center',color:caught?'#fff7e6':'var(--ink)'}));
+      row.appendChild(state); roster.appendChild(row);
     });
-    s.appendChild(found);
+    s.appendChild(roster);
 
-    const account=box(6,190,308,42,panelStyle('#d8c9a4','#cdb67d'));
-    account.appendChild(text('ACCOUNT',8,5,100,13,{size:10,color:'#8a7d5e'}));
-    account.appendChild(text('registreren / uitschrijven: binnenkort',8,22,292,13,
+    const account=box(6,207,308,25,panelStyle('#d8c9a4','#cdb67d'));
+    account.appendChild(text('ACCOUNT',8,7,70,13,{size:10,color:'#8a7d5e'}));
+    account.appendChild(text('registreren / uitschrijven: binnenkort',82,7,218,13,
       {size:10,color:'#5e6b44'}));
     s.appendChild(account);
     return s;
