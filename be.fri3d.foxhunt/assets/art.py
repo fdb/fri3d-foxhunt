@@ -228,15 +228,25 @@ PALS = {
     "gold": _pal(0xECC24A, 0xB1841F, 0xF8E6A0),
 }
 
-_SIL = 0x2B241D  # silhouette colour for dormant / scanning
+# ── Tones: how a creature is flattened when it must not be recognisable ─────
+# A tone is (fill, outline); outline None means the whole shape is one flat
+# colour. Which tone reads depends entirely on what it sits on, hence three.
+SIL = (0x2B241D, None)  # dark silhouette on a LIGHT card (grid, hunt scan)
+GHOST = (0x41342A, 0x4E4136)  # barely-there shape on the DARK code panel: a
+#                               hair lighter than the ground, with an outline
+#                               a hair lighter again, so you can tell there is
+#                               something there without telling WHAT.
+MASK = (0xFFF7E6, None)  # flat white: typing progress, still not the art
 
 
 def draw_sprite(parent, rows, palette, scale, tint=None):
     """Draw a pixel sprite onto a fresh transparent canvas, each source pixel
     as a scale x scale block. Returns the lv.canvas widget.
 
-    tint (a colour) flattens every opaque pixel to that one colour, keeping only
-    the outline — a dark silhouette while hunting, white while typing the code."""
+    tint is a tone (see above) that flattens every opaque pixel: outline pixels
+    ('k') take the tone's outline colour, everything else its fill. None draws
+    the sprite in its real palette."""
+    fill, edge = tint if tint else (None, None)
     w = len(rows[0]) * scale
     h = len(rows) * scale
     canvas = lv.canvas(parent)
@@ -252,7 +262,10 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
             ch = row[x]
             if ch == "." or ch == " ":
                 continue
-            col = tint if tint is not None else palette.get(ch)
+            if fill is None:
+                col = palette.get(ch)
+            else:
+                col = edge if (edge is not None and ch == "k") else fill
             if col is None:
                 continue
             color = lv.color_hex(col)
@@ -286,8 +299,13 @@ def _bare(o):
 
 def _layer(parent, c, scale, tint=None):
     """One creature image/canvas at (0,0), sized 16*scale, full colour (tint
-    None) or flattened to `tint`. Non-clickable so it never steals taps from a
-    clickable cell."""
+    None) or flattened to the tone `tint`. Non-clickable so it never steals
+    taps from a clickable cell.
+
+    Caveat: recolouring an image is all-or-nothing, so PNG art takes the tone's
+    fill and skips its outline. That is a difference you can only see by
+    hunting for it, and the alternative — recolouring at partial opacity —
+    would leak the real colours, which is the whole thing we are hiding."""
     px = 16 * scale
     if c.get("img"):
         w = lv.image(parent)
@@ -297,7 +315,7 @@ def _layer(parent, c, scale, tint=None):
         w.set_inner_align(lv.image.ALIGN.STRETCH)  # scale src(16) to fill px x px
         w.set_antialias(False)  # nearest-neighbour -> crisp
         if tint is not None:
-            w.set_style_image_recolor(lv.color_hex(tint), 0)
+            w.set_style_image_recolor(lv.color_hex(tint[0]), 0)
             w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
     else:
         w = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, tint)
@@ -306,25 +324,27 @@ def _layer(parent, c, scale, tint=None):
     return w
 
 
-def creature_panel(parent, c, scale, reveal=1.0, silhouette=False, mask=None):
-    """The creature shown full / silhouette / partially revealed (fills
-    top-down). Backend-agnostic — PNG art and procedural sprites both come
-    through here. Full/silhouette return the bare sprite (no wrapper, so it
-    never blocks clicks); only the partial-reveal case needs a clip wrapper.
+def creature_panel(parent, c, scale, reveal=1.0, silhouette=False, mask=None, veil=SIL):
+    """The creature shown full / hidden / partially revealed (fills top-down).
+    Backend-agnostic — PNG art and procedural sprites both come through here.
+    Full/hidden return the bare sprite (no wrapper, so it never blocks clicks);
+    only the partial-reveal case needs a clip wrapper.
 
-    `mask` (a colour) fills the revealed part with that flat colour instead of
-    the real art: the code screen shows typing progress without spoiling which
-    creature it is. The true reveal is the win screen."""
+    `veil` is the tone the not-yet-revealed part is drawn in, `mask` the tone
+    the revealed part takes instead of the real art (None = the real art, i.e.
+    an honest reveal). The code screen sets both, so it can show progress
+    without ever spoiling which creature it is — the true reveal is the win
+    screen."""
     if silhouette or reveal <= 0.0:
-        return _layer(parent, c, scale, _SIL)
+        return _layer(parent, c, scale, veil)
     if reveal >= 1.0:
         return _layer(parent, c, scale, mask)
-    # partial: silhouette base + revealed part clipped to the top `reveal`
+    # partial: veiled base + revealed part clipped to the top `reveal`
     px = 16 * scale
     wrap = lv.obj(parent)
     _bare(wrap)
     wrap.set_size(px, px)
-    _layer(wrap, c, scale, _SIL)
+    _layer(wrap, c, scale, veil)
     clip = lv.obj(wrap)
     _bare(clip)
     clip.set_size(px, max(1, int(reveal * px)))

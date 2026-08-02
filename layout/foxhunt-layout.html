@@ -129,14 +129,17 @@
   const px = n => Math.round(n) * SCALE;        // logical → screen px (guards integers)
 
   // draw a sprite to a 1:1 canvas, then size it up with pixelated scaling
-  function sprite(rows, palette, spriteScale, {silhouette, silColor='#2b241d'}={}){
+  // silColor flattens the whole shape; silEdge, if given, colours the outline
+  // ('k') pixels instead — a veil light enough to see against a dark ground.
+  function sprite(rows, palette, spriteScale, {silhouette, silColor='#2b241d', silEdge}={}){
     const w = Math.max(...rows.map(r=>r.length)), h = rows.length;
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
     const ctx = cv.getContext('2d');
     rows.forEach((row,y)=>{ for(let x=0;x<row.length;x++){
       const ch=row[x]; if(ch==='.'||ch===' ') continue;
-      const col = silhouette ? silColor : palette[ch]; if(!col) continue;
+      const col = silhouette ? ((silEdge && ch==='k') ? silEdge : silColor)
+                             : palette[ch]; if(!col) continue;
       ctx.fillStyle=col; ctx.fillRect(x,y,1,1);
     }});
     cv.style.width  = (w*spriteScale*SCALE)+'px';
@@ -377,8 +380,12 @@
     const px0=RX+Math.round((116-92)/2), py0=RY+32;
     const fp=box(px0,py0,92,96, panelStyle('var(--ink)','var(--terra)'));
     fp.style.overflow='hidden';
-    const mask=(col)=>sprite(SH[c.sh],PALS[c.pal],4,{silhouette:true,silColor:col});
-    fp.appendChild(center(mask('#2b241d')));            // scale 4 → 64px
+    const mask=(col,edge)=>sprite(SH[c.sh],PALS[c.pal],4,
+      {silhouette:true,silColor:col,silEdge:edge});
+    // veil: a hair lighter than the ground, outline a hair lighter again — you
+    // can tell something is there without being told WHAT. A plain silhouette
+    // (#2b241d) is darker than the panel and simply vanishes.
+    fp.appendChild(center(mask('#41342a','#4e4136')));   // scale 4 → 64px
     const fill=box(0,0,92,Math.round(96*.28),{left:'0',overflow:'hidden'});
     const full=box(0,0,92,96,{left:'0'});               // keeps the sprite aligned
     full.appendChild(center(mask('#fff7e6')));

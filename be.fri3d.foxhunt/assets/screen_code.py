@@ -103,7 +103,12 @@ class CodeActivity(Activity):
         if self._sprite is not None:
             self._sprite.delete()
         self._sprite = art.creature_panel(
-            self.rev, self.c, 4, reveal=len(self.entry) / CODE_LEN, mask=ui.CREAM
+            self.rev,
+            self.c,
+            4,
+            reveal=len(self.entry) / CODE_LEN,
+            mask=art.MASK,
+            veil=art.GHOST,  # dark panel: the plain silhouette would vanish
         )
         self._sprite.align(lv.ALIGN.CENTER, 0, 0)
 
