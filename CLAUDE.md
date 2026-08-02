@@ -72,6 +72,22 @@ as a citation of the original design bundle file `mascotte.jsx`.
 - **LVGL native widgets have no `__dict__`** — you can't set Python attributes on
   them; keep per-widget state in the Activity.
 
+## Cloud server
+Base URL: **https://foxhunt.enigmeta.workers.dev/** — the badge's `registrar.py`
+talks to `/api/v1/auth/*` there.
+
+- **Catches never flow badge → server.** That is an auth decision, not an
+  unfinished wire: the only writer of `players_creatures` is
+  `POST /api/v1/player/found`, held by the LoRa bridge behind a `BRIDGE_KEY`
+  nobody else has. A badge that could report its own finds could report all of
+  them. The badge *reads* its catch list back on restore
+  (`GET /api/v1/auth/user` returns `creatures`) and never writes it.
+  Consequence, accepted: a player with no antenna has `hunter_id = NULL`, so the
+  bridge can't attribute their finds and a restore gives them back an account
+  with no catches.
+- The badge writes only what is its own to claim — name, `profile_pic`
+  (companion shortcode), `hunter_id` — via register/PATCH.
+
 ## Server debug routes
 `server/` (Hono on Cloudflare Workers + D1) exposes read-only inspection pages
 under `/debug/*` — `/debug/log` for the event log, `/debug/players` for the

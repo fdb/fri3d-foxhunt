@@ -4,12 +4,35 @@ Cloudflare Worker (Hono + D1 + HTMX) that keeps badge registrations and
 scoring for the fox hunt. All game activity lands in the append-only
 `game_events` log; `players` and `players_creatures` are projections of it.
 
+Deployed at **https://foxhunt.enigmeta.workers.dev/** — the badge points
+`registrar.py` at that host.
+
+## Trust model
+
+**A badge can never report its own finds.** The single writer of
+`players_creatures` is `POST /api/v1/player/found`, and it is held by the LoRa
+bridge behind a pre-shared `BRIDGE_KEY`. That key is the anti-cheat: finding a
+fox means having been within radio range of it, and the bridge is the only
+thing that can vouch for that. A badge-facing write route would let anyone
+`curl` themselves a full dossier.
+
+So the badge's traffic is asymmetric, on purpose:
+
+- **writes** only what is its own to claim — `name`, `profile_pic`, `hunter_id`
+  — through register and PATCH;
+- **reads** its catch list back on restore, because `players_creatures` is the
+  only copy that survives a wiped badge.
+
+The accepted cost: a player with no antenna has `hunter_id = NULL`, the bridge
+can't attribute their finds, and a restore hands them back an account with no
+catches.
+
 ## Routes
 
 | Route                   | Method | Description                                                         |
 | ----------------------- | ------ | ------------------------------------------------------------------- |
 | `/api/v1/auth/register` | POST   | Register a badge: `{ badge_id, name, hunter_id?, profile_pic? }`    |
-| `/api/v1/auth/user`     | GET    | Restore: look up an account by `?badge_id=...` (404 = new badge)   |
+| `/api/v1/auth/user`     | GET    | Restore by `?badge_id=...`: account + `creatures` (404 = new badge) |
 | `/api/v1/auth/user`     | PATCH  | Update account by `badge_id`: `{ name?, hunter_id?, profile_pic? }` |
 | `/api/v1/player/found`  | POST   | Bridge relay reports `{ hunter_id, fox_id }` (Bearer `BRIDGE_KEY`)  |
 | `/`                     | GET    | Public dashboard, auto-refreshing scoreboard                        |
