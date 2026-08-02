@@ -24,6 +24,27 @@ def _today():
     return "%04d-%02d-%02d" % (lt[0], lt[1], lt[2])
 
 
+def profile():
+    """The hunter profile dict, or None before registration.
+    Keys: name, head, accs, bg, badge_id, hunter_id (None until minted),
+    synced (True once the cloud server confirmed the save)."""
+    p = SharedPreferences(_APP).get_dict("profile", None)
+    return p if p else None
+
+
+def save_profile(p):
+    SharedPreferences(_APP).edit().put_dict("profile", p).commit()
+
+
+def update_profile(**kv):
+    """Merge fields into the stored profile (e.g. the minted hunter_id)."""
+    prefs = SharedPreferences(_APP)
+    p = prefs.get_dict("profile", {})
+    p.update(kv)
+    prefs.edit().put_dict("profile", p).commit()
+    return p
+
+
 def caught_ids():
     return SharedPreferences(_APP).get_list("caught", [])
 

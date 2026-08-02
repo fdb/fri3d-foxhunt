@@ -13,6 +13,7 @@ from creatures import CREATURES
 from fox_radio import RADIO
 from screen_hunt import HuntActivity
 from screen_beast import BeastActivity
+from screen_register import RegisterActivity
 
 _CELL_W, _CELL_H, _GAP = 74, 66, 4
 
@@ -31,6 +32,10 @@ class HomeActivity(Activity):
         # buffers!). clean() frees the previous cells before repopulating.
         if self._fresh:
             self._fresh = False
+            # First run: no profile yet -> the registration flow opens on top
+            # of the book and unwinds back here when it's done (or skipped).
+            if store.profile() is None:
+                self.startActivity(Intent(activity_class=RegisterActivity))
             return
         self.screen.clean()
         self._populate()

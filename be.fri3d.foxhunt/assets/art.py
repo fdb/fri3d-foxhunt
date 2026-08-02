@@ -198,6 +198,108 @@ ICONS = {
         ],
         "pal": {"k": 0x34271A, "b": 0x9A7541, "d": 0xC89A5A},
     },
+    # ── onboarding icons (registration flow) ────────────────────────────
+    # The LoRa antenna: two signal rays over a mast. Gold rays on ink.
+    "ant": {
+        "rows": [
+            "b.....b.",
+            ".b...b..",
+            "..b.b...",
+            "...k....",
+            "...k....",
+            "..kkk...",
+            ".kk.kk..",
+            "kk...kk.",
+        ],
+        "pal": {"k": 0x34271A, "b": 0xC98A2E},
+    },
+    # Step verdicts for the send-checklist: check / cross / clock.
+    "st_ok": {
+        "rows": [
+            "........",
+            "......gg",
+            ".....gg.",
+            "g...gg..",
+            "gg.gg...",
+            ".ggg....",
+            "..g.....",
+            "........",
+        ],
+        "pal": {"g": 0x4E8A2E},
+    },
+    "st_bad": {
+        "rows": [
+            "r......r",
+            "rr....rr",
+            ".rr..rr.",
+            "..rrrr..",
+            "..rrrr..",
+            ".rr..rr.",
+            "rr....rr",
+            "r......r",
+        ],
+        "pal": {"r": 0xC2452F},
+    },
+    "st_wait": {
+        "rows": [
+            "..kkkk..",
+            ".k....k.",
+            "k..kk..k",
+            "k..kk..k",
+            "k..kkk.k",
+            "k......k",
+            ".k....k.",
+            "..kkkk..",
+        ],
+        "pal": {"k": 0x8A7D5E},
+    },
+    # Padlock on a not-yet-unlocked accessory tile.
+    "lock": {
+        "rows": [
+            "..kkkk..",
+            ".k....k.",
+            ".k....k.",
+            "kkkkkkkk",
+            "kkkwwkkk",
+            "kkkwwkkk",
+            "kkkkkkkk",
+            "........",
+        ],
+        "pal": {"k": 0x8A7D5E, "w": 0xEFE7D0},
+    },
+    # 5x5 gold sparkle for the success splash.
+    "spark": {
+        "rows": ["..b..", "..b..", "bbkbb", "..b..", "..b.."],
+        "pal": {"k": 0xFFF7E6, "b": 0xF0C64A},
+    },
+    # Checkmark on the picked colour swatch (dark, plus a light variant for
+    # the one dark swatch).
+    "check": {
+        "rows": [
+            "........kk",
+            ".......kk.",
+            "......kk..",
+            "k....kk...",
+            "kk..kk....",
+            ".kkkkk....",
+            "..kkk.....",
+            "...k......",
+        ],
+        "pal": {"k": 0x2B3A52},
+    },
+    "check_light": {
+        "rows": [
+            "........kk",
+            ".......kk.",
+            "......kk..",
+            "k....kk...",
+            "kk..kk....",
+            ".kkkkk....",
+            "..kkk.....",
+            "...k......",
+        ],
+        "pal": {"k": 0xF2EAD6},
+    },
 }
 
 
