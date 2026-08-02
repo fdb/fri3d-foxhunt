@@ -4,6 +4,7 @@
 # interface and ship a FakeFoxRadio that drives the whole UI on desktop.
 # When the real radio lands, implement FoxRadio and swap the RADIO singleton.
 
+import lvgl as lv
 import random
 from creatures import CREATURES
 
@@ -28,7 +29,18 @@ class FoxRadio:
     def reading(self, fox_id):
         raise NotImplementedError
 
-    def verify_code(self, fox_id, c):
+    def submit_code(self, fox_id, code, on_result):
+        """Hand a code to the fox network for validation.
+
+        ASYNCHRONOUS BY CONTRACT: the real backend has to ask a server over
+        LoRa, so the verdict arrives later, through on_result(result) — never
+        as a return value. Callers must be able to survive the wait.
+
+        result is one of:
+            "ok"    accepted, the catch counts
+            "wrong" no such code for this fox
+            "used"  right code, but it was already claimed (codes are one-time)
+        """
         raise NotImplementedError
 
 
@@ -37,8 +49,11 @@ class FakeFoxRadio(FoxRadio):
     longer you 'search', so on desktop the hunt reaches 'found' in a few
     seconds with no hardware. bump() lets a key nudge it warmer/colder."""
 
+    ROUND_TRIP_MS = 500  # what asking the network "costs", faked
+
     def __init__(self):
         self._strength = {}
+        self._used = set()  # burnt one-time codes; the real server owns this
 
     def active_foxes(self):
         ids = {c["id"] for c in CREATURES}
@@ -58,11 +73,28 @@ class FakeFoxRadio(FoxRadio):
         self._strength[fox_id] = s
         return FoxReading(fox_id, int(round(s * 5)), s)
 
-    def verify_code(self, fox_id, code):
+    def submit_code(self, fox_id, code, on_result):
+        # A one-shot timer stands in for the round trip; the verdict is decided
+        # when the "reply" lands, not when the request goes out — same as a
+        # server deciding. The real radio swaps this for its LoRa reply
+        # handler and the caller never notices.
+        t = lv.timer_create(
+            lambda _t: on_result(self._verdict(fox_id, code)), self.ROUND_TRIP_MS, None
+        )
+        t.set_repeat_count(1)  # LVGL deletes it after the single run
+
+    def _verdict(self, fox_id, code):
+        # The code has to be THIS fox's code — another box's code is simply
+        # wrong here, or you could claim a beast you never walked to.
         for c in CREATURES:
             if c["id"] == fox_id:
-                return str(code) == c["code"]
-        return False
+                if str(code) != c["code"]:
+                    return "wrong"
+                if code in self._used:
+                    return "used"
+                self._used.add(code)  # one-time code: burnt on acceptance
+                return "ok"
+        return "wrong"
 
 
 # Shared singleton — all screens talk to the same radio.
