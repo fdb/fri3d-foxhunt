@@ -127,22 +127,95 @@ friendships. Hunger, energy and mood provide temporary context.
 All face-to-face interactions run through **one physical mechanic** with
 different payloads, rather than a different flow per feature.
 
-### Snuffelen (the IR "airdrop")
+### Snuffelen (the nose-to-nose handshake)
 
-Two badges are held nose-to-nose and exchange a small payload over IR. The
-fiction writes itself in Dutch: when two animals meet, they sniff each other —
-**snuffelen**. The badges have IR "noses"; hold them together and the
-creatures *besnuffelen elkaar*. On success both badges celebrate
-simultaneously — LEDs, buzzer, matching animation — the audible "clink" that
-makes the moment feel real.
+Two badges are held nose-to-nose and exchange a small payload. The fiction
+writes itself in Dutch: when two animals meet, they sniff each other —
+**snuffelen**. Hold the badges together and the creatures *besnuffelen
+elkaar*. On success both badges celebrate simultaneously — LEDs, buzzer,
+matching animation — the audible "clink" that makes the moment feel real.
 
-IR is deliberately *bad* at range and alignment, and that is the feature: it is
-a consent mechanism. Nobody can be sniffed from across the field; both players
-must physically opt in. Payloads are shortcode-sized, well within TV-remote
-style IR bandwidth.
+**The transport is a local 2.4 GHz radio, not IR.** The badge's IR port is
+receive-only — there is no IR transmitter on board — so badge-to-badge IR is
+physically impossible. The handshake rides the ESP32's own radio instead
+(ESP-NOW or BLE; see *Badge-to-badge radio: the hallo-spike* below).
 
-A **manual short code** remains the universal fallback (IR failure, shy
+IR's terrible range would have been a free consent mechanism; with radio that
+property must be designed in software:
+
+- both players *open* the snuffel screen — nobody is sniffed passively,
+- the screen only offers partners above a strong signal threshold (RSSI ≈
+  arm's length), and
+- both players confirm before a payload transfers.
+
+Three deliberate acts instead of one physical one. The nose-to-nose gesture
+stays in the fiction and the UI copy even though the bits travel by radio.
+
+A **manual short code** remains the universal fallback (radio failure, shy
 players, broken hardware) and awards the same rewards.
+
+### IR: receive-only, so it points at the field
+
+The badge can *hear* IR but not speak it. That closes the badge-to-badge door
+and opens a different one: **installed IR senders in the field**. A cheap
+emitter at a fox, a station or the infodesk can continuously beam a payload
+that a badge only picks up by physically walking up and aiming — line of
+sight, short range, exactly the "you must really be here" property the game
+wants from a physical spot. Candidate uses:
+
+- a fox that *besnuffelt jou terug*: point the badge at the found box to
+  receive its code instead of typing it,
+- camp-opdracht stations that stamp a badge by IR instead of a typed code,
+- the easter-egg beacon for the reverse-engineering prize.
+
+Daylight is the open question (38 kHz receivers flood in summer sun), but the
+field test now targets the *beacon*, not the badge.
+
+## Badge-to-badge radio: the hallo-spike
+
+Three candidate transports, all on the ESP32's own 2.4 GHz radio:
+
+| Transport | How | For | Against |
+|---|---|---|---|
+| **WiFi AP + socket** | one badge becomes an access point, the other associates and opens a socket | plain `network` code, no extra stack | asymmetric — someone must be the AP; associating takes seconds; drops the camp-WiFi connection while it lasts; hard to make feel instant |
+| **ESP-NOW** | connectionless WiFi-frame protocol; broadcast to `ff:ff:ff:ff:ff:ff`, payloads up to 250 bytes | symmetric — no roles, no pairing, no association; built into MicroPython's ESP32 firmware (`espnow`); sender MAC (and RSSI) per packet, so the proximity gate comes for free; coexists with being on camp WiFi | peers must share a WiFi channel: unassociated badges need one agreed channel, an associated badge sits wherever its AP does — a badge on camp WiFi may not hear an idle badge parked elsewhere |
+| **BLE** | advertise the hello, scan for others | also symmetric and connectionless; no WiFi-channel problem; the ESP32-S3 hardware supports BLE 5 | needs `bluetooth`/`aioble` compiled into the MicroPythonOS build — unverified; legacy advertising payloads are tight (~26 usable bytes), though a shortcode fits |
+
+**Recommendation: spike ESP-NOW first.** It is known-present in MicroPython
+ESP32 firmware and its API is a five-line hello; BLE is the fallback if the
+channel constraint bites in practice ("works at the campfire, fails on camp
+WiFi"). Two things only a physical badge can answer:
+
+1. `import bluetooth` on the badge — does the MicroPythonOS build ship BLE at
+   all?
+2. Two badges, one associated to camp WiFi and one not — do they hear each
+   other's ESP-NOW broadcasts? Then: both associated, both idle.
+
+### Spike scope: hallo zeggen
+
+Deliberately tiny — a transport test wearing a party hat, not a game mode:
+
+- A **SNUFFELEN** button on the profile screen opens the snuffeltest screen.
+- While the screen is open the badge broadcasts a hello every couple of
+  seconds — name + companion shortcode, `FXH1|hello|Noor|H2A084C3` — and
+  listens for everyone else's.
+- Every badge heard appears in a list: their maatje's portrait (decoded live
+  from the shortcode, so the payload proves itself on screen), their name and
+  a heard-count.
+- On the desktop emulator a fake link stands in for the radio: press **H** on
+  the snuffeltest screen (or call `hello_link.LINK.simulate_hello()` from the
+  stdin REPL) to inject a fake passer-by, and ZEG HALLO gets a simulated
+  answer, so the whole flow runs without hardware.
+
+The transport lives behind the same stub boundary as the fox radio
+(`hello_link.py`: `EspNowHelloLink` on the badge, `FakeHelloLink` on desktop),
+so the real modes built on it later — spoor, hapje and speeldate payloads,
+RSSI gating, mutual confirm, vonk scoring — program against the interface,
+not against ESP-NOW. None of that is in the spike.
+
+What the spike must measure at camp: effective range and packet loss outdoors,
+behaviour across associated/unassociated channel states, and what continuous
+listening costs in battery.
 
 ### Payloads
 
@@ -283,15 +356,21 @@ creatures are perpetually sad.
 
 ### Hardware unknowns (need debug tests before designing further)
 
-- **IR in daylight.** Outdoor summer sunlight floods 38 kHz IR receivers; the
-  snuffel may only work reliably in shade, tents or evenings. *Build the IR
-  debug test first*: measure range and error rate outdoors at noon with a
-  shortcode-sized payload. If daylight IR is hopeless, either lean into it as
-  fiction ("beesten snuffelen bij schemering" — trading becomes a lovely
-  evening ritual) or promote the manual code to co-equal status.
-- **Also confirm**: does the badge IR have a *receiver* (not just a blaster)?
-  Can the badge WiFi scan for SSIDs while associated with camp WiFi (needed
-  for forage spots)? What do continuous scans cost in battery?
+- **Badge IR is receive-only** — confirmed: an IR receiver, no sender. All
+  badge-to-badge exchange is radio (see the hallo-spike); IR is reserved for
+  installed field beacons.
+- **IR in daylight.** Outdoor summer sunlight floods 38 kHz IR receivers; a
+  field beacon may only work reliably in shade, tents or evenings. *Build the
+  beacon test*: an emitter beaming a shortcode-sized payload, measured for
+  range and error rate outdoors at noon. If daylight IR is hopeless, either
+  lean into it as fiction ("beesten snuffelen bij schemering" — an evening
+  ritual) or drop IR beacons for typed codes.
+- **Badge-to-badge radio.** The hallo-spike's two field questions: is BLE
+  present in the MicroPythonOS build, and does ESP-NOW cross the
+  associated/unassociated channel divide?
+- **Also confirm**: can the badge WiFi scan for SSIDs while associated with
+  camp WiFi (needed for forage spots)? What do continuous scans cost in
+  battery?
 - **Battery.** LoRa + WiFi scanning + screen over a camp day, with scarce
   charging. The forage scan should be user-initiated bursts, not a background
   radar.
@@ -336,7 +415,7 @@ creatures are perpetually sad.
 ### Adversarial risks (it's a hacker camp)
 
 Assume the protocol is public by Saturday morning: forged shortcodes, spoofed
-IR, replayed spoor payloads, fake forage beacons. Respond by making cheating
+hello broadcasts, replayed spoor payloads, fake forage beacons. Respond by making cheating
 *boring*, not impossible:
 
 - Personal care state is local and forgiving — nothing to steal, nothing worth
@@ -345,14 +424,15 @@ IR, replayed spoor payloads, fake forage beacons. Respond by making cheating
   first introductions), which the server can dedupe and rate-limit.
 - A forged creature on your own badge is a single-player mod, not an exploit.
 - Lean in: hide an easter-egg creature that can *only* be obtained by
-  reverse-engineering the IR protocol. At Fri3d, the person who hacks the game
+  reverse-engineering the snuffel protocol (or the field IR beacon). At Fri3d, the person who hacks the game
   should win a prize inside it, and it channels that energy toward a target
   you chose.
 
 ## Activity families
 
 The badge has an accelerometer and gyroscope, touch screen, physical buttons,
-five LEDs, a buzzer, WiFi, IR and support for local wireless communication.
+five LEDs, a buzzer, WiFi (with ESP-NOW), BLE hardware and an IR *receiver*
+(no sender).
 
 | Mode | Example activity | Reward |
 |---|---|---|
@@ -514,8 +594,9 @@ Core care and mini-games work offline and synchronise later. Sharing
 transports, in order of universality:
 
 - A short, one-time manual code as the universal baseline.
-- The IR snuffel for deliberate face-to-face exchanges.
-- Local wireless communication for richer playdates.
+- The radio snuffel (ESP-NOW/BLE) for deliberate face-to-face exchanges and
+  richer playdates.
+- Field IR beacons for walk-up, line-of-sight pickups.
 - Camp WiFi and the cloud server for durable provenance, scoring and recovery.
 
 Public points favour verifiable, unique events (vonken, first introductions,
@@ -526,11 +607,11 @@ owned.
 
 Before building a large economy, test a compact experience:
 
-0. **Hardware spikes first**: the IR snuffel debug test (daylight range,
-   error rate, payload size) and a WiFi SSID scan test. These two results
-   shape everything above.
+0. **Hardware spikes first**: the badge-to-badge hallo-spike (in the app —
+   see *Badge-to-badge radio* above), a field IR beacon receive test, and a
+   WiFi SSID scan test. These results shape everything above.
 1. Companion tutorial.
-2. Hunter-to-gatherer spoor via one-time code, then via IR.
+2. Hunter-to-gatherer spoor via one-time code, then via the radio snuffel.
 3. One WiFi forage spot with a signal-strength "warmer/colder" screen.
 4. One motion mini-game, such as a tilt maze.
 5. One touch/button game, such as LED Simon or Flappy.
@@ -569,6 +650,7 @@ Following the one-word-per-thing rule:
 | --- | --- | --- |
 | **gatherer** | **verzamelaar** | The non-antenna play track: foraging resources for creature care. |
 | **share / introduce** | **een spoor delen** | A hunter (or mentor) letting another player meet a creature; both keep it. Never "clone" in the UI. |
-| **boop** | **snuffelen** | The IR face-to-face handshake. |
+| **boop** | **snuffelen** | The face-to-face handshake — local radio (ESP-NOW/BLE), never IR: the badge can't send IR. |
+| **hello link** | — | The badge-to-badge radio boundary (`hello_link.py`); carries the snuffel payloads. |
 | **spark** | **vonk** | The once-per-pair-per-day mutual reward for a first snuffel. |
 | **forage spot** | **plukplek** | A WiFi beacon location that yields resources when found. |
