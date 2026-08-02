@@ -49,13 +49,6 @@ class Registrar:
         """
         raise NotImplementedError
 
-    def recover(self, badge, on_result):
-        """Ask the cloud for the profile saved under this badge id (a player
-        getting their data back after a badge reset — HERSTEL in settings).
-        Asynchronous like register: on_result(profile_dict) with the stored
-        profile, or on_result(None) when the server knows nothing."""
-        raise NotImplementedError
-
 
 class FakeRegistrar(Registrar):
     """Fakes the round trips with one-shot lv timers, like FakeFoxRadio."""
@@ -63,11 +56,6 @@ class FakeRegistrar(Registrar):
     STEP_MS = 700
     SIMULATE_LORA = True  # desktop has no radio; pretend, so the flow is testable
     FAIL_BRIDGE = False  # flip to walk the E-02 error path
-    FAKE_BACKUP = None  # set to a profile dict to walk the HERSTEL success path
-
-    def recover(self, badge, on_result):
-        t = lv.timer_create(lambda _t: on_result(self.FAKE_BACKUP), self.STEP_MS, None)
-        t.set_repeat_count(1)
 
     def register(self, name, badge, on_update):
         st = {

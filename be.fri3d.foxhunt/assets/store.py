@@ -46,10 +46,9 @@ def update_profile(**kv):
     return p
 
 
-# App settings (the instellingen screen). trillen and lora are stored but
-# drive nothing yet: no vibration hardware API, and the radio is still the
-# FakeFoxRadio stub — they gate those the moment the hardware lands.
-_DEFAULT_SETTINGS = {"geluid": True, "trillen": False, "helderheid": 5, "lora": True}
+# App settings (the instellingen screen). trillen is stored but drives
+# nothing yet (no vibration hardware API) — it gates that when it lands.
+_DEFAULT_SETTINGS = {"geluid": True, "trillen": False}
 
 
 def settings():
