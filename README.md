@@ -24,6 +24,7 @@ be.fri3d.foxhunt/      # the MicroPythonOS app (the thing that ships)
     foxhunt.py          # entry: HomeActivity (the "boek" grid)
     screen_hunt.py           # classic ARDF: silhouette + heart/bpm + 5 LEDs
     screen_code.py           # PIN keypad + reveal
+    screen_debug.py          # hidden test menu: add/remove catches
     screen_win.py            # "Gevangen!" payoff -> back to home
     creatures.py             # roster data (no LVGL)
     art.py                   # placeholder pixel sprites (the art swap point)

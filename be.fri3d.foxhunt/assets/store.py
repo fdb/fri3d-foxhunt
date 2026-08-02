@@ -46,6 +46,18 @@ def add_caught(cid):
     e.commit()
 
 
+def remove_caught(cid):
+    """Forget a catch and its companion state (debug/test support)."""
+    prefs = SharedPreferences(_APP)
+    ids = prefs.get_list("caught", [])
+    e = prefs.edit()
+    if cid in ids:
+        ids.remove(cid)
+        e.put_list("caught", ids)
+    e.remove_dict_item("beast", str(cid))
+    e.commit()
+
+
 def _raw_state(prefs, cid):
     """The stored companion dict for cid, seeding a default for caught-but-
     unseeded creatures (legacy saves from before companions existed). Returns

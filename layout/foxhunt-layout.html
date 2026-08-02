@@ -352,7 +352,7 @@
       const del = k==='⌫';
       const cx=KX+(i%3)*(KW+KG), cy=KY+((i/3)|0)*(KH+KG);
       const b=box(cx,cy,KW,KH, panelStyle('var(--card)'));
-      // backspace wears a red frame: it is the one key that destroys input
+      // backspace wears a red frame: one press clears the complete PIN
       const frame = del ? BSP_RED : 'var(--ink)';
       b.style.boxShadow=`0 0 0 ${SCALE}px ${frame}, 0 ${3*SCALE}px 0 ${frame}, `
         +`inset 0 ${2*SCALE}px 0 rgba(255,255,255,.6)`;
@@ -399,7 +399,46 @@
   }
 
   // ════════════════════════════════════════════════════════════════════
-  //  SCREEN 4 · GEVANGEN! — centered payoff splash on night bg
+  //  SCREEN 4 · DEBUG — hidden test tools, entered via the PIN gesture
+  // ════════════════════════════════════════════════════════════════════
+  function scrDebug(){
+    const s=makeStage();
+    s.style.background='var(--paper)';
+    banner(s,'DEBUG',{right:'TEST',color:'var(--terra)',dark:'var(--terra-d)'});
+
+    const add=box(6,34,308,54,panelStyle('var(--card)'));
+    add.appendChild(text('VASTE VANGST',8,5,180,13,
+      {size:10,color:'var(--terra-d)'}));
+    add.appendChild(text('Paauwpegaai  -  code 1111',8,25,190,13,
+      {size:10,color:'var(--ink)'}));
+    const catchBtn=box(202,8,96,34,panelStyle('var(--green)'));
+    catchBtn.appendChild(text('VANG 1111',0,0,96,34,
+      {size:11,weight:600,align:'center',color:'#fff7e6'}));
+    add.appendChild(catchBtn); s.appendChild(add);
+
+    s.appendChild(text('GEVONDEN BEESTEN',8,94,200,13,
+      {size:10,color:'var(--green-d)'}));
+    const found=box(6,108,308,74,panelStyle('#e9f1cf'));
+    [['Knoricorn',4],['Paauwpegaai',37]].forEach(([name,y])=>{
+      const row=box(4,y,294,30,panelStyle('var(--card)','#cdb67d'));
+      row.appendChild(text(name,7,0,188,30,{size:10,color:'var(--ink)'}));
+      const del=box(204,3,84,24,panelStyle('var(--terra)'));
+      del.appendChild(text('VERWIJDER',0,0,84,24,
+        {size:10,weight:600,align:'center',color:'#fff7e6'}));
+      row.appendChild(del); found.appendChild(row);
+    });
+    s.appendChild(found);
+
+    const account=box(6,190,308,42,panelStyle('#d8c9a4','#cdb67d'));
+    account.appendChild(text('ACCOUNT',8,5,100,13,{size:10,color:'#8a7d5e'}));
+    account.appendChild(text('registreren / uitschrijven: binnenkort',8,22,292,13,
+      {size:10,color:'#5e6b44'}));
+    s.appendChild(account);
+    return s;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  //  SCREEN 5 · GEVANGEN! — centered payoff splash on night bg
   // ════════════════════════════════════════════════════════════════════
   function scrCaught(){
     const s=makeStage();
@@ -444,6 +483,7 @@
     ['home','Hoofdscherm · Pokédex-raster', scrHome],
     ['hunt','Jagen · klassieke ARDF (5 LEDs = warm/koud)', scrHunt],
     ['code','Code invoeren · keypad + blinde vulling', scrCode],
+    ['debug','Debug · vaste vangst + vangsten beheren', scrDebug],
     ['win','Gevangen! · payoff, één knop → home', scrCaught],
   ];
   function render(){
