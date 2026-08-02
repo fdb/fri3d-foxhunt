@@ -16,8 +16,12 @@ from creatures import by_id
 from fox_radio import RADIO
 from screen_win import WinActivity
 
-KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "<", "0", "OK"]
+# No confirm key: the 4th digit IS the submit, so an OK would only ever fire on
+# an unfinished code. "" is the hole that leaves, keeping 0 centred under 8 and
+# backspace bottom-right where a keypad puts it.
+KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "<"]
 CODE_LEN = 4
+RED = 0xD6483A  # backspace: the one key that destroys what you typed
 
 # Status line under the panel: one entry per state the player can be in, plus
 # one per verdict the radio can hand back (see FoxRadio.submit_code).
@@ -43,21 +47,20 @@ class CodeActivity(Activity):
         # 3 keys per row; +4px slack so the exact-fit 3rd column never wraps early
         pad = ui.row(s, 6, 34, 3 * kw + 2 * kg + 4, 4 * kh + 3 * kg, gap=kg, wrap=True)
         for k in KEYS:
-            accent = k == "OK"
-            b = ui.box(pad, 0, 0, kw, kh, ui.GREEN if accent else ui.CARD, radius=3)
+            if not k:  # the hole where OK used to be: a spacer, not a key
+                ui.box(pad, 0, 0, kw, kh, None)
+                continue
+            b = ui.box(pad, 0, 0, kw, kh, ui.CARD, radius=3)
             b.set_style_border_width(2, 0)
-            b.set_style_border_color(ui.hexc(ui.INK), 0)
-            kl = ui.label(
-                b,
-                k,
-                0,
-                0,
-                ui.CREAM if accent else ui.INK,
-                ui.font_title(),
-                w=kw,
-                center=True,
-            )
-            kl.align(lv.ALIGN.CENTER, 0, 0)
+            if k == "<":
+                # An icon says "wist een cijfer" where a "<" only says "left",
+                # and the red frame sets it apart from the digits at a glance.
+                b.set_style_border_color(ui.hexc(RED), 0)
+                art.icon(b, "backspace", 3).align(lv.ALIGN.CENTER, 0, 0)
+            else:
+                b.set_style_border_color(ui.hexc(ui.INK), 0)
+                kl = ui.label(b, k, 0, 0, ui.INK, ui.font_title(), w=kw, center=True)
+                kl.align(lv.ALIGN.CENTER, 0, 0)
             ui.focusable(b, on_click=lambda kk=k: self.press(kk))
             # LVGL delivers keys to whichever widget has focus, and on this
             # screen that is always one of these — so every key carries the
@@ -118,8 +121,6 @@ class CodeActivity(Activity):
         sound.play("tap")
         if k == "<":
             self.entry = self.entry[:-1]
-        elif k == "OK":
-            return self._submit()
         elif len(self.entry) < CODE_LEN:
             self.entry += k
         self._set_status("idle")  # typing clears the last error

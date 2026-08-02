@@ -91,6 +91,13 @@
   };
   const HEART = ['.kk...kk.','krrkkkrrk','krrrrrrrk','krrrrrrrk','.krrrrrk.','..krrrk..','...krk...','....k....'];
   const SPK   = ['..b..','..b..','bbkbb','..b..','..b..'];
+  // backspace, 17x11: a tag pointing left with the X knocked out of it. The X
+  // arms are 2px because 1px diagonals never touch — they read as loose dots.
+  const BSP_RED = '#d6483a';
+  const BSP = ['.....kkkkkkkkkkkk','....krrrrrrrrrrrk','...krrrwwrrrrwwrk',
+               '..krrrrrwwrrwwrrk','.krrrrrrrwwwwrrrk','krrrrrrrrrwwrrrrk',
+               '.krrrrrrrwwwwrrrk','..krrrrrwwrrwwrrk','...krrrwwrrrrwwrk',
+               '....krrrrrrrrrrrk','.....kkkkkkkkkkkk'];
   const PIX_BASE = { k:'#34271a', w:'#fff7e6', e:'#241a12', n:'#cf6a4e', b:'#f0c64a' };
   const bp=(r,d,l)=>({...PIX_BASE,r,d,l});
   const PALS = {
@@ -332,16 +339,26 @@
     s.style.background='#dfeebf';
     banner(s,'VOER DE CODE IN',{back:true});
     const c=ROSTER[3];
-    const keys=['1','2','3','4','5','6','7','8','9','⌫','0','✓'];
+    // No confirm key: the 4th digit IS the submit, so a ✓ could only ever fire
+    // on an unfinished code. '' is the hole that leaves — 0 stays centred under
+    // 8, and backspace sits bottom-right where a keypad puts it.
+    const keys=['1','2','3','4','5','6','7','8','9','','0','⌫'];
     const KX=6, KY=34, KW=58, KH=45, KG=6;
     keys.forEach((k,i)=>{
+      if(!k) return;                       // spacer, not a key
+      const del = k==='⌫';
       const cx=KX+(i%3)*(KW+KG), cy=KY+((i/3)|0)*(KH+KG);
-      const accent = k==='✓';
-      const b=box(cx,cy,KW,KH, panelStyle(accent?'var(--green)':'var(--card)'));
-      b.style.boxShadow=`0 0 0 ${SCALE}px var(--ink), 0 ${3*SCALE}px 0 var(--ink), `
-        +`inset 0 ${2*SCALE}px 0 ${accent?'rgba(255,255,255,.35)':'rgba(255,255,255,.6)'}`;
-      b.appendChild(text(k,0,0,KW,KH,{size:16,weight:600,align:'center',
-        color:accent?'#fff7e6':'var(--ink)'}));
+      const b=box(cx,cy,KW,KH, panelStyle('var(--card)'));
+      // backspace wears a red frame: it is the one key that destroys input
+      const frame = del ? BSP_RED : 'var(--ink)';
+      b.style.boxShadow=`0 0 0 ${SCALE}px ${frame}, 0 ${3*SCALE}px 0 ${frame}, `
+        +`inset 0 ${2*SCALE}px 0 rgba(255,255,255,.6)`;
+      if(del){
+        b.appendChild(center(sprite(BSP,{k:'#34271a',r:BSP_RED,w:'#fff7e6'},3)));
+      }else{
+        b.appendChild(text(k,0,0,KW,KH,{size:16,weight:600,align:'center',
+          color:'var(--ink)'}));
+      }
       s.appendChild(b);
     });
     // reveal column
