@@ -58,6 +58,22 @@ if [[ -z "$PORT" ]]; then
 fi
 [[ -e "$PORT" ]] || { echo "error: serial port not found: $PORT" >&2; exit 1; }
 
+# Older controllers took --serial-port for their own REPL but spawned mpremote
+# with no `connect`, so file copies went to mpremote's auto-detected device —
+# sorted(comports())[0]. With one badge that is always the right one and the bug
+# is invisible; with two it silently flashes the wrong badge. Only refuse when
+# it could actually bite: more than one device attached AND a stale controller.
+if ! grep -q '_mpremote_cmd' "$CONTROLLER"; then
+    attached=(/dev/cu.usbmodem*)
+    if [[ -e "${attached[0]}" && ${#attached[@]} -gt 1 ]]; then
+        echo "error: $CONTROLLER predates the mpremote --port fix, and more than" >&2
+        echo "       one serial device is attached. It would ignore --port for the" >&2
+        echo "       file copy and flash whichever device sorts first. Update your" >&2
+        echo "       MicroPythonOS checkout, or unplug the other device." >&2
+        exit 1
+    fi
+fi
+
 # ── Stage a badge-clean copy ─────────────────────────────────────────
 STAGE_ROOT="$(mktemp -d)"
 trap 'rm -rf "$STAGE_ROOT"' EXIT
