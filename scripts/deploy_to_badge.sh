@@ -9,8 +9,9 @@ cd "$(dirname "$0")/.."
 #
 # Installing over a *running* app is not enough on its own, so this also:
 #   1. returns the badge to the launcher, so no activity holds the old code;
-#   2. removes the previous install first, so the badge mirrors the source
-#      (mpremote only ever copies, so orphans pile up until LittleFS is full);
+#   2. deletes the files the source no longer has, and only those (mpremote
+#      never deletes, so orphans pile up until LittleFS is full; it *does* skip
+#      files that are unchanged, which is what keeps a deploy near 40s);
 #   3. drops the app's modules from sys.modules, so the next launch re-imports
 #      from disk instead of reusing the previous run's cached modules.
 #
@@ -118,57 +119,93 @@ with serial.Serial(sys.argv[1], 115200, timeout=0.2) as s:
 EOF
 }
 
-# ── Return to the launcher ───────────────────────────────────────────
+# ── Stop the app, and list what the badge currently holds ────────────
+# Both in one round trip: each REPL call costs ~5s of interpreter start and
+# serial handshake, which is a real slice of the deploy budget.
 # Overwriting the files under a live activity leaves it running old code with
 # new code on disk. Stop it first; onDestroy also lets the app drop its timers.
 echo "Returning badge to launcher..."
 wake_repl
-"${REPL[@]}" exec >/dev/null <<'PY'
+"${REPL[@]}" exec > "$STAGE_ROOT/remote.txt" <<PY
 from mpos import AppManager
 AppManager.restart_launcher()
-PY
-
-# ── Wipe the installed copy ──────────────────────────────────────────
-# `mpremote fs cp -r` only ever writes, so a file that leaves the source stays
-# on the badge forever — that is how 25 __pycache__/*.pyc, the retired
-# mascot.py and a whole superseded assets/sprites/ tree filled LittleFS. The
-# install re-uploads every file regardless, so mirroring the directory costs
-# nothing over pruning a diff and cannot leave an orphan behind. Save data is
-# safe: it lives in data/be.fri3d.foxhunt/, not in the app dir.
-# Iteratively, not recursively — MicroPython's stack blows well before a
-# recursive walk of this tree finishes.
-echo "Removing previous install from badge..."
-"${REPL[@]}" exec <<PY
 import os
 root = "$APP_DIR"
-dirs = []
-try:
-    os.stat(root)
-    dirs.append(root)
-except OSError:
-    print("nothing installed yet")
-i = 0
-while i < len(dirs):
-    for n in os.listdir(dirs[i]):
-        f = dirs[i] + "/" + n
+stack = [root]
+while stack:
+    p = stack.pop()
+    try:
+        names = os.listdir(p)
+    except OSError:
+        continue
+    for n in names:
+        f = p + "/" + n
         if os.stat(f)[0] & 0x4000:
-            dirs.append(f)
+            stack.append(f)
         else:
-            os.remove(f)
-    i += 1
-for d in sorted(dirs, key=len, reverse=True):
-    os.rmdir(d)
-s = os.statvfs("/")
-print("removed {} dirs, {} bytes now free".format(len(dirs), s[0] * s[3]))
+            print("F", f[len(root) + 1:])
 PY
 
+# ── Prune orphans ────────────────────────────────────────────────────
+# `mpremote fs cp -r` only ever writes, so a file that leaves the source stays
+# on the badge forever — that is how 25 __pycache__/*.pyc, the retired
+# mascot.py and a whole superseded assets/sprites/ tree filled LittleFS. Delete
+# what the source no longer has, and *only* that: the copy below skips files
+# that are already identical, so leaving the current ones in place is what keeps
+# a deploy at ~40s instead of ~210s. Save data is untouched either way — it
+# lives in data/be.fri3d.foxhunt/, not in the app dir.
+# The REPL speaks CRLF, so strip the \r or every path fails to match its twin.
+tr -d '\r' < "$STAGE_ROOT/remote.txt" | sed -n 's/^F //p' | sort > "$STAGE_ROOT/remote.lst"
+(cd "$STAGE" && find . -type f) | sed 's|^\./||' | sort > "$STAGE_ROOT/stage.lst"
+comm -23 "$STAGE_ROOT/remote.lst" "$STAGE_ROOT/stage.lst" > "$STAGE_ROOT/orphans.lst"
+
+if [[ -s "$STAGE_ROOT/orphans.lst" ]]; then
+    echo "Pruning $(wc -l < "$STAGE_ROOT/orphans.lst" | tr -d ' ') stale file(s) on badge:"
+    sed 's/^/  - /' "$STAGE_ROOT/orphans.lst"
+    # In batches: paste mode echoes every byte back while LVGL still holds the
+    # CPU, so a payload of more than roughly 20 lines stalls on flow control and
+    # trips the controller's 1s write timeout.
+    split -l 15 "$STAGE_ROOT/orphans.lst" "$STAGE_ROOT/batch."
+    for batch in "$STAGE_ROOT"/batch.*; do
+        {
+            echo "import os"
+            echo "for p in ("
+            sed 's|.*|    "&",|' "$batch"
+            echo "):"
+            echo "    try:"
+            echo "        os.remove(\"$APP_DIR/\" + p)"
+            echo "    except OSError as e:"
+            echo "        print(\"could not remove\", p, e)"
+        } | "${REPL[@]}" exec
+    done
+    # Deepest-first, so a directory is only tried once its children are gone.
+    # rmdir refuses a non-empty one, which is exactly the guard we want.
+    "${REPL[@]}" exec <<PY
+import os
+dirs = []
+stack = ["$APP_DIR"]
+while stack:
+    p = stack.pop()
+    for n in os.listdir(p):
+        f = p + "/" + n
+        if os.stat(f)[0] & 0x4000:
+            dirs.append(f)
+            stack.append(f)
+for d in sorted(dirs, key=len, reverse=True):
+    try:
+        os.rmdir(d)
+    except OSError:
+        pass
+s = os.statvfs("/")
+print("{} bytes now free".format(s[0] * s[3]))
+PY
+fi
+
 # ── Install ──────────────────────────────────────────────────────────
-# Two reasons this retries rather than running once. LittleFS reclaims the just
-# -freed blocks lazily, and that erase burst blocks the MicroPython VM long
-# enough for mpremote's raw-REPL handshake to time out ("timeout waiting for
-# first EOF reception"). And because the wipe already happened, a failed copy
-# leaves a half-installed app — so give it a settle and three real attempts.
-sleep 3
+# mpremote hashes each file and skips the identical ones (check_hash is
+# `not --force`), so this is ~40s for a normal edit rather than a full re-upload.
+# It still retries: mpremote's raw-REPL handshake sometimes times out with
+# "timeout waiting for first EOF reception" when the badge is busy.
 installed=0
 for attempt in 1 2 3; do
     if "${RUN[@]}" installapp "$STAGE"; then
@@ -180,15 +217,20 @@ for attempt in 1 2 3; do
     wake_repl
 done
 if [[ "$installed" -ne 1 ]]; then
-    echo "error: install failed three times. The badge now holds a partial copy" >&2
-    echo "       of $APP_ID — re-run this script to repair it." >&2
+    echo "error: install failed three times. The badge keeps the previous copy of" >&2
+    echo "       $APP_ID, minus any file this run pruned — re-run to repair it." >&2
     exit 1
 fi
 
-# The wipe makes a short copy silently fatal, so prove the mirror is exact.
+# ── Verify, and evict the old modules ────────────────────────────────
+# One round trip again. The count proves the copy was not short; the eviction is
+# the actual restart fix — AppManager.execute_script only drops the *entrypoint*
+# from sys.modules, so a relaunch re-imports the new foxhunt.py while its
+# `import screen_hunt` still hits the previous run's cached module. Match on
+# __file__ to catch exactly ours, whatever they are named.
 expected=$(cd "$STAGE" && find . -type f | wc -l | tr -d ' ')
-"${REPL[@]}" exec > "$STAGE_ROOT/count.txt" <<PY
-import os
+"${REPL[@]}" exec > "$STAGE_ROOT/verify.txt" <<PY
+import gc, os, sys
 n = 0
 stack = ["$APP_DIR"]
 while stack:
@@ -200,28 +242,22 @@ while stack:
         else:
             n += 1
 print("COUNT", n)
+stale = [k for k, m in sys.modules.items()
+         if getattr(m, "__file__", "").startswith("$APP_DIR/")]
+for k in stale:
+    del sys.modules[k]
+gc.collect()
+print("EVICTED", len(stale), ",".join(sorted(stale)))
 PY
-actual=$(sed -n 's/^COUNT //p' "$STAGE_ROOT/count.txt" | tail -1)
+tr -d '\r' < "$STAGE_ROOT/verify.txt" > "$STAGE_ROOT/verify.lst"
+actual=$(sed -n 's/^COUNT //p' "$STAGE_ROOT/verify.lst" | tail -1)
 if [[ "$actual" != "$expected" ]]; then
     echo "error: badge has ${actual:-?} files, source has $expected. The install was" >&2
     echo "       short — re-run this script to repair it." >&2
     exit 1
 fi
 echo "Verified $actual/$expected files on badge."
-
-# ── Evict the old modules ────────────────────────────────────────────
-# AppManager.execute_script only drops the *entrypoint* from sys.modules, so a
-# relaunch re-imports the new foxhunt.py but its `import screen_hunt` still hits
-# the previous run's cached module. Match on __file__ to catch exactly ours.
-"${REPL[@]}" exec <<PY
-import gc, sys
-stale = [n for n, m in sys.modules.items()
-         if getattr(m, "__file__", "").startswith("$APP_DIR/")]
-for n in stale:
-    del sys.modules[n]
-gc.collect()
-print("Evicted {} cached module(s): {}".format(len(stale), ", ".join(sorted(stale)) or "-"))
-PY
+sed -n 's/^EVICTED /Evicted cached modules: /p' "$STAGE_ROOT/verify.lst"
 
 # ── Optionally launch ────────────────────────────────────────────────
 if [[ "$START" -eq 1 ]]; then

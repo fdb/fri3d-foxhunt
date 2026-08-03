@@ -22,13 +22,14 @@ board layer handles the hardware differences.
 ## Deploying to the badge
 `scripts/deploy_to_badge.sh [--start]` pushes the app over USB. Three things it
 does that are not obvious, each because copying the files is not enough:
-- **It removes the installed copy before writing.** `mpremote fs cp -r` only ever
-  writes, so a file that leaves the source stays on the badge forever — a
+- **It deletes what the source no longer has, and only that.** `mpremote fs cp -r`
+  never deletes, so a file that leaves the source stays on the badge forever — a
   renamed module, a superseded sprite folder, a stray `__pycache__`. They
   accumulate silently until LittleFS is full and installs start truncating.
-  Save data is safe: it lives in `data/be.fri3d.foxhunt/`, not in the app dir.
-  The tradeoff is that a failed install leaves a partial app, so the script
-  retries the copy and verifies the file count before declaring success.
+  Do *not* "simplify" this into wiping the app dir first: mpremote skips files
+  whose hash already matches (`check_hash` is `not --force`), and wiping throws
+  that away — it takes a deploy from ~95s to ~215s. Save data is unaffected
+  either way; it lives in `data/be.fri3d.foxhunt/`, not in the app dir.
 - **It returns the badge to the launcher first**, so no live activity is holding
   the code being overwritten.
 - **It drops the app's modules from `sys.modules`.** MicroPythonOS evicts only
