@@ -19,6 +19,27 @@ board layer handles the hardware differences.
   `docs/emulator-testing.md`. Prefer this over "it should work" for any
   change with visible or interactive behaviour.
 
+## Deploying to the badge
+`scripts/deploy_to_badge.sh [--start]` pushes the app over USB. Three things it
+does that are not obvious, each because copying the files is not enough:
+- **It removes the installed copy before writing.** `mpremote fs cp -r` only ever
+  writes, so a file that leaves the source stays on the badge forever — a
+  renamed module, a superseded sprite folder, a stray `__pycache__`. They
+  accumulate silently until LittleFS is full and installs start truncating.
+  Save data is safe: it lives in `data/be.fri3d.foxhunt/`, not in the app dir.
+  The tradeoff is that a failed install leaves a partial app, so the script
+  retries the copy and verifies the file count before declaring success.
+- **It returns the badge to the launcher first**, so no live activity is holding
+  the code being overwritten.
+- **It drops the app's modules from `sys.modules`.** MicroPythonOS evicts only
+  the *entrypoint* module between launches (`AppManager.execute_script`), so
+  without this a relaunch runs the new `foxhunt.py` against the previous run's
+  cached `screen_*` — new caller, stale callee. That mismatch is the exception
+  you get from restarting a freshly-deployed app.
+
+Budget note: LittleFS bills a whole 4 KB block per file, so ~227 KB of app
+content occupies ~500 KB on device — most of it the 42 sprites under 1 KB.
+
 ## Formatting
 - `scripts/format.sh` formats all Python (Ruff via `uvx`) and JSON (stdlib
   `json.tool` via `uv`) — both Astral-runner-based, nothing installed into the
