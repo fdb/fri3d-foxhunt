@@ -22,14 +22,18 @@ board layer handles the hardware differences.
 ## Deploying to the badge
 `scripts/deploy_to_badge.sh [--start]` pushes the app over USB. Three things it
 does that are not obvious, each because copying the files is not enough:
-- **It deletes what the source no longer has, and only that.** `mpremote fs cp -r`
-  never deletes, so a file that leaves the source stays on the badge forever — a
-  renamed module, a superseded sprite folder, a stray `__pycache__`. They
-  accumulate silently until LittleFS is full and installs start truncating.
-  Do *not* "simplify" this into wiping the app dir first: mpremote skips files
-  whose hash already matches (`check_hash` is `not --force`), and wiping throws
-  that away — it takes a deploy from ~95s to ~215s. Save data is unaffected
-  either way; it lives in `data/be.fri3d.foxhunt/`, not in the app dir.
+- **It copies only what differs, and deletes only what the source dropped.** The
+  badge SHA-256s its whole app dir in one REPL trip; the script diffs that
+  against the local files and hands `installapp` a stage holding just the
+  changed ones (`mpremote fs cp -r` merges, so that updates exactly those).
+  Both halves matter. mpremote never deletes, so a file that leaves the source
+  stays forever — a renamed module, a superseded sprite folder, a stray
+  `__pycache__` — until LittleFS is full and installs start truncating. And it
+  hashes one file per REPL round trip, so letting it walk the full tree costs
+  ~37s where the badge hashes all 71 itself in ~20s. Do *not* "simplify" this
+  into wiping the app dir first: that guarantees every file is re-uploaded and
+  takes a deploy from ~60s to ~215s. Save data is unaffected either way; it
+  lives in `data/be.fri3d.foxhunt/`, not in the app dir.
 - **It returns the badge to the launcher first**, so no live activity is holding
   the code being overwritten.
 - **It drops the app's modules from `sys.modules`.** MicroPythonOS evicts only
@@ -38,8 +42,20 @@ does that are not obvious, each because copying the files is not enough:
   cached `screen_*` — new caller, stale callee. That mismatch is the exception
   you get from restarting a freshly-deployed app.
 
-Budget note: LittleFS bills a whole 4 KB block per file, so ~227 KB of app
-content occupies ~500 KB on device — most of it the 42 sprites under 1 KB.
+A deploy runs ~60s: ~20s of that is the badge hashing its files (dominated by
+per-file `open()`, ~0.28s each — buffer size makes no difference), and the rest
+is REPL round trips at ~4s of interpreter start and serial handshake apiece,
+which is why the steps are folded into as few `exec` calls as possible.
+
+Two consequences of the file count, both pointing the same way: LittleFS bills a
+whole 4 KB block per file, so ~227 KB of app content occupies ~500 KB on device,
+and each file costs ~0.28s of every deploy. The 42 sprites under 1 KB are most
+of both — an atlas would reclaim ~150 KB and ~12s.
+
+End users never touch this path. The app store streams a `.mpk` over WiFi
+straight into `AppManager.download_and_install_package`, which unzips it as it
+downloads — seconds, not minutes. It `shutil.rmtree`s the app dir first, so a
+store install is a clean replace and needs none of the above.
 
 ## Formatting
 - `scripts/format.sh` formats all Python (Ruff via `uvx`) and JSON (stdlib

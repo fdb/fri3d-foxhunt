@@ -119,18 +119,25 @@ with serial.Serial(sys.argv[1], 115200, timeout=0.2) as s:
 EOF
 }
 
-# ── Stop the app, and list what the badge currently holds ────────────
-# Both in one round trip: each REPL call costs ~5s of interpreter start and
+# ── Stop the app, and hash what the badge currently holds ────────────
+# All in one round trip: each REPL call costs ~4s of interpreter start and
 # serial handshake, which is a real slice of the deploy budget.
 # Overwriting the files under a live activity leaves it running old code with
 # new code on disk. Stop it first; onDestroy also lets the app drop its timers.
+# Hashing all 71 files here takes ~20s, against ~37s for `mpremote fs cp -r` to
+# hash them one REPL round trip at a time — and it lets us hand the copy a stage
+# holding only what actually changed, which is the difference between a ~95s
+# deploy and a ~45s one. 16 hex digits of SHA-256 is far past collision risk for
+# a set this size.
 echo "Returning badge to launcher..."
 wake_repl
 "${REPL[@]}" exec > "$STAGE_ROOT/remote.txt" <<PY
 from mpos import AppManager
 AppManager.restart_launcher()
-import os
+import binascii, hashlib, os
 root = "$APP_DIR"
+buf = bytearray(1024)
+mv = memoryview(buf)
 stack = [root]
 while stack:
     p = stack.pop()
@@ -142,22 +149,39 @@ while stack:
         f = p + "/" + n
         if os.stat(f)[0] & 0x4000:
             stack.append(f)
-        else:
-            print("F", f[len(root) + 1:])
+            continue
+        h = hashlib.sha256()
+        with open(f, "rb") as fh:
+            while True:
+                k = fh.readinto(buf)
+                if not k:
+                    break
+                h.update(mv[:k])
+        print("F", binascii.hexlify(h.digest()).decode()[:16], f[len(root) + 1:])
 PY
 
-# ── Prune orphans ────────────────────────────────────────────────────
-# `mpremote fs cp -r` only ever writes, so a file that leaves the source stays
-# on the badge forever — that is how 25 __pycache__/*.pyc, the retired
-# mascot.py and a whole superseded assets/sprites/ tree filled LittleFS. Delete
-# what the source no longer has, and *only* that: the copy below skips files
-# that are already identical, so leaving the current ones in place is what keeps
-# a deploy at ~40s instead of ~210s. Save data is untouched either way — it
-# lives in data/be.fri3d.foxhunt/, not in the app dir.
+# ── Work out what actually differs ───────────────────────────────────
 # The REPL speaks CRLF, so strip the \r or every path fails to match its twin.
-tr -d '\r' < "$STAGE_ROOT/remote.txt" | sed -n 's/^F //p' | sort > "$STAGE_ROOT/remote.lst"
+# That is what broke an earlier version of this diff: it compared
+# "assets/art.py\r" against "assets/art.py" and called all 71 files orphans.
+# comm compares whole lines, so both .sha files must be sorted as whole lines --
+# sorting them by path instead silently mismatches neighbours (it reported
+# store.py as changed whenever sound.py was, they being adjacent).
+tr -d '\r' < "$STAGE_ROOT/remote.txt" | sed -n 's/^F //p' | sort > "$STAGE_ROOT/remote.sha"
+cut -d' ' -f2- "$STAGE_ROOT/remote.sha" | sort > "$STAGE_ROOT/remote.lst"
 (cd "$STAGE" && find . -type f) | sed 's|^\./||' | sort > "$STAGE_ROOT/stage.lst"
+# Same digest, same truncation, so the two sides are directly comparable.
+(cd "$STAGE" && while IFS= read -r f; do
+    printf '%s %s\n' "$(shasum -a 256 "$f" | cut -c1-16)" "$f"
+done < "$STAGE_ROOT/stage.lst") | sort > "$STAGE_ROOT/stage.sha"
+
+# On the badge but no longer in the source.
 comm -23 "$STAGE_ROOT/remote.lst" "$STAGE_ROOT/stage.lst" > "$STAGE_ROOT/orphans.lst"
+# In the source but missing or different on the badge. Comparing whole
+# "<sha> <path>" lines catches both cases in one pass: a changed file has no
+# matching line, and a missing one has no line at all.
+comm -23 "$STAGE_ROOT/stage.sha" "$STAGE_ROOT/remote.sha" | cut -d' ' -f2- \
+    | sort > "$STAGE_ROOT/changed.lst"
 
 if [[ -s "$STAGE_ROOT/orphans.lst" ]]; then
     echo "Pruning $(wc -l < "$STAGE_ROOT/orphans.lst" | tr -d ' ') stale file(s) on badge:"
@@ -201,33 +225,51 @@ print("{} bytes now free".format(s[0] * s[3]))
 PY
 fi
 
-# ── Install ──────────────────────────────────────────────────────────
-# mpremote hashes each file and skips the identical ones (check_hash is
-# `not --force`), so this is ~40s for a normal edit rather than a full re-upload.
-# It still retries: mpremote's raw-REPL handshake sometimes times out with
+# ── Install just the difference ──────────────────────────────────────
+# installapp runs `mpremote fs cp -r <dir> :/apps/`, and that merges rather than
+# replaces — so handing it a tree holding only the changed files updates exactly
+# those and leaves the rest alone. Left to copy the whole stage it would re-hash
+# all 71 files over the wire, which is the single most expensive thing a deploy
+# can do. Everything else still happens: the copy makes any missing directories,
+# and installapp refreshes AppManager afterwards so a changed manifest lands.
+# It retries because mpremote's raw-REPL handshake sometimes times out with
 # "timeout waiting for first EOF reception" when the badge is busy.
-installed=0
-for attempt in 1 2 3; do
-    if "${RUN[@]}" installapp "$STAGE"; then
-        installed=1
-        break
-    fi
-    echo "install attempt $attempt/3 failed; letting the badge settle..." >&2
-    sleep 5
-    wake_repl
-done
+changed_count=$(wc -l < "$STAGE_ROOT/changed.lst" | tr -d ' ')
+installed=1
+if [[ "$changed_count" -eq 0 ]]; then
+    echo "No file changed; badge is already up to date."
+else
+    echo "Copying $changed_count changed file(s):"
+    sed 's/^/  + /' "$STAGE_ROOT/changed.lst"
+    DELTA="$STAGE_ROOT/delta/$APP_ID"
+    while IFS= read -r f; do
+        mkdir -p "$DELTA/$(dirname "$f")"
+        cp "$STAGE/$f" "$DELTA/$f"
+    done < "$STAGE_ROOT/changed.lst"
+    installed=0
+    for attempt in 1 2 3; do
+        if "${RUN[@]}" installapp "$DELTA"; then
+            installed=1
+            break
+        fi
+        echo "install attempt $attempt/3 failed; letting the badge settle..." >&2
+        sleep 5
+        wake_repl
+    done
+fi
 if [[ "$installed" -ne 1 ]]; then
     echo "error: install failed three times. The badge keeps the previous copy of" >&2
     echo "       $APP_ID, minus any file this run pruned — re-run to repair it." >&2
     exit 1
 fi
 
-# ── Verify, and evict the old modules ────────────────────────────────
-# One round trip again. The count proves the copy was not short; the eviction is
-# the actual restart fix — AppManager.execute_script only drops the *entrypoint*
-# from sys.modules, so a relaunch re-imports the new foxhunt.py while its
-# `import screen_hunt` still hits the previous run's cached module. Match on
-# __file__ to catch exactly ours, whatever they are named.
+# ── Verify, evict the old modules, and launch ────────────────────────
+# All three in one round trip. The badge does the count check itself so it can
+# refuse to launch a short install without a second trip back to ask.
+# The eviction is the actual restart fix — AppManager.execute_script only drops
+# the *entrypoint* from sys.modules, so a relaunch re-imports the new foxhunt.py
+# while its `import screen_hunt` still hits the previous run's cached module.
+# Match on __file__ to catch exactly ours, whatever they are named.
 expected=$(cd "$STAGE" && find . -type f | wc -l | tr -d ' ')
 "${REPL[@]}" exec > "$STAGE_ROOT/verify.txt" <<PY
 import gc, os, sys
@@ -248,6 +290,10 @@ for k in stale:
     del sys.modules[k]
 gc.collect()
 print("EVICTED", len(stale), ",".join(sorted(stale)))
+if $START and n == $expected:
+    from mpos import AppManager
+    AppManager.start_app("$APP_ID")
+    print("STARTED")
 PY
 tr -d '\r' < "$STAGE_ROOT/verify.txt" > "$STAGE_ROOT/verify.lst"
 actual=$(sed -n 's/^COUNT //p' "$STAGE_ROOT/verify.lst" | tail -1)
@@ -258,11 +304,10 @@ if [[ "$actual" != "$expected" ]]; then
 fi
 echo "Verified $actual/$expected files on badge."
 sed -n 's/^EVICTED /Evicted cached modules: /p' "$STAGE_ROOT/verify.lst"
-
-# ── Optionally launch ────────────────────────────────────────────────
 if [[ "$START" -eq 1 ]]; then
-    echo "Starting $APP_ID on badge..."
-    "${RUN[@]}" startapp "$APP_ID"
+    grep -q '^STARTED' "$STAGE_ROOT/verify.lst" \
+        || { echo "error: app did not start on badge." >&2; exit 1; }
+    echo "Started $APP_ID on badge."
 fi
 
 echo "Done."
