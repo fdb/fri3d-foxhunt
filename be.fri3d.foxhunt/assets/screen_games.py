@@ -216,15 +216,15 @@ class VliegActivity(GameActivity):
         if not self._over:
             self._vy = -6.5
 
-    def _branch(self, s, y, h):
+    def _branch(self, s, y, h, cap):
         b = ui.box(s, 320, y, 26, max(2, h), _BRANCH)
         b.set_style_border_width(ui.BORDER, 0)
         b.set_style_border_color(ui.hexc(ui.INK), 0)
-        # Only the two long sides get the ink edge. LVGL draws a border inside
-        # the widget, so a capped top/bottom would print a hard line across
-        # the branch exactly where it meets the screen edge — and read as a
-        # short plank floating there rather than a trunk running off-screen.
-        b.set_style_border_side(lv.BORDER_SIDE.LEFT | lv.BORDER_SIDE.RIGHT, 0)
+        # The end facing the gap keeps its ink cap — that edge is the thing the
+        # player has to fly past, and it needs to be crisp. The other end runs
+        # off the screen, where a cap would print a hard line across the branch
+        # and make it read as a short plank floating there. `cap` says which.
+        b.set_style_border_side(lv.BORDER_SIDE.LEFT | lv.BORDER_SIDE.RIGHT | cap, 0)
         return b
 
     def _drift(self):
@@ -258,8 +258,15 @@ class VliegActivity(GameActivity):
             gap_y = random.randrange(92, 178)
             self.obs.append(
                 {
-                    "top": self._branch(s, 26, gap_y - _GAP // 2 - 26),
-                    "bot": self._branch(s, gap_y + _GAP // 2, 240 - gap_y - _GAP // 2),
+                    "top": self._branch(
+                        s, 26, gap_y - _GAP // 2 - 26, lv.BORDER_SIDE.BOTTOM
+                    ),
+                    "bot": self._branch(
+                        s,
+                        gap_y + _GAP // 2,
+                        240 - gap_y - _GAP // 2,
+                        lv.BORDER_SIDE.TOP,
+                    ),
                     "x": 320.0,
                     "gap": gap_y,
                     "passed": False,
