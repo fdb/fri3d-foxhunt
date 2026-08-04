@@ -39,6 +39,17 @@ catches.
 | `/scores`               | GET    | Public dashboard, auto-refreshing scoreboard                        |
 | `/debug/log`            | GET    | Event log — HTML table, or JSON with `Accept: application/json`     |
 
+### `fox_id` is the creature id, not the FID byte
+
+`/found` is plain JSON, so `fox_id` is just a number — but it is `CHAR`, the
+creature's character code (0-31), which on the air is only the **5 MSB** of the
+FID byte (LoRa spec §2.1; the 3 LSB are `SEQ`, the TDMA slot). A relay holding a
+FID must send `FID >> 3`.
+
+Worth stating because getting it wrong is quiet: for `CHAR` 0-3 the raw FID is
+still ≤ 31, so it passes validation and credits the **wrong creature**. Only
+`CHAR` ≥ 4 pushes the byte past 31 and earns a 400.
+
 ## The companion shortcode (`profile_pic`)
 
 The badge's avatar is stored as an 8-character code, `H1A003C1`:

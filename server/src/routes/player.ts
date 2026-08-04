@@ -8,6 +8,10 @@ export const playerRoutes = new Hono<{ Bindings: Bindings }>();
 // POST /api/v1/player/found
 // Sent by the LoRa bridge relay (not the badge), authenticated with the
 // pre-shared BRIDGE_KEY. Body: { hunter_id, fox_id }
+//
+// fox_id is CHAR — the creature's character code — NOT the FID byte it rides
+// in on (FID = CHAR << 3 | SEQ, spec §2.1). A relay must send FID >> 3; the
+// raw byte silently credits the wrong creature for CHAR 0-3. See server/README.
 playerRoutes.post("/found", async (c) => {
   const auth = c.req.header("Authorization") ?? "";
   const bridged = auth === `Bearer ${c.env.BRIDGE_KEY}`;
