@@ -75,9 +75,9 @@ export const Home = () => (
         <p class="tagline">Spoor de beesten van het bos op.</p>
         <p class="lede">
           Vossenjacht is het badge-spel van Fri3d Camp. Ergens op het terrein
-          staan <b>vossen</b> verstopt: kleine zendertjes die je met je badge
-          kan opsporen. Elke vos die je vindt geeft je een <b>beest</b> voor je
-          boek — en vanaf dat moment zorg jij ervoor.
+          zitten <i>vossen</i> verstopt: kleine zendertjes die je met je badge
+          kan opsporen. Vang je er een, dan verandert hij in een <b>beest</b>{" "}
+          voor je boek — en vanaf dat moment zorg jij ervoor.
         </p>
         <p class="buttons">
           <a class="btn btn-primary" href="#spelen">
@@ -99,7 +99,7 @@ export const Home = () => (
           ))}
         </div>
         <p class="strip-note">
-          Twaalf beesten om te ontdekken — en een paar die je niet verwacht.
+          Allemaal beesten om te ontdekken — en een paar die je niet verwacht.
         </p>
       </div>
     </section>
@@ -115,8 +115,8 @@ export const Home = () => (
             <h3>Zoek</h3>
             <p>
               Je badge wordt warmer of kouder terwijl je rondloopt. Draai,
-              luister naar de lampjes, en volg het signaal tot je bij de vos
-              staat.
+              luister naar de lampjes, en volg het signaal tot je bij de{" "}
+              <i>vos</i> staat.
             </p>
           </div>
           <div class="card">
@@ -125,8 +125,8 @@ export const Home = () => (
             </span>
             <h3>Vang</h3>
             <p>
-              Op elke vos staat een code van vier cijfers. Tik hem in en het
-              beest dat erbij hoort komt in je boek.
+              Op elke vos staat een code van vier cijfers. Tik hem in en de vos
+              verandert in een beest voor je boek.
             </p>
           </div>
           <div class="card">
@@ -148,8 +148,7 @@ export const Home = () => (
         <h2>Twee manieren om te spelen</h2>
         <p class="intro">
           Vossenjacht heeft twee speelwijzen: je kan <b>jagen</b> of{" "}
-          <b>verzamelen</b>. Samen zijn ze de jager-verzamelaars, en ze hebben
-          elkaar nodig.
+          <b>verzamelen</b>. Jagers en verzamelaars hebben elkaar nodig.
         </p>
         <div class="cards cards-2">
           <article class="card mode mode-hunter">
@@ -178,7 +177,7 @@ export const Home = () => (
               </span>
               Verzamelaar
             </h3>
-            <p class="mode-req">Zonder antenne — WiFi is genoeg</p>
+            <p class="mode-req">Zonder LoRa-antenne</p>
             <p>
               Geen antenne? Dan ben je verzamelaar, en daarvoor heb je genoeg
               aan de WiFi die elke badge al aan boord heeft.
@@ -192,13 +191,12 @@ export const Home = () => (
         </div>
         <blockquote class="quote">
           Jagers brengen de beesten binnen. Verzamelaars brengen wat ze nodig
-          hebben. <b>Verzorgen is het spel dat iedereen speelt.</b>
+          hebben.
         </blockquote>
         <p class="intro">
-          Daardoor loopt het in twee richtingen. Een jager zonder eten heeft
-          hongerige beesten; een verzamelaar zonder beesten heeft een volle
-          voorraadkast en niemand om te voeren. Je hebt elkaar echt nodig — en
-          dat ruil je uit door elkaar op te zoeken.
+          Een jager zonder eten heeft hongerige beesten; een verzamelaar zonder
+          beesten heeft een volle voorraadkast en niemand om te voeren. Je hebt
+          elkaar echt nodig — en dat ruil je uit door elkaar op te zoeken.
         </p>
         <p class="note note-dark">
           Een antenne sluit niets uit, hij <i>voegt</i> de jacht toe. Jagers
@@ -216,9 +214,9 @@ export const Home = () => (
             <div class="step-text">
               <h3>Zet je badge aan</h3>
               <p>
-                Start Vossenjacht en druk op <b>Registreer</b>. Heb je hier al
-                eens gespeeld? Dan haal je je account terug met “Herstel mijn
-                account”.
+                Start Vossenjacht en druk op <b>Registreer</b>. Heb je al eens
+                gespeeld maar je badge gereset? Dan haal je je account terug met
+                “Herstel mijn account”.
               </p>
             </div>
             <Shot
@@ -250,10 +248,10 @@ export const Home = () => (
           </li>
           <li>
             <div class="step-text">
-              <h3>Klaar om te jagen</h3>
+              <h3>Klaar om te spelen</h3>
               <p>
-                Je account staat in de cloud. Een lege badge is daardoor nooit
-                een leeg spel: je haalt jezelf altijd terug.
+                Je account wordt veilig bewaard in de cloud. Een lege badge is
+                daardoor nooit een leeg spel: je haalt jezelf altijd terug.
               </p>
             </div>
             <Shot
@@ -272,9 +270,10 @@ export const Home = () => (
           De jacht <span class="tag tag-hunter">jager</span>
         </h2>
         <p class="intro">
-          Radiovossen zoeken heet officieel <i>ARDF</i>. In het echt is het
-          vooral: rondlopen, rondjes draaien, en heel blij worden als de balk
-          warmer wordt.
+          Radiovossen zoeken heet officieel <a href="https://ardf.be/">ARDF</a>.
+          Via de antenne bepaal je de richting waar de vos zich bevindt. Dus:
+          rondlopen, rondjes draaien, en goed kijken wanneer de balk warmer
+          wordt.
         </p>
         <div class="shots">
           <Shot
@@ -403,16 +402,17 @@ export const Home = () => (
               Snuffelen
             </h3>
             <p>
-              Hou twee badges met hun neuzen tegen elkaar. Via infrarood
-              wisselen ze iets uit: het <b>spoor</b> van een beest, een hapje
-              uit je voorraad, of gewoon een speeldate. Bij een geslaagde
-              snuffel juichen allebei de badges tegelijk.
+              Hou twee badges met hun neuzen tegen elkaar. Via WiFi wisselen ze
+              iets uit: het <b>spoor</b> van een beest, een hapje uit je
+              voorraad, of gewoon een speeldate. Bij een geslaagde snuffel
+              juichen allebei de badges tegelijk.
             </p>
             <p class="fine">
-              Infrarood is expres slecht op afstand. Dat is de bedoeling:
-              niemand kan je van ver besnuffelen, jullie moeten er allebei voor
-              gaan staan. Werkt het even niet? Er is altijd een korte code als
-              alternatief.
+              De technologie hierachter heet ESP-NOW. Ze draagt verder dan een
+              armlengte, dus we meten hoe hard het signaal binnenkomt en tellen
+              een snuffel pas mee boven -50 dBm. Dat is met opzet: niemand kan
+              je van ver besnuffelen, jullie moeten er allebei voor gaan staan.
+              Werkt het even niet? Er is altijd een korte code als alternatief.
             </p>
           </article>
           <article class="card">
@@ -423,10 +423,10 @@ export const Home = () => (
               De vonk
             </h3>
             <p>
-              De eerste keer per dag dat je iemand <i>nieuw</i> tegenkomt, geeft
-              dat allebei een <b>vonk</b>. Bij dezelfde persoon nog eens
-              snuffelen mag altijd — spullen doorgeven blijft werken — maar het
-              levert die dag geen vonk meer op.
+              De eerste keer per dag dat je iemand <i>nieuw</i> tegenkomt,
+              levert dat jullie allebei een <b>vonk</b> op. Bij dezelfde persoon
+              nog eens snuffelen mag altijd — spullen doorgeven blijft werken —
+              maar het levert die dag geen vonk meer op.
             </p>
             <p class="fine">
               Zo loont het om nieuwe mensen aan te spreken, en niet om in een
@@ -440,9 +440,7 @@ export const Home = () => (
     <section class="band band-paper band-end">
       <div class="wrap wrap-narrow">
         <h2>Wie loopt er voor?</h2>
-        <p class="intro">
-          Elke vangst komt binnen bij de bridge en verschijnt op het scorebord.
-        </p>
+        <p class="intro">Elke vangst verschijnt op het scorebord.</p>
         <p class="buttons">
           <a class="btn btn-primary" href="/scores">
             Naar het scorebord
