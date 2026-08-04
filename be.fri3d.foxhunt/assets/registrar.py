@@ -204,11 +204,13 @@ async def _json_request(method, path, body=None):
 
 
 def _hunter_label(n):
-    """The server keeps hunter_id as the 5-bit LoRa address; every screen
-    shows it as text. None (no antenna yet) stays None, so the profile says
-    "JGR volgt" rather than inventing an id. The number is always recoverable
-    from the server when the LoRa layer needs it."""
-    return None if n is None else "JGR-%02d" % n
+    """The server keeps hunter_id as the LoRa address (0-9999 — a camp has
+    hundreds of badges); every screen shows it as text. Always four digits, so
+    the label is a fixed width wherever it is placed. None (no antenna yet)
+    stays None, so the profile says "JGR volgt" rather than inventing an id.
+    The number is always recoverable from the server when the LoRa layer needs
+    it."""
+    return None if n is None else "JGR-%04d" % n
 
 
 class HttpRegistrar(Registrar):

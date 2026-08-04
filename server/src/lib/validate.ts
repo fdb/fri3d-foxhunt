@@ -27,12 +27,16 @@ export function validateBadgeId(raw: unknown): string | null {
   return badgeId;
 }
 
-// Hunter id: 5-bit LoRa id. Returns the number, null when absent/cleared,
-// or "invalid".
+// Hunter id: the LoRa address, 0-9999 — one per badge at the camp, so it has
+// to hold hundreds, not the 32 that fox_id gets away with. Four digits keeps
+// the "JGR-0042" label fixed-width and fits a uint16 on the wire. Returns the
+// number, null when absent/cleared, or "invalid".
+export const HUNTER_ID_MAX = 9999;
+
 export function validateHunterId(raw: unknown): number | null | "invalid" {
   if (raw === undefined || raw === null) return null;
   if (typeof raw !== "number" || !Number.isInteger(raw)) return "invalid";
-  if (raw < 0 || raw > 31) return "invalid";
+  if (raw < 0 || raw > HUNTER_ID_MAX) return "invalid";
   return raw;
 }
 

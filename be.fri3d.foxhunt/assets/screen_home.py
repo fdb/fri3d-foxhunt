@@ -75,7 +75,7 @@ class HomeActivity(Activity):
         # falls off the edges, the face stays centred.
         companion.draw(portrait, p["head"], p["accs"], 2, x=-2, y=-2)
         ui.label(header, p["name"], 46, 0, ui.INK, ui.font_title())
-        # Two modes: a jager has a LoRa-minted id ("JGR-04"), everyone else
+        # Two modes: a jager has a LoRa-minted id ("JGR-0042"), everyone else
         # plays over WiFi as verzamelaar. The subtitle names the mode you're
         # in — never a "coming soon" placeholder.
         sub = p.get("hunter_id") or "Verzamelaar"
