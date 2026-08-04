@@ -26,11 +26,13 @@ esac
 # ── Python: Ruff ─────────────────────────────────────────────────────
 # In --check mode ruff exits non-zero when files differ; capture that instead
 # of letting `set -e` abort before the JSON pass runs.
+# bake_sprites.sh is Python behind a `uv run --script` shebang — ruff's
+# directory walk only finds *.py, so it must be named explicitly.
 py_fail=0
 if [[ "$mode" == "check" ]]; then
-    uvx ruff format --check . || py_fail=1
+    uvx ruff format --check . scripts/bake_sprites.sh || py_fail=1
 else
-    uvx ruff format .
+    uvx ruff format . scripts/bake_sprites.sh
 fi
 
 # ── JSON: stdlib json.tool ───────────────────────────────────────────
