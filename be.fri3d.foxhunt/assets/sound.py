@@ -8,6 +8,11 @@ from mpos import AudioManager
 
 _TUNES = {
     "tap": "Tap:d=16,o=6,b=400:c",
+    # Simon pads: one note per pad, the classic rising quad.
+    "sim0": "S0:d=8,o=5,b=320:c",
+    "sim1": "S1:d=8,o=5,b=320:e",
+    "sim2": "S2:d=8,o=5,b=320:g",
+    "sim3": "S3:d=8,o=6,b=320:c",
     "warmer": "Warm:d=16,o=6,b=320:e,g",
     "caught": "Win:d=16,o=6,b=260:c,e,g,8c7",
     "error": "Err:d=8,o=5,b=300:c,p,c",

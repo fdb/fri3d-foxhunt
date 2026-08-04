@@ -19,8 +19,9 @@
 #
 # Wire format (ASCII, pipe-separated, one line, <250 bytes):
 #   VJ1|HI|<naam>|<shortcode>|<roster csv>     broadcast, ~1/s
-#   VJ1|GIFT|<kind>|<payload>                  unicast, kind: voer|spoor
-# Identity is the MAC the frame arrived on; names are display only.
+# Identity is the MAC the frame arrived on; names are display only. The
+# handshake carries no payload: everything a snuffel yields (food, the
+# vonk-geluk creature) is derived locally from the HI roster.
 
 import random
 
@@ -55,9 +56,6 @@ class BaseLink:
         self.naam = "?"
         self.code = ""
         self.roster = []
-        # UI hook for incoming GIFT frames: on_gift(mac, kind, payload).
-        # The link stays store/LVGL-free; the snuffelscherm plugs this in.
-        self.on_gift = None
 
     def set_identity(self, naam, code, roster):
         self.naam = naam or "?"
@@ -149,15 +147,9 @@ class EspNowLink(BaseLink):
 
     def _on_frame(self, mac, payload):
         parts = payload.split(b"|")
-        if len(parts) < 2 or parts[0] != PROTO:
+        if len(parts) < 2 or parts[0] != PROTO or parts[1] != b"HI":
             return  # other ESP-NOW traffic in the field is harmless
         macs = ":".join("%02x" % b for b in mac)
-        if parts[1] == b"GIFT":
-            if self.on_gift and len(parts) >= 4:
-                self.on_gift(macs, parts[2].decode(), parts[3].decode())
-            return
-        if parts[1] != b"HI":
-            return
         naam = parts[2].decode() if len(parts) > 2 else "?"
         code = parts[3].decode() if len(parts) > 3 else ""
         roster = []
@@ -176,27 +168,6 @@ class EspNowLink(BaseLink):
         except Exception:
             pass
         self._seen(macs, naam, code, roster, rssi)
-
-    def send_gift(self, mac, kind, payload):
-        """Unicast with sync=True: True means the peer MAC-acked (findings
-        section 2 — real delivery confirmation)."""
-        try:
-            raw = bytes(int(b, 16) for b in mac.split(":"))
-            try:
-                self._now.add_peer(raw)
-            except OSError:
-                pass
-            ok = self._now.send(
-                raw, b"|".join((PROTO, b"GIFT", kind.encode(), payload.encode())), True
-            )
-            try:
-                self._now.del_peer(raw)  # peer table caps at 20: never keep
-            except OSError:
-                pass
-            return bool(ok)
-        except Exception as e:
-            print("snuffel: gift:", e)
-            return False
 
 
 class FakeLink(BaseLink):
@@ -227,9 +198,6 @@ class FakeLink(BaseLink):
             self._rssi[mac] = r
             self._seen(mac, naam, code, list(roster), int(r))
         return self.peers
-
-    def send_gift(self, mac, kind, payload):
-        return True  # the fake friend gratefully accepts anything
 
 
 def _make():

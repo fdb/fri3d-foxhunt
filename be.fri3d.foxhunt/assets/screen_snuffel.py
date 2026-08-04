@@ -6,9 +6,12 @@
 # idle list doubles as the visible "wil snuffelen" state.
 #
 # The handshake fires by itself: when a peer holds the CLOSE verdict for a
-# full streak (~3 s of -50 dBm or better), both sides celebrate. The payoff
-# writes only local, forgiving state — vonken, boekje pages, vonk-geluk —
-# never public score (ESP-NOW frames are unauthenticated; see the findings).
+# full streak (~3 s of -50 dBm or better), both sides celebrate. There is
+# nothing to choose and no buttons on the payoff — every snuffel shares food
+# automatically (a vonk is a picknick, a repeat a bite), and a vonk can
+# spark one of the other player's creatures to introduce itself. The same
+# pair can snuffel again after stepping apart. Everything written is local,
+# forgiving state — never public score (frames are unauthenticated).
 
 import lvgl as lv
 from mpos import Activity, Intent
@@ -20,6 +23,7 @@ import companion
 from creatures import by_id
 from snuffel_link import LINK
 from screen_boekje import BoekjeActivity
+from screen_beast import BeastActivity
 
 _ROW_TOP_BG = 0xF6E7CD  # the strongest peer's row
 _AVATAR_BG = 0xCFE0EA
@@ -43,7 +47,7 @@ class SnuffelActivity(Activity):
         self.timer = None
         self._rows = {}
         self._shown = []
-        self._greeted = set()  # peers already celebrated this visit
+        self._cooling = set()  # peers who must step away before re-snuffelling
         self._handoff = False  # True while the Vonk payoff sits on top
         s = ui.make_screen(ui.PAPER)
         ui.banner(s, "SNUFFELEN", ui.GREEN, right="even geen wifi")
@@ -90,7 +94,6 @@ class SnuffelActivity(Activity):
             companion.encode(p["head"], p["accs"], p["bg"]),
             store.caught_ids(),
         )
-        LINK.on_gift = self._on_gift
         if not self._handoff:
             LINK.start()
         self._handoff = False
@@ -101,9 +104,8 @@ class SnuffelActivity(Activity):
         if self.timer:
             self.timer.delete()
             self.timer = None
-        LINK.on_gift = None
-        # Pausing INTO the Vonk payoff must keep snuffel mode alive — the
-        # gift exchange runs there. Only a real exit restores WiFi.
+        # Pausing INTO the Vonk payoff keeps snuffel mode alive so the
+        # return is instant; only a real exit restores WiFi.
         if not self._handoff:
             LINK.stop()
 
@@ -130,10 +132,16 @@ class SnuffelActivity(Activity):
             else:
                 self.empty_l.remove_flag(lv.obj.FLAG.HIDDEN)
 
-        # the handshake: a full CLOSE streak fires the snuffel exactly once
+        # a snuffelled peer re-arms once they step out of CLOSE range —
+        # holding two badges together fires exactly one handshake
+        for mac in list(self._cooling):
+            p = LINK.peers.get(mac)
+            if p is None or not p.close:
+                self._cooling.discard(mac)
+
         cp = LINK.close_peer()
-        if cp and cp.mac not in self._greeted:
-            self._greeted.add(cp.mac)
+        if cp and cp.mac not in self._cooling:
+            self._cooling.add(cp.mac)
             self._snuffel(cp)
 
     def _build_row(self, i, p):
@@ -179,36 +187,17 @@ class SnuffelActivity(Activity):
             Intent(
                 activity_class=VonkActivity,
                 extras={
-                    "mac": peer.mac,
                     "naam": peer.naam,
                     "code": peer.code,
                     "vonk": result["vonk"],
                     "new_friend": result["new_friend"],
                     "dag": result["dag"],
+                    "food": result["food"],
+                    "amount": result["amount"],
                     "geluk": geluk,
                 },
             )
         )
-
-    def _on_gift(self, mac, kind, payload):
-        """Incoming GIFT frame while the screen is open (the other side of
-        VOER GEVEN / SPOOR DELEN)."""
-        p = LINK.peers.get(mac)
-        naam = p.naam if p else "iemand"
-        if kind == "voer" and payload in store.FOODS:
-            store.add_food(payload)
-            sound.play("caught")
-            self.empty_l.set_text("%s gaf je een %s!" % (naam, payload))
-        elif kind == "spoor":
-            try:
-                cid = int(payload)
-            except ValueError:
-                return
-            c = by_id(cid)
-            if c and not store.is_caught(cid):
-                store.add_caught(cid, origin="spoor")
-                sound.play("legendary")
-                self.empty_l.set_text("%s deelde een spoor: de %s!" % (naam, c["naam"]))
 
     def _boekje(self):
         sound.play("tap")
@@ -220,47 +209,44 @@ class SnuffelActivity(Activity):
 
 
 class VonkActivity(Activity):
-    """The handshake payoff: VONK! (or a warm hello-again), the boekje page,
-    vonk-geluk, and gifts in both directions — spoor one way, hapjes the
-    other, no price ever on screen."""
+    """The handshake payoff. No buttons and nothing to decide: the picknick
+    is already in the voorraad, the geluk creature already in the boek. Tap
+    anywhere (or back) to continue; tapping the geluk panel opens the new
+    creature's own page, like any boek tile would."""
 
     def onCreate(self):
         x = self.getIntent().extras
-        self.mac = x.get("mac")
         self.naam = x.get("naam", "?")
-        self.peer_code = x.get("code", "")
-        self._note_timer = None
-        self.timer = None
+        self.geluk = x.get("geluk")
+        vonk = x.get("vonk")
 
         s = ui.make_screen(_VONK_BG)
-        self.screen = s
-        for sx, sy, sc in (
-            (16, 40, 2),
-            (286, 36, 1),
-            (40, 96, 1),
-            (276, 100, 2),
-            (150, 30, 1),
-        ):
+        # tap anywhere = verder (registered on the screen itself, so panels
+        # keep their own taps and everything else falls through to this)
+        s.add_flag(lv.obj.FLAG.CLICKABLE)
+        s.add_event_cb(lambda e: self._done(), lv.EVENT.CLICKED, None)
+
+        for sx, sy, sc in ((16, 44, 2), (286, 40, 1), (150, 10, 1)):
             art.icon(s, "spark", sc).set_pos(sx, sy)
 
         # the two maatjes, nose to nose
         p = store.profile()
-        mine = ui.panel(s, 24, 16, 72, 72, _AVATAR_BG)
+        mine = ui.panel(s, 24, 12, 72, 72, _AVATAR_BG)
         companion.draw(mine, p["head"], p["accs"], 4, x=2, y=2)
-        theirs = ui.panel(s, 224, 16, 72, 72, _AVATAR_BG)
-        head, accs, bg = companion.decode(self.peer_code)
+        theirs = ui.panel(s, 224, 12, 72, 72, _AVATAR_BG)
+        head, accs, bg = companion.decode(x.get("code", ""))
         companion.draw(theirs, head, accs, 4, x=2, y=2)
-        if x.get("vonk"):
-            ui.label(s, "VONK!", 100, 30, ui.GOLD, ui.font_title(), w=120, center=True)
+        if vonk:
+            ui.label(s, "VONK!", 100, 26, ui.GOLD, ui.font_title(), w=120, center=True)
         else:
             ui.label(
-                s, "HOI WEER!", 100, 24, ui.GOLD, ui.font_title(), w=120, center=True
+                s, "HOI WEER!", 100, 20, ui.GOLD, ui.font_title(), w=120, center=True
             )
             ui.label(
                 s,
                 "al gesnuffeld vandaag",
                 100,
-                54,
+                50,
                 _VONK_MUTED,
                 ui.font_small(),
                 w=120,
@@ -270,40 +256,62 @@ class VonkActivity(Activity):
             s,
             "%s + %s" % (p["name"], self.naam),
             100,
-            70,
+            66,
             _VONK_TEXT,
             ui.font_small(),
             w=120,
             center=True,
         )
 
+        # the picknick: every snuffel shares food, no questions asked
+        fp = ui.panel(s, 8, 94, 304, 46, _VONK_PANEL, border=ui.GOLD_D)
+        art.icon(fp, x.get("food", "bes"), 3).set_pos(12, 8)
+        ui.label(
+            fp,
+            "+%d %s" % (x.get("amount", 1), x.get("food", "bes")),
+            52,
+            4,
+            _VONK_TEXT,
+            ui.font_title(),
+        )
+        ui.label(
+            fp,
+            "jullie delen een picknick!" if vonk else "een hapje voor onderweg",
+            52,
+            28,
+            _VONK_MUTED,
+            ui.font_small(),
+        )
+        art.icon(fp, "spark", 1).set_pos(284, 16)
+
         # vonk-geluk: one of THEIR creatures introduces itself
-        geluk = x.get("geluk")
-        if geluk is not None:
-            c = by_id(geluk)
-            gp = ui.panel(s, 8, 100, 304, 64, _VONK_PANEL, border=ui.GOLD)
-            art.creature_panel(gp, c, 3, animate=True).set_pos(8, 6)
-            ui.label(gp, "VONK-GELUK!", 68, 6, ui.GOLD, ui.font_label())
+        if self.geluk is not None:
+            c = by_id(self.geluk)
+            gp = ui.panel(s, 8, 146, 304, 52, _VONK_PANEL, border=ui.GOLD)
+            art.creature_panel(gp, c, 3, animate=True).set_pos(6, 0)
+            ui.label(gp, "VONK-GELUK!", 62, 4, ui.GOLD, ui.font_label())
             ui.label(
                 gp,
                 "de %s van %s stelt zich voor" % (c["naam"], self.naam),
-                68,
-                26,
+                62,
+                22,
                 _VONK_TEXT,
                 ui.font_small(),
             )
-            ui.label(gp, "nieuw in je boek", 68, 42, _VONK_MUTED, ui.font_small())
-            art.icon(gp, "spark", 2).set_pos(276, 20)
+            ui.label(
+                gp, "nieuw in je boek - tik!", 62, 36, _VONK_MUTED, ui.font_small()
+            )
+            ui.focusable(gp, on_click=self._open_beest)
 
         # the boekje line
-        strip = ui.box(s, 8, 172, 304, 20, None)
+        strip = ui.box(s, 8, 204, 304, 20, None)
         strip.set_style_border_width(ui.BORDER_THIN, 0)
         strip.set_style_border_color(ui.hexc(ui.GOLD_D), 0)
         art.icon(strip, "boek", 1).set_pos(4, 5)
-        self.note = ui.label(
+        ui.label(
             strip,
             (
-                "%s staat nu in je vriendenboekje - %s" % (self.naam, x.get("dag", ""))
+                "%s staat nu in je vriendenboekje" % self.naam
                 if x.get("new_friend")
                 else "%s staat al in je boekje" % self.naam
             ),
@@ -312,136 +320,29 @@ class VonkActivity(Activity):
             _VONK_TEXT,
             ui.font_small(),
         )
-
-        # gifts, both directions
-        self.actions = ui.box(s, 8, 200, 304, 34)
-        self._build_actions()
+        ui.label(
+            s,
+            "tik om verder te gaan",
+            0,
+            227,
+            _VONK_MUTED,
+            ui.font_small(),
+            w=320,
+            center=True,
+        )
         self.setContentView(s)
 
-    def onResume(self, screen):
-        super().onResume(screen)
-        # keep the exchange alive: this screen ticks the link the snuffel
-        # screen handed over, so gifts arrive while the payoff is up
-        LINK.on_gift = self._on_gift
-        self.timer = lv.timer_create(lambda t: LINK.tick(), 600, None)
+    def _done(self):
+        sound.play("tap")
+        self.finish()
 
-    def onPause(self, screen):
-        super().onPause(screen)
-        if self.timer:
-            self.timer.delete()
-            self.timer = None
-        LINK.on_gift = None
-
-    def _on_gift(self, mac, kind, payload):
-        if kind == "voer" and payload in store.FOODS:
-            store.add_food(payload)
-            sound.play("caught")
-            self._flash("%s gaf je een %s!" % (self.naam, payload))
-        elif kind == "spoor":
-            try:
-                cid = int(payload)
-            except ValueError:
-                return
-            c = by_id(cid)
-            if c and not store.is_caught(cid):
-                store.add_caught(cid, origin="spoor")
-                sound.play("legendary")
-                self._flash("%s deelde een spoor: de %s!" % (self.naam, c["naam"]))
-
-    # ── the gift row: two buttons <-> pickers, rebuilt in place ─────────
-    def _build_actions(self):
-        a = self.actions
-        a.clean()
-        if self.mac.startswith("code:"):
-            # a manual meeting has no radio to carry a gift — the vonk and
-            # the boekje page are the payoff; hand the hapje over for real
-            done = ui.panel(a, 0, 0, 304, 32, ui.GREEN)
-            ui.label(done, "KLAAR", 0, 8, ui.CREAM, ui.font_label(), w=300, center=True)
-            ui.focusable(done, on_click=lambda: (sound.play("tap"), self.finish()))
-            return
-        bw = 149
-        voer = ui.panel(a, 0, 0, bw, 32, ui.GREEN)
-        art.icon(voer, "bes", 1).set_pos(18, 7)
-        ui.label(
-            voer, "VOER GEVEN", 30, 8, ui.CREAM, ui.font_label(), w=110, center=True
+    def _open_beest(self):
+        # straight into the normal creature flow: the geluk beast's page,
+        # with VOER / AAI / SPEEL / DOSSIER like any caught creature
+        sound.play("tap")
+        self.startActivity(
+            Intent(activity_class=BeastActivity, extras={"fox_id": self.geluk})
         )
-        ui.focusable(voer, on_click=self._pick_voer)
-        spoor = ui.panel(a, bw + 6, 0, bw, 32, ui.CARD)
-        art.icon(spoor, "spoor", 1).set_pos(18, 8)
-        ui.label(
-            spoor, "SPOOR DELEN", 30, 8, ui.INK, ui.font_label(), w=110, center=True
-        )
-        ui.focusable(spoor, on_click=self._pick_spoor)
-
-    def _pick_voer(self):
-        sound.play("tap")
-        a = self.actions
-        a.clean()
-        v = store.voorraad()
-        x = 0
-        for food in store.FOODS:
-            tile = ui.panel(a, x, 0, 66, 32, ui.CARD if v[food] else ui.DORMANT)
-            art.icon(tile, food, 2).set_pos(6, 6)
-            ui.label(tile, str(v[food]), 40, 7, ui.INK, ui.font_label())
-            ui.focusable(tile, on_click=lambda f=food: self._give(f), focus_border=True)
-            x += 72
-        terug = ui.panel(a, 222, 0, 82, 32, ui.CARD)
-        ui.label(terug, "TERUG", 0, 8, ui.INK, ui.font_small(), w=78, center=True)
-        ui.focusable(terug, on_click=self._terug)
-
-    def _pick_spoor(self):
-        sound.play("tap")
-        eigen = store.own_find_ids()
-        if not eigen:
-            sound.play("error")
-            self._flash("alleen beesten die je ZELF vond kun je delen")
-            return
-        a = self.actions
-        a.clean()
-        strip = ui.row(a, 0, 0, 220, 32, gap=ui.GAP_S)
-        strip.add_flag(lv.obj.FLAG.SCROLLABLE)
-        strip.set_scroll_dir(lv.DIR.HOR)
-        for cid in eigen:
-            c = by_id(cid)
-            tile = ui.panel(strip, 0, 0, 36, 32, ui.CARD)
-            art.creature_panel(tile, c, 2).set_pos(0, 0)
-            ui.focusable(tile, on_click=lambda i=cid: self._share(i), focus_border=True)
-        terug = ui.panel(a, 226, 0, 78, 32, ui.CARD)
-        ui.label(terug, "TERUG", 0, 8, ui.INK, ui.font_small(), w=74, center=True)
-        ui.focusable(terug, on_click=self._terug)
-
-    def _terug(self):
-        sound.play("tap")
-        self._build_actions()
-
-    def _give(self, food):
-        if not store.take_food(food):
-            sound.play("error")
-            self._flash("je %s is op - ga plukken!" % food)
-            return
-        LINK.send_gift(self.mac, "voer", food)
-        sound.play("caught")
-        self._flash("je gaf %s een %s!" % (self.naam, food))
-        self._build_actions()
-
-    def _share(self, cid):
-        c = by_id(cid)
-        LINK.send_gift(self.mac, "spoor", str(cid))
-        sound.play("caught")
-        self._flash("spoor gedeeld: %s kent nu de %s!" % (self.naam, c["naam"]))
-        self._build_actions()
-
-    def _flash(self, text):
-        self._old_note = self.note.get_text()
-        self.note.set_text(text)
-        if self._note_timer:
-            self._note_timer.delete()
-        self._note_timer = lv.timer_create(self._unflash, 1600, None)
-
-    def _unflash(self, t):
-        t.delete()
-        self._note_timer = None
-        self.note.set_text(self._old_note)
 
 
 class SnuffelCodeActivity(Activity):
@@ -516,12 +417,13 @@ class SnuffelCodeActivity(Activity):
             Intent(
                 activity_class=VonkActivity,
                 extras={
-                    "mac": "code:" + naam.lower(),
                     "naam": naam,
                     "code": "",
                     "vonk": result["vonk"],
                     "new_friend": result["new_friend"],
                     "dag": result["dag"],
+                    "food": result["food"],
+                    "amount": result["amount"],
                     "geluk": None,
                 },
             )

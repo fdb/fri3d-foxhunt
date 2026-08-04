@@ -3,8 +3,8 @@
 #
 #   "caught"   : list of caught creature ids
 #   "beast"    : dict {str(id): pet-state} — care stats per caught creature
-#   "origins"  : dict {str(id): "vangst"|"spoor"} — how a creature arrived;
-#                only own finds ("vangst") may be deliberately shared
+#   "origins"  : dict {str(id): "vangst"|"spoor"} — how a creature arrived
+#                (own find vs vonk-geluk); feeds the dossier lineage
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
 #   "vonk"     : today's snuffel log (pairs met + vonk count, daily reset)
@@ -104,9 +104,8 @@ def is_caught(cid):
 
 def add_caught(cid, origin="vangst"):
     """Add a creature. origin records HOW it arrived: "vangst" (found it
-    yourself — hunt, code) or "spoor" (introduced by another player). Only
-    own finds may be deliberately shared onward (GAME_DESIGN.md: you may
-    share a creature you found; an introduced one spreads only by luck)."""
+    yourself — hunt, code) or "spoor" (a vonk-geluk introduction). Pure
+    lineage data for the dossier; it gates nothing."""
     prefs = SharedPreferences(_APP)
     ids = prefs.get_list("caught", [])
     e = prefs.edit()
@@ -119,14 +118,6 @@ def add_caught(cid, origin="vangst"):
     if str(cid) not in beast:
         e.put_dict_item("beast", str(cid), pet.default_state(_today(), _PLACE, _now()))
     e.commit()
-
-
-def own_find_ids():
-    """Creatures this player found themselves — the only ones a spoor may
-    deliberately share. Legacy saves have no origin recorded; everything in
-    them arrived through the hunt, so missing means "vangst"."""
-    origins = SharedPreferences(_APP).get_dict("origins", {})
-    return [c for c in caught_ids() if origins.get(str(c), "vangst") == "vangst"]
 
 
 def restore_caught(ids):
@@ -301,8 +292,11 @@ def vonk_count_today():
 
 def record_snuffel(mac, naam, code):
     """A completed snuffel with peer `mac`. Writes the boekje page on a
-    first-ever meeting and scores a vonk on the first meeting of the day
-    (capped). Returns {"new_friend", "vonk", "dag"}."""
+    first-ever meeting, scores a vonk on the first meeting of the day
+    (capped), and ALWAYS shares food — a vonk is a picknick (2-5 hapjes of
+    one kind), a repeat meeting a single hapje for the road. Nothing is
+    chosen: the handshake itself pays out.
+    Returns {"new_friend", "vonk", "dag", "food", "amount"}."""
     prefs = SharedPreferences(_APP)
     vr = prefs.get_list("vrienden", [])
     new_friend = not any(f.get("mac") == mac for f in vr)
@@ -319,7 +313,16 @@ def record_snuffel(mac, naam, code):
         log["count"] += 1
     e.put_dict("vonk", log)
     e.commit()
-    return {"new_friend": new_friend, "vonk": vonk, "dag": dag}
+    food = random.choice(FOODS)
+    amount = random.randrange(2, 6) if vonk else 1
+    add_food(food, amount)
+    return {
+        "new_friend": new_friend,
+        "vonk": vonk,
+        "dag": dag,
+        "food": food,
+        "amount": amount,
+    }
 
 
 # Vonk-geluk: the chance that one of the OTHER player's creatures introduces

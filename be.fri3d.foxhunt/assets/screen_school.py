@@ -2,10 +2,13 @@
 #
 # Layout follows the design (plukken.jsx PxSchool / PxSchoolMoe). Spelen is
 # the bond leg of the economy chain: the tired state is the playful rate
-# limit ("eerst een hapje?"), never a punishment. The actual mini-games are
-# the next slice — picking one runs the play session (energy down, band up)
-# through store.do_play, which is exactly the seam a real game will report
-# its result through.
+# limit ("eerst een hapje?"), never a punishment. Picking a game launches
+# the real mini-game (screen_games); the game itself pays the energy and
+# banks the band through store.do_play when the session starts.
+#
+# The design's third tile was DOOLHOF (tilt maze), but the IMU has no
+# spike yet — VANGEN (tap to turn, catch the falling hapjes) takes its
+# slot until it does.
 
 import lvgl as lv
 from mpos import Activity, Intent
@@ -16,13 +19,15 @@ import store
 import pet
 from creatures import by_id
 from screen_feed import FeedActivity
+from screen_games import VliegActivity, VangActivity, SimonActivity
 
-# (icon, naam, energy cost in segments, subtitle)
+# (game id, icon, naam, energy cost in segments, subtitle)
 GAMES = (
-    ("vlieg", "VLIEGEN", 2, "ontwijk de takken"),
-    ("doolhof", "DOOLHOF", 1, "kantel de badge"),
-    ("simon", "SIMON", 1, "volg de LEDs"),
+    ("vlieg", "vlieg", "VLIEGEN", 2, "ontwijk de takken"),
+    ("vang", "bes", "VANGEN", 1, "vang de hapjes"),
+    ("simon", "simon", "SIMON", 1, "volg de LEDs"),
 )
+_GAME_ACT = {"vlieg": VliegActivity, "vang": VangActivity, "simon": SimonActivity}
 
 
 def favourite_game(cid):
@@ -37,8 +42,6 @@ class SchoolActivity(Activity):
         self.fox_id = self.getIntent().extras.get("fox_id", 0)
         self.c = by_id(self.fox_id)
         self._fresh = True
-        self._flash_timer = None
-        self._flash_msg = None
         self.screen = ui.make_screen(ui.PAPER)
         self._populate()
         self.setContentView(self.screen)
@@ -51,9 +54,6 @@ class SchoolActivity(Activity):
         self._rebuild()
 
     def _rebuild(self):
-        if self._flash_timer:
-            self._flash_timer.delete()
-            self._flash_timer = None
         self.screen.clean()
         self._populate()
 
@@ -66,21 +66,18 @@ class SchoolActivity(Activity):
         # round 35 up to 2 cells while pet.play still refuses a 40-point game
         energie = st["energy"]
         segs = pet.segments(energie)
-        cheapest = min(g[2] for g in GAMES)
+        cheapest = min(g[3] for g in GAMES)
         moe = energie < cheapest * pet.SEG
         naam = st.get("bijnaam") or self.c["naam"]
         fav = favourite_game(self.fox_id)
 
         ui.banner(s, "BEESTENSCHOOL", ui.GREEN, right="energie %d/5" % segs)
 
-        # transient top bubble: the refusal when moe, the payoff after a game
-        note = self._flash_msg or (
-            "%s is moe - eerst een hapje?" % naam if moe else None
-        )
+        # the playful refusal, when moe
+        note = "%s is moe - eerst een hapje?" % naam if moe else None
         if note:
             bub = ui.panel(s, 8, 30, 304, 24, ui.CREAM)
             ui.label(bub, note, 0, 3, ui.INK, ui.font_label(), w=300, center=True)
-        self._flash_msg = None
 
         # creature column
         top = 58 if note else 34
@@ -115,9 +112,9 @@ class SchoolActivity(Activity):
         # game tiles
         tile_h = 40 if note else 52
         y = top
-        for icon, gnaam, kost, sub in GAMES:
+        for gid, icon, gnaam, kost, sub in GAMES:
             kan = not moe and energie >= kost * pet.SEG
-            is_fav = icon == fav
+            is_fav = gid == fav
             tile = ui.panel(
                 s,
                 112,
@@ -153,7 +150,7 @@ class SchoolActivity(Activity):
             if kan:
                 ui.focusable(
                     tile,
-                    on_click=lambda g=icon, k=kost, f=is_fav: self._play(g, k, f),
+                    on_click=lambda g=gid, k=kost, f=is_fav: self._play(g, k, f),
                     focus_border=True,
                 )
             else:
@@ -181,15 +178,16 @@ class SchoolActivity(Activity):
             )
 
     def _play(self, game, kost, is_fav):
-        # The mini-game itself is the next slice; the session's economy —
-        # energy spent, band earned, the refusal — is already real.
-        st, ok, msg = store.do_play(self.fox_id, kost, is_fav)
-        if st is None:
-            return
-        sound.play("caught" if ok and is_fav else "tap" if ok else "error")
-        naam = st.get("bijnaam") or self.c["naam"]
-        self._flash_msg = "%s: %s" % (naam, msg)
-        self._rebuild()
+        # launch the real game; it pays the energy and banks the band
+        # (store.do_play) itself, and shows the score + reaction on its end
+        # card. Returning here rebuilds, so the meters are already fresh.
+        sound.play("tap")
+        self.startActivity(
+            Intent(
+                activity_class=_GAME_ACT[game],
+                extras={"fox_id": self.fox_id, "kost": kost, "fav": is_fav},
+            )
+        )
 
     def _feed(self):
         sound.play("tap")
