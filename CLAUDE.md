@@ -142,6 +142,18 @@ talks to `/api/v1/auth/*` there.
 - The badge writes only what is its own to claim — name, `profile_pic`
   (companion shortcode), `hunter_id` — via register/PATCH.
 
+## Server pages
+`/` is the public one-pager (`components/Home.tsx`): what the game is, both
+play tracks, screenshots. It renders through `<Layout bare>` — same `<head>`,
+no green banner, no width cap, because it brings its own full-bleed sections.
+The scoreboard lives at `/scores` and keeps the badge-flavoured `<Layout>`.
+
+Its screenshots in `static/screens/` are 640×480 — an exact 2× of the badge's
+320×240 screen — so they stay pixel-crisp at 320 or 640 CSS px, and
+`image-rendering: pixelated` covers the sizes in between. Body copy is Nunito;
+Pixelify Sans is for headings and the badge-mirroring UI (tables, buttons,
+tags) only — it is unreadable at paragraph length.
+
 ## Server debug routes
 `server/` (Hono on Cloudflare Workers + D1) exposes read-only inspection pages
 under `/debug/*` — `/debug/log` for the event log, `/debug/players` for the

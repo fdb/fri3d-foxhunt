@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Bindings, GameEvent, Player, ScoreRow } from "../types";
 import { Layout } from "../components/Layout";
+import { Home } from "../components/Home";
 
 export const pageRoutes = new Hono<{ Bindings: Bindings }>();
 
@@ -71,11 +72,24 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
   </section>
 );
 
+// Public landing page: what the game is, for players who just got a badge
+pageRoutes.get("/", (c) =>
+  c.html(
+    <Layout
+      title="Vossenjacht — het badge-spel van Fri3d Camp"
+      description="Spoor de beesten van het bos op. Jaag met een LoRa-antenne op verstopte vossen, of verzamel als verzamelaar het eten dat de beesten nodig hebben."
+      bare
+    >
+      <Home />
+    </Layout>,
+  ),
+);
+
 // Public dashboard
-pageRoutes.get("/", async (c) => {
+pageRoutes.get("/scores", async (c) => {
   const scores = await fetchScores(c.env.DB);
   return c.html(
-    <Layout title="Vossenjacht" right={`${scores.length} spelers`}>
+    <Layout title="Scorebord" right={`${scores.length} spelers`}>
       <Scoreboard scores={scores} />
     </Layout>,
   );

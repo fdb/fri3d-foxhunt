@@ -16,6 +16,16 @@
   --dormant: #d8c9a4;
   --border-rest: #cdb67d;
   --focus-gold: #ffcb45;
+
+  /* Landing page only: the dark forest the title banner sits on */
+  --forest: #1a2c16;
+  --forest-d: #10200c;
+
+  /* Pixelify carries the headings and the badge-mirroring UI; body copy is
+     set in Nunito, which stays readable at paragraph length. */
+  --font-pixel: "Pixelify Sans", "Courier New", monospace;
+  --font-body:
+    "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 * {
@@ -24,10 +34,15 @@
 
 body {
   margin: 0;
-  font-family: "Pixelify Sans", "Courier New", monospace;
+  font-family: var(--font-body);
   background: var(--paper);
   color: var(--ink);
   font-size: 18px;
+}
+
+/* Tables mirror the badge UI, so they keep the pixel face. */
+table {
+  font-family: var(--font-pixel);
 }
 
 /* Green banner, like ui.banner(): cream title left, small counter right */
@@ -49,6 +64,7 @@ header img {
 
 header h1 {
   margin: 0;
+  font-family: var(--font-pixel);
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -58,7 +74,22 @@ header h1 {
 
 header .banner-right {
   margin-left: auto;
+  font-family: var(--font-pixel);
   font-size: 0.9rem;
+}
+
+/* Way back to the explanation from the scoreboard / debug pages */
+header .banner-home {
+  margin-left: auto;
+  font-family: var(--font-pixel);
+  font-size: 0.9rem;
+  color: var(--cream);
+  text-decoration: none;
+  border-bottom: 2px solid rgba(255, 247, 230, 0.5);
+}
+
+header .banner-right + .banner-home {
+  margin-left: 1rem;
 }
 
 main {
@@ -163,5 +194,615 @@ td.muted {
     width: 16px;
     height: 11px;
     margin-right: 3px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Landing page (/) — full-bleed bands, pixel-art chrome.
+   Screenshots ship at 640x480 (2x the badge screen) and render pixel-exact
+   at 320 or 640 CSS px; `image-rendering: pixelated` covers everything else.
+   ───────────────────────────────────────────────────────────────────────── */
+
+img {
+  image-rendering: pixelated;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.wrap-narrow {
+  max-width: 620px;
+  text-align: center;
+}
+
+/* Sticky top bar */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.6rem 1.25rem;
+  background: var(--forest-d);
+  border-bottom: 3px solid var(--green-d);
+  font-family: var(--font-pixel);
+  font-size: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+}
+
+.nav a {
+  color: var(--surface-soft);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav a:hover {
+  color: var(--focus-gold);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.2rem;
+  color: var(--cream) !important;
+  letter-spacing: 0.04em;
+}
+
+.nav-cta {
+  margin-left: auto;
+  padding: 0.15rem 0.7rem;
+  background: var(--gold);
+  color: var(--ink) !important;
+  border: 2px solid var(--gold-d);
+  border-radius: 4px;
+}
+
+.nav-cta:hover {
+  background: var(--focus-gold);
+}
+
+/* Hero: the title banner as a sign at the edge of the forest */
+.hero {
+  padding: 3.5rem 0 3rem;
+  background:
+    radial-gradient(
+      circle at 20% 25%,
+      rgba(232, 178, 58, 0.14) 0 2px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 72% 12%,
+      rgba(232, 178, 58, 0.12) 0 2px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 88% 60%,
+      rgba(232, 178, 58, 0.1) 0 2px,
+      transparent 2px
+    ),
+    linear-gradient(180deg, #23381c 0%, var(--forest) 60%, var(--forest-d) 100%);
+  border-bottom: 5px solid var(--ink);
+  color: var(--cream);
+  text-align: center;
+}
+
+.sign {
+  display: inline-block;
+  padding: 6px;
+  background: var(--forest-d);
+  border: 4px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.35);
+}
+
+.sign img {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+}
+
+.tagline {
+  margin: 2rem 0 0;
+  font-family: var(--font-pixel);
+  font-size: 1.6rem;
+  color: var(--focus-gold);
+  text-shadow: 3px 3px 0 var(--forest-d);
+}
+
+.lede {
+  max-width: 40rem;
+  margin: 1rem auto 0;
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: #e5e6cf;
+}
+
+.lede b {
+  color: var(--focus-gold);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin: 1.75rem 0 0;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.6rem 1.5rem;
+  font-family: var(--font-pixel);
+  font-size: 1.15rem;
+  text-decoration: none;
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 4px 4px 0 var(--ink);
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s;
+}
+
+.btn:active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.btn-primary {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.btn-primary:hover {
+  background: var(--focus-gold);
+}
+
+.btn-ghost {
+  background: var(--green);
+  color: var(--cream);
+}
+
+.btn-ghost:hover {
+  background: var(--green-d);
+}
+
+/* Sprite parade under the hero */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  justify-content: center;
+  margin-top: 2.5rem;
+}
+
+.strip img {
+  width: 48px;
+  height: 48px;
+}
+
+.strip-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.95rem;
+  color: #a8b78d;
+}
+
+/* Bands */
+.band {
+  padding: 3.25rem 0;
+  border-bottom: 4px solid var(--ink);
+}
+
+.band-paper {
+  background: var(--paper);
+}
+
+.band-soft {
+  background: var(--surface-soft);
+}
+
+.band-forest {
+  background: var(--forest);
+  color: #e5e6cf;
+}
+
+.band-end {
+  border-bottom: none;
+}
+
+.band h2 {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-pixel);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.band-paper h2,
+.band-soft h2 {
+  color: var(--terra-d);
+}
+
+.band-forest h2 {
+  color: var(--focus-gold);
+  text-shadow: 3px 3px 0 var(--forest-d);
+}
+
+.band h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-pixel);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.band p {
+  line-height: 1.65;
+}
+
+.intro {
+  max-width: 44rem;
+  margin: 0 0 1.75rem;
+  font-size: 1.08rem;
+}
+
+.band-forest .intro b {
+  color: var(--focus-gold);
+}
+
+/* Cards keep their paper interior inside a forest band, so emphasis and
+   secondary text there follow the light-background rules, not the dark ones. */
+.card b {
+  color: var(--terra-d);
+}
+
+/* Cards */
+.cards {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.cards-2 {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.cards-3 {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.card {
+  position: relative;
+  padding: 1.25rem;
+  background: var(--card);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 6px 6px 0 rgba(52, 39, 26, 0.28);
+}
+
+.card p {
+  margin: 0.5rem 0 0;
+  font-size: 1rem;
+}
+
+/* Emoji sit in an ink-framed tile so they read as UI, not as loose glyphs */
+.card .icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin-right: 0.6rem;
+  background: var(--surface-soft);
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.cards-3 .card .icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 0 0.75rem;
+  font-size: 1.6rem;
+}
+
+.card h3 {
+  display: flex;
+  align-items: center;
+}
+
+.mode {
+  padding-top: 1.5rem;
+}
+
+.mode-hunter {
+  border-color: var(--terra-d);
+  box-shadow: 6px 6px 0 var(--terra-d);
+}
+
+.mode-hunter h3 {
+  color: var(--terra-d);
+}
+
+.mode-gatherer {
+  border-color: var(--green-d);
+  box-shadow: 6px 6px 0 var(--green-d);
+}
+
+.mode-gatherer h3 {
+  color: var(--green-d);
+}
+
+.mode-req {
+  margin: 0 0 0.75rem !important;
+  font-family: var(--font-pixel);
+  font-size: 0.95rem !important;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ribbon {
+  position: absolute;
+  top: -0.85rem;
+  right: 0.9rem;
+  padding: 0.15rem 0.6rem;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-pixel);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+}
+
+/* Section tags next to a heading */
+.tag {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.6rem;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  text-shadow: none;
+}
+
+.tag-hunter {
+  background: var(--terra);
+  color: var(--cream);
+}
+
+.tag-gatherer {
+  background: var(--green);
+  color: var(--cream);
+}
+
+.tag-soon {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.quote {
+  margin: 1.75rem 0;
+  padding: 1.1rem 1.4rem;
+  background: rgba(255, 247, 230, 0.07);
+  border-left: 6px solid var(--gold);
+  font-family: var(--font-pixel);
+  font-size: 1.3rem;
+  line-height: 1.5;
+  color: var(--cream);
+}
+
+.quote b {
+  color: var(--focus-gold);
+}
+
+.note {
+  margin: 1.5rem 0 0;
+  padding: 0.9rem 1.1rem;
+  background: rgba(90, 154, 60, 0.12);
+  border: 2px dashed var(--green-d);
+  border-radius: 6px;
+  font-size: 0.98rem;
+}
+
+.note-dark {
+  background: rgba(255, 247, 230, 0.06);
+  border-color: var(--green);
+}
+
+.fine {
+  font-size: 0.92rem !important;
+  color: var(--text-muted);
+}
+
+.band-forest > .wrap > .fine {
+  color: #a8b78d;
+}
+
+/* Numbered steps, each with its screenshot */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: step;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 1.5rem 2rem;
+  align-items: center;
+  padding: 1.5rem 0;
+  border-top: 2px dashed var(--border-rest);
+}
+
+.steps li:first-child {
+  border-top: none;
+}
+
+.step-text {
+  counter-increment: step;
+}
+
+.step-text h3::before {
+  content: counter(step);
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  margin-right: 0.6rem;
+  background: var(--gold);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: 4px;
+  font-size: 1.1rem;
+}
+
+.step-text h3 {
+  display: flex;
+  align-items: center;
+}
+
+/* Screenshots in a badge-style bezel */
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.75rem;
+  justify-items: center;
+}
+
+/* Two screenshots in one step: keep them narrow so the text column survives */
+.shot-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  justify-content: center;
+}
+
+.shot-pair .shot {
+  max-width: 250px;
+}
+
+.shot {
+  margin: 0;
+  max-width: 340px;
+}
+
+.shot-big {
+  max-width: 660px;
+}
+
+.bezel {
+  padding: 10px;
+  background: #2b2b2b;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  box-shadow: 5px 5px 0 rgba(52, 39, 26, 0.3);
+}
+
+.bezel img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 2px;
+}
+
+.shot figcaption {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.band-forest .shot figcaption {
+  color: #a8b78d;
+}
+
+/* The "nothing bad ever happens" reassurance */
+.panel-safe {
+  margin-top: 2rem;
+  padding: 1.25rem 1.4rem;
+  background: var(--cream);
+  border: 3px solid var(--green-d);
+  border-radius: 6px;
+  box-shadow: 6px 6px 0 rgba(60, 107, 46, 0.25);
+}
+
+.panel-safe h3 {
+  color: var(--green-d);
+}
+
+.panel-safe p {
+  margin: 0;
+}
+
+.site-footer {
+  padding: 2rem 0 2.5rem;
+  background: var(--forest-d);
+  color: #a8b78d;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.site-footer p {
+  margin: 0.35rem 0;
+}
+
+.site-footer a {
+  color: var(--surface-soft);
+}
+
+@media (max-width: 720px) {
+  .steps li {
+    grid-template-columns: 1fr;
+  }
+  .shot,
+  .shot-big {
+    max-width: 100%;
+  }
+  .band h2 {
+    font-size: 1.6rem;
+  }
+  .tagline {
+    font-size: 1.25rem;
+  }
+  .hero {
+    padding: 2.25rem 0 2rem;
+  }
+  .quote {
+    font-size: 1.1rem;
+  }
+  /* Six sprites per row instead of five, so the strip doesn't leave an orphan */
+  .strip {
+    gap: 0.6rem;
+  }
+  .strip img {
+    width: 40px;
+    height: 40px;
   }
 }

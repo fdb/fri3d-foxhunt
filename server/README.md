@@ -35,18 +35,19 @@ catches.
 | `/api/v1/auth/user`     | GET    | Restore by `?badge_id=...`: account + `creatures` (404 = new badge) |
 | `/api/v1/auth/user`     | PATCH  | Update account by `badge_id`: `{ name?, hunter_id?, profile_pic? }` |
 | `/api/v1/player/found`  | POST   | Bridge relay reports `{ hunter_id, fox_id }` (Bearer `BRIDGE_KEY`)  |
-| `/`                     | GET    | Public dashboard, auto-refreshing scoreboard                        |
+| `/`                     | GET    | Public landing page: what the game is, both play tracks             |
+| `/scores`               | GET    | Public dashboard, auto-refreshing scoreboard                        |
 | `/debug/log`            | GET    | Event log — HTML table, or JSON with `Accept: application/json`     |
 
 ## The companion shortcode (`profile_pic`)
 
 The badge's avatar is stored as an 8-character code, `H1A003C1`:
 
-| Part  | Meaning                                                          |
-| ----- | ---------------------------------------------------------------- |
-| `H1`  | head — 1-based index into the badge's head roster                 |
-| `A003` | accessories — 12-bit bitmask, three **hex** digits                |
-| `C1`  | backdrop colour — 1-based index into the badge's swatch list       |
+| Part   | Meaning                                                      |
+| ------ | ------------------------------------------------------------ |
+| `H1`   | head — 1-based index into the badge's head roster            |
+| `A003` | accessories — 12-bit bitmask, three **hex** digits           |
+| `C1`   | backdrop colour — 1-based index into the badge's swatch list |
 
 `be.fri3d.foxhunt/assets/companion.py` owns the format (`encode` / `decode`); the
 server only validates the shape and stores it. Indices are 1-based so `0` can
