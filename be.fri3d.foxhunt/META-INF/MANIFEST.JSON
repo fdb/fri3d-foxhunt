@@ -9,7 +9,7 @@
   "activities": [
     {
       "entrypoint": "assets/foxhunt.py",
-      "classname": "HomeActivity",
+      "classname": "FoxhuntActivity",
       "intent_filters": [
         {
           "action": "main",

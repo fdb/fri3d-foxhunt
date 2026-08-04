@@ -5,8 +5,8 @@
 # already registered once (a reset badge, or a swapped one). No banner — the
 # art is the header — and no back button, per the house rules.
 #
-# Both routes report "registered" back up, so HomeActivity's first-run branch
-# unwinds to a populated book either way.
+# Both routes save the profile before they report "registered" back up, so the
+# router underneath (foxhunt.py) opens the book either way when this closes.
 
 import lvgl as lv
 from mpos import Activity, Intent
