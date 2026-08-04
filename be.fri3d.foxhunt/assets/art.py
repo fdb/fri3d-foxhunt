@@ -1,89 +1,10 @@
-# art.py — placeholder pixel-art creatures, drawn on an LVGL canvas.
+# art.py — creature sprites (baked atlas) + hand-drawn UI icons on canvas.
 #
-# 4 reusable 16x16 shapes (fox/owl/deer/bird) recoloured by palette = all 12
-# beasts, no image assets. Same canvas+set_px pattern as the built-in
-# space_invaders app, extended with per-pixel palette, scaling and silhouette.
-# This whole module is the art swap point: drop in real sprites here later and
-# every screen picks them up unchanged.
+# Creature art comes from the baked sprite atlas (see below); the small UI
+# icons and hearts are pixel grids drawn with the same canvas+set_px pattern
+# as the built-in space_invaders app, with per-pixel palette and scaling.
 
 import lvgl as lv
-
-# chars: '.' transparent | k outline | r body | d dark-body | l light-body
-#        w white | e eye | n nose | b beak/horn(gold)
-SH = {
-    "fox": [
-        "................",
-        "..k..........k..",
-        ".krk........krk.",
-        ".krrk......krrk.",
-        ".krrrkk..kkrrrk.",
-        "..krrrrkkrrrrk..",
-        "..krrrrrrrrrrk..",
-        "..krwwrrrrwwrk..",
-        "..krweerwweerk..",
-        "..krrrrrrrrrrk..",
-        "..krrlllllllrk..",
-        "..kdrllnnllrdk..",
-        "..kdrlllllllrk..",
-        "...kddrrrrddk...",
-        "....kkddddkk....",
-        "......kkkk......",
-    ],
-    "owl": [
-        "................",
-        "...k........k...",
-        "..krk......krk..",
-        "..krrkkkkkkrrk..",
-        ".krrrrrrrrrrrrk.",
-        ".krwwwrrrrwwwrk.",
-        ".krweewrrweewrk.",
-        ".krwwwrbbrwwwrk.",
-        ".krrrrrbbrrrrrk.",
-        ".krrlllllllllrk.",
-        ".krrlrlrlrlrlrk.",
-        "..krrlllllllrk..",
-        "..kdrrrrrrrrdk..",
-        "...kddbbbbddk...",
-        "....kkbbbbkk....",
-        "......kkkk......",
-    ],
-    "deer": [
-        "..b..b...b..b...",
-        "..b..bb.bb..b...",
-        "..bb..bbb..bb...",
-        "...bb..b..bb....",
-        ".....krrrk......",
-        "....krrrrrk.....",
-        "....krwrwrk.....",
-        "....kreererk....",
-        "....krrnnrrk....",
-        "...krrrrrrrrk...",
-        "..krrlrrrrlrrk..",
-        "..krrlrrrrlrrk..",
-        "..krrrrrrrrrrk..",
-        "...kdrrrrrrdk...",
-        "...kdk....kdk...",
-        "...kk......kk...",
-    ],
-    "bird": [
-        "......bbb.......",
-        ".....bkrkb......",
-        "......krk.......",
-        ".....krrrk......",
-        "....krwrwrk.....",
-        "....kreererk....",
-        "...bbkrrnrrk....",
-        "..b..krrrrrk....",
-        ".b..krrrrrrrk...",
-        "....krrllrrrk...",
-        "....krllllrrk...",
-        "....krrllrrdk...",
-        "....kdrrrrdk....",
-        ".....kdrrdk.b...",
-        "...b..kkdk.bb...",
-        "...bb..kk..b....",
-    ],
-}
 
 HEART = [
     ".kk...kk.",
@@ -346,26 +267,6 @@ def icon(parent, name, scale=2):
     return draw_sprite(parent, ic["rows"], ic["pal"], scale)
 
 
-_BASE = {"k": 0x34271A, "w": 0xFFF7E6, "e": 0x241A12, "n": 0xCF6A4E, "b": 0xF0C64A}
-
-
-def _pal(r, d, l):
-    p = dict(_BASE)
-    p["r"], p["d"], p["l"] = r, d, l
-    return p
-
-
-PALS = {
-    "orange": _pal(0xE58A3A, 0xB15F24, 0xF6CF93),
-    "grey": _pal(0x9A958C, 0x6D6860, 0xD8D3C7),
-    "brown": _pal(0xA9743F, 0x7C4F28, 0xD8AD77),
-    "cream": _pal(0xEAD9B0, 0xBDA273, 0xF8EECB),
-    "green": _pal(0x6AA24A, 0x467030, 0xA6CF7E),
-    "tan": _pal(0xCDA268, 0x9A7541, 0xECD3A0),
-    "bluegrey": _pal(0x7F93A6, 0x566677, 0xBCC9D6),
-    "gold": _pal(0xECC24A, 0xB1841F, 0xF8E6A0),
-}
-
 # ── Tones: how a creature is flattened when it must not be recognisable ─────
 # A tone is (fill, outline); outline None means the whole shape is one flat
 # colour. Which tone reads depends entirely on what it sits on, hence three.
@@ -535,22 +436,17 @@ def _layer(parent, c, scale, tint=None, animate=False):
     None) or flattened to the tone `tint`. Non-clickable so it never steals
     taps from a clickable cell.
 
-    Caveat: recolouring an image is all-or-nothing, so PNG art takes the tone's
-    fill and skips its outline. That is a difference you can only see by
-    hunting for it, and the alternative — recolouring at partial opacity —
-    would leak the real colours, which is the whole thing we are hiding."""
-    if c.get("img"):
-        name = "animals/" + c["img"]
-        w = sprite_img(parent, name, scale)
-        if tint is not None:
-            w.set_style_image_recolor(lv.color_hex(tint[0]), 0)
-            w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
-        elif animate and c.get("anim"):
-            animate_sprite(w, name)
-    else:
-        w = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, tint)
-        w.set_pos(0, 0)
-        w.remove_flag(lv.obj.FLAG.CLICKABLE)
+    Caveat: recolouring an image is all-or-nothing, so a tinted sprite takes
+    the tone's fill and skips its outline. The alternative — recolouring at
+    partial opacity — would leak the real colours, which is the whole thing
+    we are hiding."""
+    name = "animals/" + c["img"]
+    w = sprite_img(parent, name, scale)
+    if tint is not None:
+        w.set_style_image_recolor(lv.color_hex(tint[0]), 0)
+        w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
+    elif animate and c.get("anim"):
+        animate_sprite(w, name)
     return w
 
 
@@ -558,7 +454,6 @@ def creature_panel(
     parent, c, scale, reveal=1.0, silhouette=False, mask=None, veil=SIL, animate=False
 ):
     """The creature shown full / hidden / partially revealed (fills top-down).
-    Backend-agnostic — PNG art and procedural sprites both come through here.
     Full/hidden return the bare sprite (no wrapper, so it never blocks clicks);
     only the partial-reveal case needs a clip wrapper.
 
