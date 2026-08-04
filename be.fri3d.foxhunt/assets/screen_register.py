@@ -127,13 +127,35 @@ class RegisterActivity(Activity):
         self.kb.add_event_cb(self._kb_event, lv.EVENT.CANCEL, None)
 
         # textarea set_text (how the keyboard types) fires no event we can
-        # trust, so a light poll keeps the VOLGENDE state honest.
-        self._timer = lv.timer_create(lambda t: self._refresh_btn(), 300, None)
+        # trust, so a light poll keeps the VOLGENDE state honest. onResume
+        # creates it -- setContentView calls that straight after onCreate.
+        self._timer = None
 
         self.setContentView(s)
 
+    # The poll only makes sense while this screen is the visible one. We stay on
+    # the stack under the maatje and registration screens, so left running it
+    # would wake every 300ms to re-read a field nobody can reach -- and it is
+    # the only thing still holding widget references once those are torn down,
+    # which is where the LvReferenceError on shutdown came from.
+    #
+    # Resume/pause, not start/stop: back_screen() calls only onResume on the
+    # screen it uncovers, so pairing with onStart would leave the poll dead
+    # after backing out of the maatje screen and freeze VOLGENDE's state.
+    def onResume(self, screen):
+        super().onResume(screen)
+        if self._timer is None:
+            self._timer = lv.timer_create(lambda t: self._refresh_btn(), 300, None)
+
+    def onPause(self, screen):
+        super().onPause(screen)
+        self._stop_poll()
+
     def onDestroy(self, screen):
         super().onDestroy(screen)
+        self._stop_poll()
+
+    def _stop_poll(self):
         if self._timer is not None:
             self._timer.delete()
             self._timer = None

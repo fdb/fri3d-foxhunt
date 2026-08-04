@@ -18,6 +18,11 @@ board layer handles the hardware differences.
   simulate taps/drags/focus and capture screenshots — see
   `docs/emulator-testing.md`. Prefer this over "it should work" for any
   change with visible or interactive behaviour.
+- **The emulator's profile is throwaway.** Whatever sits in
+  `<MicroPythonOS>/internal_filesystem/data/be.fri3d.foxhunt/config.json` is
+  test data — no real account, no real catches. Overwrite it with `{}` to
+  replay first-run onboarding, or seed a profile to skip it, without asking.
+  Only the badge and the server hold anything worth keeping.
 
 ## Deploying to the badge
 `scripts/deploy_to_badge.sh [--start]` pushes the app over USB. Three things it
