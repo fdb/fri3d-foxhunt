@@ -147,9 +147,9 @@ export const Home = () => (
       <div class="wrap">
         <h2>Twee manieren om te spelen</h2>
         <p class="intro">
-          Niet iedereen heeft een LoRa-antenne, en dat hoeft ook niet.
-          Vossenjacht heeft twee sporen, en samen zijn ze de{" "}
-          <b>jager-verzamelaars</b>.
+          Vossenjacht heeft twee speelwijzen: je kan <b>jagen</b> of{" "}
+          <b>verzamelen</b>. Samen zijn ze de jager-verzamelaars, en ze hebben
+          elkaar nodig.
         </p>
         <div class="cards cards-2">
           <article class="card mode mode-hunter">
@@ -161,9 +161,13 @@ export const Home = () => (
             </h3>
             <p class="mode-req">Met LoRa-antenne</p>
             <p>
-              Je loopt het terrein af met een richtantenne, draait rond tot het
-              signaal warm wordt, en vindt de vos. Jij brengt de nieuwe beesten
-              het kamp in — en jij deelt ze met de rest.
+              Voor de badge bestaat een losse <b>LoRa-antenne</b>: die bestel je
+              erbij en soldeer je zelf op je badge. Daarmee gaat de jacht open.
+            </p>
+            <p>
+              Je loopt ermee het terrein af, draait rond tot het signaal warm
+              wordt, en vindt de vos. Jij brengt de nieuwe beesten het kamp in —
+              en jij deelt ze met de rest.
             </p>
           </article>
           <article class="card mode mode-gatherer">
@@ -174,7 +178,11 @@ export const Home = () => (
               </span>
               Verzamelaar
             </h3>
-            <p class="mode-req">Geen antenne nodig — WiFi is genoeg</p>
+            <p class="mode-req">Zonder antenne — WiFi is genoeg</p>
+            <p>
+              Geen antenne? Dan ben je verzamelaar, en daarvoor heb je genoeg
+              aan de WiFi die elke badge al aan boord heeft.
+            </p>
             <p>
               Je zoekt <b>plukplekken</b> op het terrein en speelt spelletjes.
               Zo verzamel je bessen, noten, eikels en materiaal: precies wat de
