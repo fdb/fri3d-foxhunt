@@ -25,37 +25,52 @@ board layer handles the hardware differences.
   Only the badge and the server hold anything worth keeping.
 
 ## Deploying to the badge
-`scripts/deploy_to_badge.sh [--start]` pushes the app over USB. Three things it
-does that are not obvious, each because copying the files is not enough:
-- **It copies only what differs, and deletes only what the source dropped.** The
-  badge SHA-256s its whole app dir in one REPL trip; the script diffs that
-  against the local files and hands `installapp` a stage holding just the
-  changed ones (`mpremote fs cp -r` merges, so that updates exactly those).
-  Both halves matter. mpremote never deletes, so a file that leaves the source
-  stays forever — a renamed module, a superseded sprite folder, a stray
-  `__pycache__` — until LittleFS is full and installs start truncating. And it
-  hashes one file per REPL round trip, so letting it walk the full tree costs
-  ~37s where the badge hashes all 71 itself in ~20s. Do *not* "simplify" this
-  into wiping the app dir first: that guarantees every file is re-uploaded and
-  takes a deploy from ~60s to ~215s. Save data is unaffected either way; it
-  lives in `data/be.fri3d.foxhunt/`, not in the app dir.
-- **It returns the badge to the launcher first**, so no live activity is holding
-  the code being overwritten.
+`scripts/deploy_to_badge.sh [--start]` pushes the app over USB — ~8s when
+nothing changed, ~15-20s for a typical change. Four things it does that are
+not obvious, each because copying the files is not enough:
+- **It rides mpremote's raw REPL, never the aioREPL controller.** The aioREPL
+  (`mpos_controller.py`) echoes every pasted byte back while LVGL starves the
+  reader — ~115 B/s measured, and a payload past ~2.5KB stalls its flow
+  control and dies on a write timeout. Raw REPL has no echo: the same state
+  walk costs 16s through the controller and under 4 directly. The OS keeps
+  running across raw-REPL execs (same interpreter — AppManager and
+  `sys.modules` included), so the controller's emulator/testing workflow is
+  untouched; it is just the wrong transport for deploy traffic. Relatedly:
+  the controller's `read_until` must accept CRLF sentinel endings (fixed in
+  the MicroPythonOS checkout) — before that, every serial exec silently sat
+  out a 30s timeout and *then* returned the right answer, which made deploys
+  7 minutes without a single error anywhere.
+- **It trusts a shipped manifest instead of re-hashing.** Every install lands
+  `.deploy.sha` ("sha16 size path" per line) inside the app dir; the next
+  deploy stat-walks the tree and trusts the manifest only if the paths and
+  every size match exactly, else falls back to hashing every file
+  (~0.28s/file of `open()` overhead). Every way the manifest can lie is
+  covered by that check or by placement: a truncated install (size differs),
+  a lingering orphan (path extra), a store install (`rmtree` takes the
+  manifest with it). Wrong → one slow hash pass, then it self-heals.
+- **It copies only what differs, and deletes only what the source dropped.**
+  `mpremote fs cp -r` merges, so a delta tree updates exactly the changed
+  files; orphans are deleted explicitly (nothing on this path ever deletes
+  on its own — a renamed module or stray `__pycache__` stays forever until
+  LittleFS is full and installs start truncating). It returns the badge to
+  the launcher first, so no live activity holds the code being overwritten.
+  Save data is unaffected either way; it lives in `data/be.fri3d.foxhunt/`,
+  not in the app dir.
 - **It drops the app's modules from `sys.modules`.** MicroPythonOS evicts only
   the *entrypoint* module between launches (`AppManager.execute_script`), so
   without this a relaunch runs the new `foxhunt.py` against the previous run's
   cached `screen_*` — new caller, stale callee. That mismatch is the exception
   you get from restarting a freshly-deployed app.
 
-A deploy runs ~60s: ~20s of that is the badge hashing its files (dominated by
-per-file `open()`, ~0.28s each — buffer size makes no difference), and the rest
-is REPL round trips at ~4s of interpreter start and serial handshake apiece,
-which is why the steps are folded into as few `exec` calls as possible.
+Every phase prints `[t+Ns]` elapsed time. Diagnose any slowdown against those
+numbers first — the pipeline's costs live where nothing errors (handshakes,
+echo, on-badge walks), so a regression is otherwise invisible.
 
-The file count matters twice over: LittleFS bills a whole 4 KB block per file,
-and each file costs ~0.28s of every deploy's hash pass. That is why the 40+
-tiny sprite PNGs were folded into one `assets/sprites.bin` atlas (see
-Conventions → Artwork) — reclaiming ~150 KB on device and ~12s per deploy.
+The file count still matters twice over: LittleFS bills a whole 4 KB block per
+file, and each file costs ~0.28s whenever the manifest is distrusted and the
+hash fallback runs. That is why the 40+ tiny sprite PNGs were folded into one
+`assets/sprites.bin` atlas (see Conventions → Artwork) — reclaiming ~96 KB of
+blocks on device and shrinking the worst-case hash pass.
 
 End users never touch this path. The app store streams a `.mpk` over WiFi
 straight into `AppManager.download_and_install_package`, which unzips it as it
