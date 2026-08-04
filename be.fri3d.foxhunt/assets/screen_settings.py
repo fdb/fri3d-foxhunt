@@ -14,7 +14,6 @@ import leds
 import registrar
 from screen_debug import DebugActivity
 
-STRIP_BG = 0xEFE7D0
 TRACK_OFF = 0xE0D4B4  # switch track when off
 ROW_H, ROW_GAP = 26, 4
 _ROW_W = 308
@@ -79,7 +78,9 @@ class SettingsActivity(Activity):
         # ids, labels only: the badge id anchors recovery, the jager id is
         # minted over LoRa during registration ("-" until that happened)
         p = store.profile() or {}
-        strip = ui.box(s, 6, 188, _ROW_W, 22, STRIP_BG, radius=ui.RADIUS)
+        # No card behind these: subtle text straight on the paper. The boxes
+        # stay (transparent) because the badge-id one is also the tap target.
+        strip = ui.box(s, 6, 188, _ROW_W, 22, None)
         ui.label(strip, "BADGE ID", 6, 3, ui.MYSTERY, ui.font_small())
         ui.label(strip, registrar.badge_id(), 72, 3, ui.INK, ui.font_small())
         # The badge-id strip doubles as the hidden door: five taps opens the
@@ -88,7 +89,7 @@ class SettingsActivity(Activity):
         self._id_taps = 0
         strip.add_flag(lv.obj.FLAG.CLICKABLE)
         strip.add_event_cb(lambda e: self._id_tap(), lv.EVENT.CLICKED, None)
-        strip = ui.box(s, 6, 212, _ROW_W, 22, STRIP_BG, radius=ui.RADIUS)
+        strip = ui.box(s, 6, 212, _ROW_W, 22, None)
         ui.label(strip, "JAGER ID", 6, 3, ui.MYSTERY, ui.font_small())
         ui.label(strip, p.get("hunter_id") or "-", 72, 3, ui.INK, ui.font_small())
 
