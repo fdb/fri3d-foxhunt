@@ -17,6 +17,7 @@ from mpos import Activity, Intent
 import ui
 import art
 import store
+import telemetry
 from creatures import by_id
 from screen_home import HomeActivity
 from screen_welcome import WelcomeActivity
@@ -34,6 +35,7 @@ class FoxhuntActivity(Activity):
             s, "VOSSENJACHT", 0, 180, ui.TERRA, ui.font_title(), w=320, center=True
         )
         self.setContentView(s)
+        telemetry.boot()
 
     def onResume(self, screen):
         super().onResume(screen)

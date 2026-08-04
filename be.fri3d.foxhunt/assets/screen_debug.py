@@ -69,6 +69,8 @@ class DebugActivity(Activity):
         caught = set(store.caught_ids())
         for creature in CREATURES:
             cid = creature["id"]
+            if cid == 13:
+                continue
             row = ui.box(self.roster, 0, 0, 294, 42, ui.CARD, radius=ui.RADIUS)
             row.set_style_border_width(ui.BORDER_THIN, 0)
             row.set_style_border_color(ui.hexc(ui.BORDER_REST), 0)

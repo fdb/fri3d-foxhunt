@@ -67,6 +67,19 @@ def set_setting(key, value):
     prefs.edit().put_dict("settings", s).commit()
 
 
+def flag(name):
+    """One-way markers: things that have happened once on this badge."""
+    return name in SharedPreferences(_APP).get_list("flags", [])
+
+
+def set_flag(name):
+    prefs = SharedPreferences(_APP)
+    f = prefs.get_list("flags", [])
+    if name not in f:
+        f.append(name)
+        prefs.edit().put_list("flags", f).commit()
+
+
 def caught_ids():
     return SharedPreferences(_APP).get_list("caught", [])
 
