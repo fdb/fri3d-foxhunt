@@ -243,6 +243,7 @@ CREATURES = [
         "code": "0007",
         "beacon": 12,
         "img": "3_knoricorn.png",
+        "anim": True,
         "soort": "Eenhoorn",
         "biotoop": "Regenboogwei",
         "favoriet": "bes",
