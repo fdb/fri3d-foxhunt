@@ -15,6 +15,7 @@ import pet
 from creatures import by_id
 from screen_feed import FeedActivity
 from screen_dossier import DossierActivity
+from screen_school import SchoolActivity
 
 # action-bar buttons: (icon, label, kind)
 _ACTS = (
@@ -125,7 +126,14 @@ class BeastActivity(Activity):
             self.startActivity(
                 Intent(activity_class=DossierActivity, extras={"fox_id": self.fox_id})
             )
-        else:  # aaien / spelen — inline care
+        elif kind == "spelen":
+            # spelen is no longer a free inline tap: it opens the
+            # beestenschool, where a session costs energy and earns band
+            sound.play("tap")
+            self.startActivity(
+                Intent(activity_class=SchoolActivity, extras={"fox_id": self.fox_id})
+            )
+        else:  # aaien — inline care, always free (basic affection)
             st, ok, msg = store.do_action(self.fox_id, kind)
             sound.play("tap" if ok else "error")
             self._flash(msg)

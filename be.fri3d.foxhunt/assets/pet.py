@@ -16,11 +16,18 @@ STATS = (
 _DECAY = {"hunger": +6, "energy": -4, "mood": -3}
 
 # Action effects: deltas applied when the creature accepts.
+#
+# The economy chain (GAME_DESIGN.md, The three verbs): plukken yields food ->
+# voederen restores ENERGY -> spelen spends energy and builds BOND. So feeding
+# and petting grant only token bond; play() below is where bond is earned.
 _ACTIONS = {
-    "voeden": {"hunger": -35, "energy": +8, "bond": +3, "mood": +4},
-    "aaien": {"mood": +12, "bond": +5, "energy": +2},
+    "voeden": {"hunger": -35, "energy": +20, "bond": +1, "mood": +4},
+    "aaien": {"mood": +12, "bond": +2, "energy": +2},
     "spelen": {"mood": +18, "bond": +8, "energy": -18, "hunger": +12},
 }
+
+# One energy segment (the 5-cell meter) in 0..100 stat points.
+SEG = 20
 
 
 def _clamp(v):
@@ -118,7 +125,8 @@ _OK_MSG = {
 
 def feed(state, food, favoriet, now):
     """Feed a specific hapje. Returns (new_state, ok, message, is_favourite).
-    The creature's favourite food grants extra band ('favoriet = +1 band')."""
+    Food is the energy leg of the chain: the favourite grants extra ENERGY
+    ('favoriet = meer energie'); bond stays token — band komt van spelen."""
     s = dict(state)
     if s.get("hunger", 0) <= 8:
         s["mood"] = _clamp(s.get("mood", 0) - 2)
@@ -126,11 +134,29 @@ def feed(state, food, favoriet, now):
         return s, False, "zit vol!", False
     is_fav = food == favoriet
     s["hunger"] = _clamp(s.get("hunger", 0) - 35)
-    s["energy"] = _clamp(s.get("energy", 0) + 8)
+    s["energy"] = _clamp(s.get("energy", 0) + (35 if is_fav else 20))
     s["mood"] = _clamp(s.get("mood", 0) + (8 if is_fav else 4))
-    s["bond"] = _clamp(s.get("bond", 0) + (8 if is_fav else 3))
+    s["bond"] = _clamp(s.get("bond", 0) + (2 if is_fav else 1))
     s["last"] = now
-    return s, True, ("favoriet! +band" if is_fav else "mmm!"), is_fav
+    return s, True, ("favoriet! extra energie" if is_fav else "mmm!"), is_fav
+
+
+def play(state, cost, favourite, now):
+    """A beestenschool session: spend `cost` energy segments, earn bond.
+    Returns (new_state, ok, message). The playful refusal when energy is
+    short IS the rate limit on bond — never a punishment, just 'eerst een
+    hapje'. A favourite game earns extra bond."""
+    s = dict(state)
+    if s.get("energy", 0) < cost * SEG:
+        s["mood"] = _clamp(s.get("mood", 0) - 1)
+        s["last"] = now
+        return s, False, "te moe om te spelen"
+    s["energy"] = _clamp(s.get("energy", 0) - cost * SEG)
+    s["bond"] = _clamp(s.get("bond", 0) + (10 if favourite else 6))
+    s["mood"] = _clamp(s.get("mood", 0) + 12)
+    s["hunger"] = _clamp(s.get("hunger", 0) + 10)
+    s["last"] = now
+    return s, True, ("favoriet spel! ++band" if favourite else "wat een lol! +band")
 
 
 def face(state):
@@ -171,11 +197,22 @@ if __name__ == "__main__":
     assert hearts(50) == 3
     assert level_pct(50) == 50 and level_pct(100) == 100, level_pct(50)
     assert fullness(25) == 75
-    # favourite food grants more band than a plain hapje
+    # favourite food grants more ENERGY than a plain hapje (band comes from play)
     base = dict(st)
     base["hunger"] = 60
+    base["energy"] = 40
     plain, ok, _, fav = feed(base, "noot", "bes", st["last"])
-    assert ok and not fav and plain["bond"] == base["bond"] + 3, plain
+    assert ok and not fav and plain["energy"] == 60, plain
+    assert plain["bond"] == base["bond"] + 1, plain
     favd, ok, _, fav = feed(base, "bes", "bes", st["last"])
-    assert ok and fav and favd["bond"] == base["bond"] + 8, favd
+    assert ok and fav and favd["energy"] == 75, favd
+    # a beestenschool session: costs energy segments, earns real bond
+    played, ok, msg = play(base, 2, False, st["last"])
+    assert ok and played["energy"] == 0 and played["bond"] == base["bond"] + 6, played
+    played, ok, msg = play(base, 2, True, st["last"])
+    assert ok and played["bond"] == base["bond"] + 10, played
+    low = dict(base)
+    low["energy"] = 19
+    _, ok, msg = play(low, 1, False, st["last"])
+    assert not ok and msg == "te moe om te spelen", (ok, msg)
     print("pet.py self-test OK")

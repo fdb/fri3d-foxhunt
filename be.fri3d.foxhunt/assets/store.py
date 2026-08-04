@@ -1,10 +1,18 @@
 # store.py — persistent state via MicroPythonOS SharedPreferences.
 # Stored at data/be.fri3d.foxhunt/config.json on both desktop and badge.
 #
-#   "caught" : list of caught creature ids
-#   "beast"  : dict {str(id): pet-state} — care stats per caught creature
+#   "caught"   : list of caught creature ids
+#   "beast"    : dict {str(id): pet-state} — care stats per caught creature
+#   "origins"  : dict {str(id): "vangst"|"spoor"} — how a creature arrived;
+#                only own finds ("vangst") may be deliberately shared
+#   "voorraad" : dict {food: count} — the finite pantry
+#   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
+#   "vonk"     : today's snuffel log (pairs met + vonk count, daily reset)
+#   "pluk"     : {spots: {bssid: epoch}, date, count} — reloads + day stat
 #
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
+
+import random
 
 from mpos import SharedPreferences
 import mpos.time
@@ -22,6 +30,12 @@ def _now():
 def _today():
     lt = mpos.time.localtime()
     return "%04d-%02d-%02d" % (lt[0], lt[1], lt[2])
+
+
+def today():
+    """The wall-clock day, for callers that key daily rules on it (the
+    plukplek yield formula, the vonk log)."""
+    return _today()
 
 
 def profile():
@@ -88,18 +102,31 @@ def is_caught(cid):
     return cid in caught_ids()
 
 
-def add_caught(cid):
+def add_caught(cid, origin="vangst"):
+    """Add a creature. origin records HOW it arrived: "vangst" (found it
+    yourself — hunt, code) or "spoor" (introduced by another player). Only
+    own finds may be deliberately shared onward (GAME_DESIGN.md: you may
+    share a creature you found; an introduced one spreads only by luck)."""
     prefs = SharedPreferences(_APP)
     ids = prefs.get_list("caught", [])
     e = prefs.edit()
     if cid not in ids:
         ids.append(cid)
         e.put_list("caught", ids)
+        e.put_dict_item("origins", str(cid), origin)
     # First catch seeds the pet state; a recatch never overwrites its stats.
     beast = prefs.get_dict("beast", {})
     if str(cid) not in beast:
         e.put_dict_item("beast", str(cid), pet.default_state(_today(), _PLACE, _now()))
     e.commit()
+
+
+def own_find_ids():
+    """Creatures this player found themselves — the only ones a spoor may
+    deliberately share. Legacy saves have no origin recorded; everything in
+    them arrived through the hunt, so missing means "vangst"."""
+    origins = SharedPreferences(_APP).get_dict("origins", {})
+    return [c for c in caught_ids() if origins.get(str(c), "vangst") == "vangst"]
 
 
 def restore_caught(ids):
@@ -181,13 +208,176 @@ def do_action(cid, action):
 
 
 def do_feed(cid, food):
-    """Feed a hapje ('bes'|'noot'|'eikel'); persist; (state, ok, msg, is_fav)."""
+    """Feed a hapje ('bes'|'noot'|'eikel') FROM THE VOORRAAD; persist;
+    (state, ok, msg, is_fav). An empty pantry refuses before the creature
+    gets a say — the hapje is only consumed when it is actually eaten."""
     prefs = SharedPreferences(_APP)
     raw = _raw_state(prefs, cid)
     if raw is None:
         return None, False, "", False
+    if voorraad().get(food, 0) <= 0:
+        return pet.decay(raw, _now()), False, "op - ga plukken!", False
     c = by_id(cid)
     favoriet = c.get("favoriet") if c else None
     state, ok, msg, is_fav = pet.feed(pet.decay(raw, _now()), food, favoriet, _now())
+    if ok:
+        take_food(food)
     prefs.edit().put_dict_item("beast", str(cid), state).commit()
     return state, ok, msg, is_fav
+
+
+def do_play(cid, cost, favourite):
+    """A beestenschool session; persist; return (state, ok, msg)."""
+    prefs = SharedPreferences(_APP)
+    raw = _raw_state(prefs, cid)
+    if raw is None:
+        return None, False, ""
+    state, ok, msg = pet.play(pet.decay(raw, _now()), cost, favourite, _now())
+    prefs.edit().put_dict_item("beast", str(cid), state).commit()
+    return state, ok, msg
+
+
+# ── voorraad: the finite pantry ─────────────────────────────────────────────
+# Foraging fills it, feeding drains it. New players get a small starter so
+# the first feed never hits an empty pantry (GAME_DESIGN.md: basic affection
+# must never be locked out; the tutorial hands over these).
+FOODS = ("bes", "noot", "eikel")
+_STARTER = {"bes": 2, "noot": 1, "eikel": 1}
+
+
+def voorraad():
+    prefs = SharedPreferences(_APP)
+    # get_dict hands back {} for a missing key, so truthiness is the "never
+    # seeded" test. A legitimately empty pantry keeps its zero-count keys
+    # and stays empty — only a fresh save gets the starter.
+    v = prefs.get_dict("voorraad", {})
+    if not v:
+        v = dict(_STARTER)
+        prefs.edit().put_dict("voorraad", v).commit()
+    return {f: int(v.get(f, 0)) for f in FOODS}
+
+
+def voorraad_total():
+    return sum(voorraad().values())
+
+
+def add_food(food, n=1):
+    v = voorraad()
+    v[food] = v.get(food, 0) + n
+    SharedPreferences(_APP).edit().put_dict("voorraad", v).commit()
+    return v
+
+
+def take_food(food):
+    """Consume one hapje. False (and no change) if the jar is empty."""
+    v = voorraad()
+    if v.get(food, 0) <= 0:
+        return False
+    v[food] -= 1
+    SharedPreferences(_APP).edit().put_dict("voorraad", v).commit()
+    return True
+
+
+# ── snuffelen: vrienden (permanent) + vonken (daily) ────────────────────────
+# The vriendenboekje never decays; the vonk log resets each day. Identity is
+# the peer's MAC (snuffel_link) or a manual code — either way one string.
+VONK_DAY_CAP = 10  # scored vonken per day: meet SOME new people, not everyone
+
+
+def vrienden():
+    return SharedPreferences(_APP).get_list("vrienden", [])
+
+
+def _vonk_log():
+    d = SharedPreferences(_APP).get_dict("vonk", {})
+    if d.get("date") != _today():
+        return {"date": _today(), "pairs": [], "count": 0}
+    return d
+
+
+def vonk_count_today():
+    return _vonk_log()["count"]
+
+
+def record_snuffel(mac, naam, code):
+    """A completed snuffel with peer `mac`. Writes the boekje page on a
+    first-ever meeting and scores a vonk on the first meeting of the day
+    (capped). Returns {"new_friend", "vonk", "dag"}."""
+    prefs = SharedPreferences(_APP)
+    vr = prefs.get_list("vrienden", [])
+    new_friend = not any(f.get("mac") == mac for f in vr)
+    dag = _today()
+    e = prefs.edit()
+    if new_friend:
+        vr.append({"mac": mac, "naam": naam, "code": code, "dag": dag})
+        e.put_list("vrienden", vr)
+    log = _vonk_log()
+    vonk = mac not in log["pairs"] and log["count"] < VONK_DAY_CAP
+    if mac not in log["pairs"]:
+        log["pairs"].append(mac)
+    if vonk:
+        log["count"] += 1
+    e.put_dict("vonk", log)
+    e.commit()
+    return {"new_friend": new_friend, "vonk": vonk, "dag": dag}
+
+
+# Vonk-geluk: the chance that one of the OTHER player's creatures introduces
+# itself, weighted by rarity — commons spread eagerly, rares reluctantly,
+# legendaries never on their own (GAME_DESIGN.md, Vonk-geluk).
+_GELUK_PCT = {"norm": 45, "rare": 15, "leg": 0}
+
+
+def roll_vonk_geluk(peer_roster):
+    """Roll against the peer's roster; returns a creature id or None. Only
+    creatures we don't already know can introduce themselves."""
+    cands = [by_id(cid) for cid in peer_roster]
+    cands = [c for c in cands if c and not is_caught(c["id"])]
+    if not cands:
+        return None
+    c = random.choice(cands)
+    if random.randrange(100) < _GELUK_PCT.get(c["rarity"], 0):
+        return c["id"]
+    return None
+
+
+# ── plukken: per-badge spot reloads + the day stat ──────────────────────────
+PLUK_RELOAD_S = 60 * 60  # a spot reloads for THIS badge in about an hour
+
+
+def _pluk():
+    d = SharedPreferences(_APP).get_dict("pluk", {})
+    d.setdefault("spots", {})
+    if d.get("date") != _today():
+        d["date"] = _today()
+        d["count"] = 0
+    return d
+
+
+def pluk_wait_s(bssid):
+    """Seconds until this spot yields again for this badge (0 = ready)."""
+    t = _pluk()["spots"].get(bssid)
+    if t is None:
+        return 0
+    return max(0, PLUK_RELOAD_S - (_now() - int(t)))
+
+
+def spots_ready_count():
+    """Previously visited spots that have reloaded — the home-card stat."""
+    return sum(1 for b in _pluk()["spots"] if pluk_wait_s(b) == 0)
+
+
+def pluk_count_today():
+    return _pluk()["count"]
+
+
+def record_pluk(bssid, oogst):
+    """Bank a harvest: start the spot's reload, add the yield, bump the day
+    stat. `oogst` is {food: n}."""
+    d = _pluk()
+    d["spots"][bssid] = _now()
+    d["count"] = d.get("count", 0) + 1
+    SharedPreferences(_APP).edit().put_dict("pluk", d).commit()
+    for food, n in oogst.items():
+        if n > 0:
+            add_food(food, n)
