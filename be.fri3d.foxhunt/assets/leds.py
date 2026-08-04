@@ -6,7 +6,9 @@
 #               colors_for_level() instead.
 # We deliberately only use set_led() + write() (never is_available()/clear()):
 # those two are the oldest, most stable part of the mpos.lights API, so the app
-# runs on badge firmware older than this checkout's mpos.
+# runs on badge firmware older than this checkout's mpos. They started as
+# module-level functions and moved onto a LightsManager singleton; _LM picks
+# whichever this firmware has.
 # Everything in this module is ordered as you SEE it: index 0 = leftmost
 # (coldest), 4 = rightmost (hottest), same as the on-screen mirror. The strip
 # itself is wired the other way round — physical pixel 0 is the RIGHTMOST one —
@@ -18,6 +20,8 @@
 
 import mpos.lights as lights
 import store
+
+_LM = lights if hasattr(lights, "set_led") else lights.LightsManager
 
 OFF = (0, 0, 0)
 MIRROR_OFF = (24, 22, 18)
@@ -68,8 +72,8 @@ def write(colors):
     last = len(colors) - 1
     for i, rgb in enumerate(colors):
         r, g, b = dim(rgb)
-        lights.set_led(last - i, r, g, b)
-    return lights.write()
+        _LM.set_led(last - i, r, g, b)
+    return _LM.write()
 
 
 def show_level(level):
@@ -80,5 +84,5 @@ def show_level(level):
 def off():
     """Blank the physical NeoPixels. Returns False (no-op) on desktop."""
     for i in range(5):
-        lights.set_led(i, 0, 0, 0)
-    return lights.write()
+        _LM.set_led(i, 0, 0, 0)
+    return _LM.write()
