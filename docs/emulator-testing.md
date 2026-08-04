@@ -49,8 +49,11 @@ ffmpeg -vcodec rawvideo -f rawvideo -pix_fmt rgb565le -s 320x240 -i shot.raw sho
 ## App state
 
 Preferences live at
-`<MicroPythonOS>/internal_filesystem/data/be.fri3d.foxhunt/config.json`
-(NOT `data/` at the repo root). Edit it between runs to set up scenarios:
+`<MicroPythonOS>/internal_filesystem/prefs/be.fri3d.foxhunt/config.json`
+(NOT `data/` at the repo root, and no longer `internal_filesystem/data/` —
+MPOS moved prefs to `prefs/` and keeps `data/` only as the legacy source of a
+one-time migration, so seeding the old path silently does nothing). Edit it
+between runs to set up scenarios:
 delete the `profile` key to re-trigger first-run onboarding, seed a profile
 dict to skip it, delete `settings` to reset toggles.
 
