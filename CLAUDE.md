@@ -26,8 +26,14 @@ board layer handles the hardware differences.
 
 ## Deploying to the badge
 `scripts/deploy_to_badge.sh [--start]` pushes the app over USB — ~8s when
-nothing changed, ~15-20s for a typical change. Five things it does that are
+nothing changed, ~15-20s for a typical change. Six things it does that are
 not obvious, each because copying the files is not enough:
+- **It refuses to silently replace another checkout's build.** More than one
+  clone of this repo exists, and each clone's script would truthfully report
+  "up to date" against its own tree while the developer believes they are
+  testing the other one. Every install stamps `#src <dir> <commit> <dirty>`
+  into the manifest; a deploy from a different directory than the badge's
+  stamp refuses without `--force`, and every run prints both identities.
 - **It ships `.mpy` bytecode, not source.** The badge spends ~2s of every
   cold start compiling 5k lines of Python; the in-tree mpy-cross (same
   checkout as the firmware, so the bytecode versions match) does it once at

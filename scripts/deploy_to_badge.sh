@@ -24,9 +24,11 @@ cd "$(dirname "$0")/.."
 # emulator/aioREPL workflow is untouched — it is just the wrong transport
 # for bulk deploy traffic.
 #
-# Usage: scripts/deploy_to_badge.sh [--start] [--port /dev/cu.usbmodemXXX]
+# Usage: scripts/deploy_to_badge.sh [--start] [--force] [--port /dev/cu.usbmodemXXX]
 #
 #   --start          launch the app on the badge after installing
+#   --force          replace a build that was deployed from a DIFFERENT
+#                    source checkout (see the provenance guard below)
 #   --port PORT      serial port (default: auto-detect /dev/cu.usbmodem*)
 #
 # Env overrides:
@@ -37,17 +39,37 @@ APP_ID="be.fri3d.foxhunt"
 APP_SRC="$PROJECT_DIR/$APP_ID"
 
 START=0
+FORCE=0
 PORT="${BADGE_PORT:-}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --start) START=1; shift ;;
+        --force) FORCE=1; shift ;;
         --port)  PORT="${2:-}"; shift 2 ;;
         -h|--help)
-            sed -n '5,33p' "$0"; exit 0 ;;
+            sed -n '5,36p' "$0"; exit 0 ;;
         *) echo "error: unknown argument '$1'" >&2; exit 2 ;;
     esac
 done
+
+# ── Provenance: WHAT is being deployed, not just whether it differs ──
+# "Up to date" is only half an answer: up to date WITH WHAT? More than one
+# checkout of this project exists, and each one's copy of this script would
+# happily sync the badge to its own tree and truthfully report "no change" —
+# while the developer believes they are testing the other tree's work. So
+# every deploy stamps where it came from (#src line in .deploy.sha: source
+# dir, git commit, dirty flag), every run prints both identities, and a
+# deploy from a different directory than the badge's current build REFUSES
+# without --force. Switching trees stays possible — it just can't happen
+# silently anymore.
+git_head=$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo unversioned)
+if [[ -n "$(git -C "$PROJECT_DIR" status --porcelain 2>/dev/null)" ]]; then
+    git_state="dirty"
+else
+    git_state="clean"
+fi
+SRC_ID="$PROJECT_DIR $git_head $git_state"
 
 # ── Sanity checks ────────────────────────────────────────────────────
 [[ -d "$APP_SRC" ]] || { echo "error: app dir not found: $APP_SRC" >&2; exit 1; }
@@ -80,7 +102,7 @@ cp -R "$APP_SRC" "$STAGE"
 find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} +
 find "$STAGE" -name '.DS_Store' -delete
 
-echo "Deploying $APP_ID -> $PORT"
+echo "Deploying $APP_ID from $PROJECT_DIR @ $git_head ($git_state) -> $PORT"
 
 # Every phase prints its elapsed time: the deploy is a serial-port pipeline
 # whose cost lives in places invisible from the outside (REPL handshakes,
@@ -149,6 +171,10 @@ man = {}
 try:
     with open(root + "/.deploy.sha") as fh:
         for line in fh:
+            if line.startswith("#src "):
+                # Provenance stamp: which checkout+commit installed this build.
+                print("SRC", line[5:].strip())
+                continue
             parts = line.split()
             if len(parts) == 3:
                 man[parts[2]] = (parts[0], int(parts[1]))
@@ -201,6 +227,40 @@ PY
 # store.py as changed whenever sound.py was, they being adjacent).
 tr -d '\r' < "$STAGE_ROOT/remote.txt" > "$STAGE_ROOT/remote.clean"
 man_state=$(sed -n 's/^MAN //p' "$STAGE_ROOT/remote.clean" | tail -1)
+
+# ── The provenance guard itself ──────────────────────────────────────
+# The badge reports the #src stamp of whatever is installed. A different
+# source DIRECTORY means a different checkout: replacing its build is a
+# takeover, not an update, so it must be said out loud and confirmed with
+# --force. A different commit from the SAME directory is just work to
+# deploy — no ceremony. No stamp at all is a pre-provenance or store
+# install: nothing to compare against, deploy normally.
+# stamp_ours: the badge's stamp exists AND names this checkout. Anything
+# else (foreign stamp being forced over, no stamp at all) must fall through
+# to the install phase so a correct stamp gets written — otherwise a forced
+# takeover with identical files would leave the foreign stamp in place and
+# demand --force forever after.
+remote_src=$(sed -n 's/^SRC //p' "$STAGE_ROOT/remote.clean" | tail -1)
+stamp_ours=0
+if [[ -n "$remote_src" ]]; then
+    phase "Badge holds: $remote_src"
+    remote_dir="${remote_src%% *}"
+    if [[ "$remote_dir" != "$PROJECT_DIR" ]]; then
+        if [[ "$FORCE" -ne 1 ]]; then
+            echo "error: the badge's build was deployed from a DIFFERENT checkout:" >&2
+            echo "         badge:  $remote_src" >&2
+            echo "         here:   $SRC_ID" >&2
+            echo "       Deploying would replace that build with this tree's." >&2
+            echo "       Re-run with --force if that is what you want." >&2
+            exit 1
+        fi
+        phase "--force: replacing the $remote_dir build with this tree's."
+    else
+        stamp_ours=1
+    fi
+else
+    phase "Badge build has no provenance stamp (pre-provenance or store install)."
+fi
 sed -n 's/^F //p' "$STAGE_ROOT/remote.clean" | sort > "$STAGE_ROOT/remote.sha"
 cut -d' ' -f2- "$STAGE_ROOT/remote.sha" | sort > "$STAGE_ROOT/remote.lst"
 (cd "$STAGE" && find . -type f) | sed 's|^\./||' | sort > "$STAGE_ROOT/stage.lst"
@@ -227,25 +287,33 @@ orphan_count=$(wc -l < "$STAGE_ROOT/orphans.lst" | tr -d ' ')
 # Nothing to copy, nothing to prune, manifest already proven by the stat walk:
 # the whole deploy was one REPL trip. (--start still needs the second trip.)
 if [[ "$changed_count" -eq 0 && "$orphan_count" -eq 0 \
-      && "$man_state" == "ok" && "$START" -ne 1 ]]; then
-    phase "No file changed; badge is already up to date."
+      && "$man_state" == "ok" && "$stamp_ours" -eq 1 && "$START" -ne 1 ]]; then
+    phase "No file changed; badge already matches this tree ($PROJECT_DIR)."
     phase "Done."
     exit 0
 fi
 
 # ── Install just the difference ──────────────────────────────────────
 # `mpremote fs cp -r` merges rather than replaces — handing it a tree holding
-# only the changed files updates exactly those and leaves the rest alone. The
-# delta always carries a fresh .deploy.sha: on an orphan-only or
-# stale-manifest run that is the entire delta, and pushing it BEFORE the
-# prune below is deliberate — if this deploy dies in between, the manifest
-# names files the disk still holds, the next run's stat walk sees the
-# mismatch and falls back to hashing. Stale manifests self-heal; a missing
-# one (store install rmtree'd the dir) just means one slow first deploy.
-# It retries because mpremote's raw-REPL handshake sometimes times out when
-# the badge is busy.
+# only the changed files updates exactly those and leaves the rest alone.
+# The manifest (provenance header + "sha16 size path" lines) is pushed in a
+# SEPARATE cp AFTER the delta lands, and that order is what makes a torn
+# install honest: kill the deploy mid-copy and the badge still holds the OLD
+# manifest, so the next run diffs against old hashes and simply re-sends
+# what this run meant to — where a new manifest over half-copied files would
+# vouch for content it cannot see (the stat walk checks sizes, and a stale
+# file of the same size would pass as current forever). Pushing it before
+# the prune below is still deliberate: die in between and the manifest names
+# files the disk still holds, which the stat walk catches. A missing
+# manifest (store install rmtree'd the dir) just means one slow first
+# deploy. It retries because mpremote's raw-REPL handshake sometimes times
+# out when the badge is busy.
+# A badge whose stamp is not ours (missing, or foreign under --force)
+# forces one manifest refresh so the correct stamp lands; after that the
+# fast path applies again.
 need_install=0
-[[ "$changed_count" -gt 0 || "$orphan_count" -gt 0 || "$man_state" != "ok" ]] && need_install=1
+[[ "$changed_count" -gt 0 || "$orphan_count" -gt 0 || "$man_state" != "ok" \
+   || "$stamp_ours" -ne 1 ]] && need_install=1
 installed=1
 if [[ "$need_install" -eq 1 ]]; then
     if [[ "$changed_count" -gt 0 ]]; then
@@ -260,10 +328,13 @@ if [[ "$need_install" -eq 1 ]]; then
         mkdir -p "$DELTA/$(dirname "$f")"
         cp "$STAGE/$f" "$DELTA/$f"
     done < "$STAGE_ROOT/changed.lst"
-    cp "$STAGE_ROOT/stage.man" "$DELTA/.deploy.sha"
+    { echo "#src $SRC_ID"; cat "$STAGE_ROOT/stage.man"; } > "$STAGE_ROOT/deploy.sha"
     installed=0
     for attempt in 1 2 3; do
-        if "${MP[@]}" fs cp -r "$DELTA" :/apps/ >/dev/null; then
+        if { [[ "$changed_count" -eq 0 ]] \
+               || "${MP[@]}" fs cp -r "$DELTA" :/apps/ >/dev/null; } \
+           && "${MP[@]}" fs cp "$STAGE_ROOT/deploy.sha" \
+                  ":$APP_DIR/.deploy.sha" >/dev/null; then
             installed=1
             break
         fi
@@ -274,6 +345,14 @@ fi
 if [[ "$installed" -ne 1 ]]; then
     echo "error: install failed three times. The badge keeps the previous copy of" >&2
     echo "       $APP_ID — re-run to repair it." >&2
+    # A torn copy can leave a same-size stale file the stat walk cannot see.
+    # Drop the manifest (best effort) so the next run hashes every file.
+    "${MP[@]}" exec "import os
+try:
+    os.remove('$APP_DIR/.deploy.sha')
+except OSError:
+    pass" >/dev/null 2>&1 || true
+    echo "       (manifest dropped: the next run re-hashes every file.)" >&2
     exit 1
 fi
 
