@@ -26,7 +26,11 @@ _SSID_B = SSID.encode()
 PLUK_LEVEL = 4  # harvestable at meter level >= 4 (about -55 dBm)
 
 _MAX_SPOTS = 12  # keep the strongest few; a city block can show 40+
-_SCAN_GAP_MS = 300  # breather between scans, so the radio is not pinned
+_SCAN_GAP_MS = 1500  # breather between sweeps. A sweep itself blocks the
+# radio ~2.9 s; back-to-back sweeps pin the high-priority WiFi task at ~90%
+# duty and starve everything below it — measurably the USB serial console,
+# and it buys a hot/cold meter nothing. ~4.5 s per reading is plenty for a
+# walking pace.
 _IDLE_EXIT_MS = 5000  # worker retires once the screen stops asking
 _STALE_MS = 20000  # nothing scanned this long -> report nothing, not a lie
 _SMOOTH = 0.5  # per-BSSID RSSI smoothing: raw dBm jitters +-5 and would
