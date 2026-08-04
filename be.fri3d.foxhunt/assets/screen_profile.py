@@ -58,7 +58,9 @@ class ProfileActivity(Activity):
         name = ui.label(s, p.get("name", "Jager"), 124, 34, ui.INK, ui.font_title())
         pencil = art.icon(s, "pencil", 2)
         pencil.align_to(name, lv.ALIGN.OUT_RIGHT_MID, 6, 0)
-        ui.label(s, p.get("hunter_id") or "JGR volgt", 124, 62, ui.INK, ui.font_small())
+        ui.label(
+            s, p.get("hunter_id") or "Verzamelaar", 124, 62, ui.INK, ui.font_small()
+        )
         ui.label(s, p.get("badge_id", ""), 124, 78, BADGE_TX, ui.font_small())
 
         # score: rarity-weighted, local for now (the server will own scoring)

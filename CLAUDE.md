@@ -77,7 +77,8 @@ and two different "companions" happened.
 | **companion** | **maatje** | The player's own avatar: a head + stacked accessories + a backdrop, built at registration. `companion.py`, `screen_companion.py`, `CompanionActivity`. |
 | **creature** | **beest** | One of the huntable animals in the roster (`creatures.py`). Never a "companion". |
 | **fox** | **vos** | A physical LoRa transmitter hidden in the field. The creature is what you *get*; the fox is what you *find*. |
-| **hunter** | **jager** | The player. |
+| **hunter** | **jager** | The player, when playing with a LoRa antenna: has a minted `hunter_id`, shown as "JGR-04". |
+| **collector** | **verzamelaar** | The player, when playing WiFi-only (no antenna): `hunter_id` is None. The UI shows the mode word where a jager would see their id. |
 | **pet state** | — | The per-creature care stats — bond, hunger, mood (`pet.py`, `store.beast_state`). Belongs to a creature, never to the companion. |
 | **shortcode** | — | The companion serialized for the wire: `H1A003C1` (`companion.encode` / `.decode`). |
 
