@@ -199,6 +199,15 @@ _SKY = (
 _SKY_TOP = 32  # clear of the 26px banner, which is drawn before the clouds
 _SKY_BOT = 148
 
+# Collision leniency, the oldest trick in the platformer book: the fox's box is
+# 32x32 but the art doesn't fill it — ears, tail and paws leave transparent
+# margin — so an honest box-vs-box test kills you for a hit that never looked
+# like one. The player's hitbox shrinks by _GRACE on every side. It costs
+# nothing when you were clearly going to crash and saves you when you weren't.
+# The screen edges deliberately stay strict: there the sprite leaving the frame
+# IS the visible signal, and a forgiving box would just clip the fox off-screen.
+_GRACE = 5
+
 
 class VliegActivity(GameActivity):
     TITLE = "VLIEGEN"
@@ -325,11 +334,12 @@ class VliegActivity(GameActivity):
                 o["bot"].delete()
                 self.obs.remove(o)
                 continue
-            # collision: bird box (x 50..82) vs branch column outside the gap
-            if x < _BIRD_X + 32 and x + 26 > _BIRD_X:
+            # collision: the fox's hitbox (its 32x32 box inset by _GRACE, so
+            # x 55..77) vs the branch column outside the gap
+            if x < _BIRD_X + 32 - _GRACE and x + 26 > _BIRD_X + _GRACE:
                 if (
-                    self._y < o["gap"] - _GAP // 2
-                    or self._y + 32 > o["gap"] + _GAP // 2
+                    self._y + _GRACE < o["gap"] - _GAP // 2
+                    or self._y + 32 - _GRACE > o["gap"] + _GAP // 2
                 ):
                     sound.play("error")
                     self.game_over("AUW!")
