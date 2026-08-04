@@ -40,6 +40,7 @@ class GameActivity(Activity):
         self.c = by_id(self.fox_id)
         self.timer = None
         self._over = False
+        self._grabbed = False
         self.score = 0
         st, ok, self.pet_msg = store.do_play(self.fox_id, self.kost, self.fav)
         self.naam = (st or {}).get("bijnaam") or self.c["naam"]
@@ -78,10 +79,32 @@ class GameActivity(Activity):
         if self.has_foreground() and not self._over:
             self.step()
 
+    def grab_keys(self, s, on_key):
+        """Give the playfield itself the joystick/keyboard focus.
+
+        The board pushes a key to whatever the default group has focused, so a
+        game that wants to be steered has to BE that object. Added bare, never
+        through ui.focusable() — a gold halo around the whole screen is exactly
+        the wrong feedback. SIMON doesn't call this: its four pads are real
+        focusable widgets and the normal focus walk is the right control.
+        Released again in game_over()."""
+        s.add_event_cb(on_key, lv.EVENT.KEY, None)
+        g = lv.group_get_default()
+        if g:
+            g.add_obj(s)
+            lv.group_focus_obj(s)
+            self._grabbed = True
+
     # ── the end card ────────────────────────────────────────────────────
     def game_over(self, kop, retry=True):
         self._over = True
         leds.off()
+        # Hand the joystick back BEFORE the card exists: with nothing focused,
+        # the group focuses the first button the card registers. Keep the grab
+        # and NOG EEN KEER / TERUG are unreachable without the touchscreen.
+        if self._grabbed:
+            lv.group_remove_obj(self.screen)
+            self._grabbed = False
         card = ui.panel(self.screen, 30, 46, 260, 138, ui.CARD)
         ui.label(card, kop, 0, 8, ui.TERRA, ui.font_title(), w=256, center=True)
         ui.label(
@@ -185,6 +208,7 @@ class VliegActivity(GameActivity):
     def build(self, s):
         s.add_flag(lv.obj.FLAG.CLICKABLE)
         s.add_event_cb(lambda e: self._flap(), lv.EVENT.CLICKED, None)
+        self.grab_keys(s, self._key)
         self.clouds = []
         for i, (rows, pal, scale, sp) in enumerate(_SKY):
             # seeded apart rather than at random, so a fresh round never starts
@@ -208,7 +232,7 @@ class VliegActivity(GameActivity):
         self._spawn_t = 10
         ui.label(
             s,
-            "tik om te fladderen",
+            "tik om te fladderen - of stick omhoog",
             0,
             226,
             ui.TEXT_MUTED,
@@ -221,6 +245,14 @@ class VliegActivity(GameActivity):
         if not self._over:
             self._flying = True
             self._vy = -6.5
+
+    def _key(self, e):
+        """Every "go" key flaps: joystick up and A on the badge, up / enter /
+        space on the emulator keyboard. 0x20 is the space bar arriving as plain
+        ASCII — the SDL keyboard passes printable keys straight through, and
+        lv.KEY has no name for it."""
+        if e.get_key() in (lv.KEY.UP, lv.KEY.ENTER, 0x20):
+            self._flap()
 
     def _branch(self, s, y, h, cap):
         b = ui.box(s, 320, y, 26, max(2, h), _BRANCH)
@@ -339,16 +371,7 @@ class VangActivity(GameActivity):
     def build(self, s):
         s.add_flag(lv.obj.FLAG.CLICKABLE)
         s.add_event_cb(lambda e: self._turn(), lv.EVENT.CLICKED, None)
-        # The screen itself takes focus so the joystick reaches the game: the
-        # board pushes LEFT/RIGHT to whatever the default group has focused,
-        # and during play that has to be the playfield, not a button. It is
-        # added bare — no ui.focusable — because a gold halo around the whole
-        # screen is exactly the wrong feedback.
-        s.add_event_cb(self._key, lv.EVENT.KEY, None)
-        g = lv.group_get_default()
-        if g:
-            g.add_obj(s)
-            lv.group_focus_obj(s)
+        self.grab_keys(s, self._key)
         ui.box(s, 0, _HORIZON - 22, 320, 240 - _HORIZON + 22, _FIELD)
         for rows, pal, scale, x, base in _FIELD_ART:
             _scenery(s, rows, pal, scale, x, base - len(rows) * scale)
@@ -400,17 +423,6 @@ class VangActivity(GameActivity):
             self._dir = -1
         elif k == lv.KEY.RIGHT:
             self._dir = 1
-
-    def game_over(self, kop, retry=True):
-        # Hand the joystick back before the end card is built. While playing
-        # the screen holds focus, so LEFT/RIGHT never reach a button — and the
-        # card's NOG EEN KEER / TERUG would be unreachable without the
-        # touchscreen if it kept it. Released first, so the first button the
-        # card registers is the one the group focuses.
-        g = lv.group_get_default()
-        if g:
-            lv.group_remove_obj(self.screen)
-        super().game_over(kop, retry)
 
     def step(self):
         self._cx += 4.0 * self._dir
