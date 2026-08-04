@@ -273,18 +273,28 @@ ICONS = {
         "pal": {"k": 0xFFF7E6, "b": 0xF0C64A},
     },
     # Settings gear (home header) and the edit pencil (profile page).
+    # The gear is 16x16: a classic 8-tooth outline-and-grey gear reads as a
+    # gear at 16px where the old 8x8 ring of dots read as a sprocket smudge.
     "gear": {
         "rows": [
-            "..k..k..",
-            ".kkkkkk.",
-            ".kk..kk.",
-            "kk....kk",
-            "kk....kk",
-            ".kk..kk.",
-            ".kkkkkk.",
-            "..k..k..",
+            "......kkkk......",
+            "......kggk......",
+            "..kkk.kggk.kkk..",
+            "..kggkggggkggk..",
+            "..kggggkkggggk..",
+            "...kggk..kggk...",
+            "kkkggk....kggkkk",
+            "kgggk......kgggk",
+            "kgggk......kgggk",
+            "kkkggk....kggkkk",
+            "...kggk..kggk...",
+            "..kggggkkggggk..",
+            "..kggkggggkggk..",
+            "..kkk.kggk.kkk..",
+            "......kggk......",
+            "......kkkk......",
         ],
-        "pal": {"k": 0x34271A},
+        "pal": {"k": 0x34271A, "g": 0xD8D3C7},
     },
     "pencil": {
         "rows": [
