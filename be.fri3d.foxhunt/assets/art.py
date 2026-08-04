@@ -335,9 +335,17 @@ TITLE_SRC = "M:apps/be.fri3d.foxhunt/assets/title-screen/title-screen.png"
 _IMG_SRC = 16
 _FRAME_BYTES = _IMG_SRC * _IMG_SRC * 4
 
-# (name, frame) -> (dsc, data). The dsc holds a raw pointer INTO data, so the
-# bytes must stay referenced as long as the dsc lives — hence caching both.
-_dsc_cache = {}
+# (name, frame) -> the raw 1 KB atlas frame. Bounded by the roster; saves the
+# file seek on re-reads and feeds every scaled copy below.
+_frame_cache = {}
+
+# Scaled pixel buffers live exactly as long as the widget that shows them: an
+# lv.image_dsc_t holds a raw pointer INTO its data bytes, so the bytes must
+# stay referenced while the widget draws — but at (16*scale)^2 * 4 they are
+# too big to cache forever (one 128px animation is 64 KB a frame). Entries
+# are keyed by a counter and dropped by the widget's DELETE event.
+_live = {}
+_live_n = 0
 
 
 def frames(name):
@@ -345,53 +353,92 @@ def frames(name):
     return atlas.SPRITES[name][1]
 
 
-def sprite_dsc(name, frame=0):
-    """One 16x16 atlas frame as an lv.image_dsc_t (seek + 1 KB read, cached).
-    No PNG decode: sprites.bin already holds the bytes LVGL blits."""
+def _frame_bytes(name, frame):
     key = (name, frame)
-    hit = _dsc_cache.get(key)
-    if hit:
-        return hit[0]
-    base, count = atlas.SPRITES[name]
-    with open(_SPRITE_BIN, "rb") as f:
-        f.seek((base + frame % count) * _FRAME_BYTES)
-        data = f.read(_FRAME_BYTES)
+    data = _frame_cache.get(key)
+    if data is None:
+        base, count = atlas.SPRITES[name]
+        with open(_SPRITE_BIN, "rb") as f:
+            f.seek((base + frame % count) * _FRAME_BYTES)
+            data = f.read(_FRAME_BYTES)
+        _frame_cache[key] = data
+    return data
+
+
+def _upscale(src, scale):
+    """16x16 BGRA bytes blown up by integer pixel replication: every source
+    pixel becomes an exact scale x scale block."""
+    srow = _IMG_SRC * 4
+    drow = srow * scale
+    out = bytearray(len(src) * scale * scale)
+    for y in range(_IMG_SRC):
+        o = y * srow
+        row = b"".join(src[o + 4 * x : o + 4 * x + 4] * scale for x in range(_IMG_SRC))
+        d = y * scale * drow
+        for _ in range(scale):
+            out[d : d + drow] = row
+            d += drow
+    return out
+
+
+def _sprite_dsc(name, frame, scale):
+    """One atlas frame as an lv.image_dsc_t, pre-scaled to 16*scale square.
+    Returns (dsc, data); the caller must keep data referenced (see _keep).
+    No PNG decode: sprites.bin already holds the bytes LVGL blits."""
+    src = _frame_bytes(name, frame)
+    data = src if scale == 1 else _upscale(src, scale)
+    px = _IMG_SRC * scale
     dsc = lv.image_dsc_t(
         {
             "header": {
                 "cf": lv.COLOR_FORMAT.ARGB8888,
-                "w": _IMG_SRC,
-                "h": _IMG_SRC,
-                "stride": _IMG_SRC * 4,
+                "w": px,
+                "h": px,
+                "stride": px * 4,
             },
-            "data_size": _FRAME_BYTES,
+            "data_size": px * px * 4,
             "data": data,
         }
     )
-    _dsc_cache[key] = (dsc, data)
-    return dsc
+    return dsc, data
+
+
+def _keep(w, refs):
+    """Anchor `refs` until widget `w` is deleted (its lv DELETE event)."""
+    global _live_n
+    _live_n += 1
+    k = _live_n
+    _live[k] = refs
+    w.add_event_cb(lambda e: _live.pop(k, None), lv.EVENT.DELETE, None)
 
 
 def sprite_img(parent, name, scale, x=0, y=0, frame=0):
-    """A baked 16x16 sprite blown up to 16*scale, nearest-neighbour, at (x, y).
+    """A baked 16x16 sprite blown up to 16*scale at (x, y) — scaled HERE by
+    pixel replication, never by LVGL. LVGL's draw-time transform steps the
+    source edge-to-edge in (dest_w - 1) increments, which renders half-width
+    edge pixels and the odd double-width column even at exact integer factors;
+    a buffer that already matches the widget size never enters that path.
     The image counterpart of draw_sprite() — same grid, same scale factor, so
     a caller can swap art backends without moving anything else."""
+    dsc, data = _sprite_dsc(name, frame, scale)
     px = _IMG_SRC * scale
     w = lv.image(parent)
-    w.set_src(sprite_dsc(name, frame))
+    w.set_src(dsc)
     w.set_pos(x, y)
     w.set_size(px, px)
-    w.set_inner_align(lv.image.ALIGN.STRETCH)  # scale src(16) to fill px x px
-    w.set_antialias(False)  # nearest-neighbour -> crisp
+    w.set_antialias(False)
     w.remove_flag(lv.obj.FLAG.CLICKABLE)  # let taps fall through to the cell
+    _keep(w, (dsc, data))
     return w
 
 
 _ANIM_FRAME_MS = 180  # sprite-sheet playback: ~5.5 fps reads as pixel art
 
 
-def animate_sprite(img, name, ms=_ANIM_FRAME_MS):
-    """Cycle a sprite_img through its sheet frames, forever.
+def animate_sprite(img, name, scale, ms=_ANIM_FRAME_MS):
+    """Cycle a sprite_img through its sheet frames, forever. Every frame is
+    pre-scaled up front and anchored to the widget, so a tick is one set_src —
+    no allocation, no rescale.
 
     An lv.anim_t rather than an lv.timer for the same reason as
     companion._twinkle: LVGL kills an animation when its var is deleted, so
@@ -401,13 +448,15 @@ def animate_sprite(img, name, ms=_ANIM_FRAME_MS):
     n = frames(name)
     if n < 2:
         return
+    seq = [_sprite_dsc(name, f, scale) for f in range(n)]
+    _keep(img, seq)
     a = lv.anim_t()
     a.init()
     a.set_var(img)
     a.set_values(0, n)
     a.set_duration(n * ms)
     a.set_repeat_count(lv.ANIM_REPEAT_INFINITE)
-    a.set_custom_exec_cb(lambda _a, v: img.set_src(sprite_dsc(name, v % n)))
+    a.set_custom_exec_cb(lambda _a, v: img.set_src(seq[v % n][0]))
     a.start()
 
 
@@ -446,7 +495,7 @@ def _layer(parent, c, scale, tint=None, animate=False):
         w.set_style_image_recolor(lv.color_hex(tint[0]), 0)
         w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
     elif animate and c.get("anim"):
-        animate_sprite(w, name)
+        animate_sprite(w, name, scale)
     return w
 
 

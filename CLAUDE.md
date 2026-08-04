@@ -110,6 +110,13 @@ as a citation of the original design bundle file `mascotte.jsx`.
   page pass `animate=True` to `art.creature_panel`); silhouettes, veils and
   grids hold frame 0. Playback is an `lv.anim_t` (`art.animate_sprite`), which
   LVGL kills with the widget — never an `lv.timer`, which would outlive it.
+- **Never let LVGL scale a sprite.** Its software transform steps the source
+  edge-to-edge in `(dest_w - 1)` increments (`lv_draw_sw_transform.c`), so any
+  draw-time scaling — `set_scale`, inner-align STRETCH on a mismatched size —
+  renders half-width edge pixels and stray double-width columns even at exact
+  integer factors, on badge and desktop alike. `art.sprite_img` pre-scales by
+  integer pixel replication instead, so the buffer already matches the widget
+  and the transform never runs; keep every sprite on that path.
 - **Don't name an asset dir after an imported module** — a folder `creatures/`
   shadows `creatures.py` on import. That's why creature art keys live under
   `animals/` and companion art under `companions/` (plural). The failure is
