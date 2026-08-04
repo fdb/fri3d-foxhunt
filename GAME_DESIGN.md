@@ -52,9 +52,12 @@ Creatures may playfully refuse an unsuitable action—a full creature need not
 eat and a tired creature may not want to play—but an unsuccessful choice should
 not subtract permanent progress.
 
-The same philosophy extends to the exchange economy: players **give**, they do
-not barter or haggle. There is no price screen and no trade negotiation; an
-exchange is a gift plus a mutual reward for meeting.
+The same philosophy extends to the exchange economy: the UI knows **gifts**,
+not prices. One handshake can carry a gift in each direction — a hunter
+attaches a spoor, a gatherer attaches food — and both sides confirm. Whether
+that is generosity or a swap is a conversation between the players, not a
+screen: the app never shows an exchange rate and never blocks a one-sided
+gift.
 
 ## Existing foundations
 
@@ -71,53 +74,89 @@ game:
 
 What is missing is a game economy around these screens. Food is currently
 unlimited, while petting and playing are repeatable actions, so bond can be
-maximised through tapping alone. Gathering, activities, skills and social
-events should give those actions meaning.
+maximised through tapping alone. The three verbs below, tied together by the
+energy chain, are the economy that gives those actions meaning.
 
-## The gatherer loop
+## The three verbs: snuffelen, plukken, spelen
 
-### 1. Ontmoet
+The gatherer game is three modes — one per thing the badge can sense — and
+each is a physical behaviour:
 
-A hunter introduces a creature through a face-to-face exchange or a sharing
-code. The hunter keeps the creature; the recipient begins their own
-relationship with it.
+| Verb | Radio | You need | Physical behaviour |
+|---|---|---|---|
+| **Snuffelen** | ESP-NOW | another *person* | walk up to someone |
+| **Plukken** | WiFi scan, passive | a *place* | walk to a hotspot |
+| **Spelen** | none | *time* | sit down with a creature |
 
-### 2. Ga verzamelen
+Together they cover a camp day: sometimes you are near people, sometimes you
+are roaming, sometimes it rains and you are in the tent. Each verb is the
+fallback for the other two. Care — feeding, petting — is not a fourth mode;
+it lives with the creature and is what the three verbs are *for*.
 
-The gatherer roams the camp to collect food and materials. Foraging should be a
-*physical* activity that mirrors the hunt with commodity hardware:
+The verbs share one fiction: the player behaves like an animal too. You sniff
+at strangers, you forage the terrain, you play. A jager-verzamelaar does not
+only raise creatures — they are one.
 
-- **Forage spots**: cheap WiFi beacons (ESP32s broadcasting a recognisable
-  SSID) hidden around the terrain. The badge scans for them; proximity — walk
-  around, watch the signal grow — yields berries, nuts, acorns or rarer finds.
-  This gives gatherers the same "walk toward an invisible signal" joy as
-  direction finding, at WiFi ranges and difficulty a seven-year-old can manage.
-- Camp assignments, movement missions and mini-games as alternative sources.
+### Snuffelen — meet people
 
-Different spots (or spots on different days) yield different resources, so a
-complete pantry requires covering ground, just as a complete roster requires
-finding every fox.
+The face-to-face ESP-NOW handshake, described in full under *The exchange*
+below. It is a gatherer's only source of creatures (vonk-geluk and deliberate
+spoor gifts), the source of vonken and vriendenboekje pages, and the way
+surplus food reaches hungry hunters.
 
-### 3. Verzorg
+### Plukken — work the terrain
 
-The player responds to a creature's current needs. Hunger makes food useful;
-low energy may suggest a calm activity; a cheerful creature may want to play.
+The camp terrain has multiple WiFi hotspots that all broadcast the badge
+network `fri3d-badge`. Foraging is **listening** to them:
 
-### 4. Speel of leer
+- The badge does a passive scan; it transmits nothing, and no beacon hardware
+  is built or deployed for the game. The infrastructure is whatever already
+  hangs on the terrain.
+- The SSID is shared, so a spot's identity is its **BSSID** — the radio MAC
+  the scan reports anyway.
+- To pluk: open the plukscherm, scan, and walk toward a spot while the signal
+  grows — the same "walk toward an invisible signal" joy as direction
+  finding, at WiFi range and a difficulty a seven-year-old can manage. Above
+  a signal threshold the spot can be harvested.
+- **Each spot reloads per badge.** After you pluk hotspot X, X is depleted
+  *for you* for on the order of an hour. Camping a spot yields once per
+  reload; covering ground multiplies. Anti-camping is built into the
+  mechanic and needs no server.
+- **Yields come from a formula**, `(BSSID, day) → resource`, so different
+  spots give different food and every spot re-deals daily — a complete
+  pantry requires covering ground, just as a complete roster requires
+  finding every fox. Rare finds are a seeded roll on the same inputs, so
+  rescanning cannot reroll them.
+- If the orga can share the hotspots' BSSIDs, bake the list into the app, so
+  a phone hotspot named `fri3d-badge` next to someone's tent is not a farm.
+  Spoofing a listed BSSID remains possible and remains boring: food is local
+  state (see *Adversarial risks*).
 
-The player completes an actual mini-game. Different creatures can prefer or
-excel at different activities.
+Camp assignments, movement missions and mini-games stay as alternative food
+sources for players who cannot roam.
 
-### 5. Groei samen
+### Spelen — turn food into bond
 
-Bond unlocks expressions, animations, dossier pages, skills, habitat
-decorations, avatar accessories and social abilities.
+Mini-games close the economy. The chain is:
 
-### 6. Deel
+> **Plukken yields food → voederen restores energy → spelen spends energy
+> and builds bond.**
 
-The gatherer's surplus becomes social currency: rare foods and crafted items
-are gifts that hunters (and other gatherers) genuinely need. See *The
-exchange* below.
+- A play session costs the creature energy. A tired creature playfully
+  refuses — "Everzwaan is moe — eerst een hapje?" — so the refusal *is* the
+  rate limit, in fiction, exactly as the care philosophy asks.
+- Feeding restores energy; a favourite food restores more and adds a mood
+  bonus. Feeding itself grants little bond.
+- **Bond comes from playing, not from feeding.** Feeding is the enabler,
+  playing is the earner. One mechanism kills both economy bugs named above:
+  food-dumping (50 berries is a very full creature, not max bond) and
+  tap-farming (play needs energy, energy needs food, food needs walking).
+
+The companion stars in exactly one game moment: the tutorial, before the
+player owns any creature. After that the active creature stars, because
+playing is how bond grows and bond belongs to creatures. Petting and basic
+affection stay free and unlimited — they give warmth and mood, not
+progression.
 
 Permanent progression consists of bond, skills, memories, decorations and
 friendships. Hunger, energy and mood provide temporary context.
@@ -125,7 +164,12 @@ friendships. Hunger, energy and mood provide temporary context.
 ## The exchange: snuffelen en vonken
 
 All face-to-face interactions run through **one physical mechanic** with
-different payloads, rather than a different flow per feature.
+different payloads, rather than a different flow per feature. The mechanic is
+also the home-screen mode: the button says **Snuffelen**, and opening it is
+the consent step — both badges must be in the mode before anything is
+exchanged. The radio demands the same thing anyway: ESP-NOW needs both badges
+off camp WiFi and pinned to one shared channel (measured in the espnow-test
+experiment), so the explicit mutual mode is physics and etiquette agreeing.
 
 ### Snuffelen (the ESP-NOW handshake)
 
@@ -158,9 +202,15 @@ One handshake, several things it can carry:
 
 | Payload | Direction | What happens |
 |---|---|---|
-| **Spoor** | hunter → anyone | Introduces a creature; recipient starts their own bond. |
-| **Hapje / materiaal** | gatherer → anyone | Gifts food or habitat material from inventory. |
+| **Spoor** | finder → anyone | Introduces a creature the sender found; recipient starts their own bond. |
+| **Hapje / materiaal** | anyone → anyone | Gifts food or habitat material from inventory. |
 | **Speeldate** | any ↔ any | Cooperative interaction; both creatures gain a shared memory. |
+
+One handshake can carry a payload in **each direction** — a spoor one way,
+hapjes the other. That is how "food for a creature" happens between a hunter
+and a gatherer: the app shows two gifts and one confirm, the negotiation
+happens out loud, and no price ever appears on screen (see *Positive care
+philosophy*).
 
 ### De vonk (the anti-farming rule)
 
@@ -178,6 +228,26 @@ no further vonken that day. This gives:
 Consider additionally capping vonken per day (e.g. the first ~10 count) so the
 optimal strategy is "meet some new people every day", not "speed-boop the
 entire dinner queue".
+
+### Vonk-geluk (the creature chance)
+
+Every vonk also rolls a chance that one of the *other* player's creatures
+takes a liking to you — a **spontaneous spoor**: the creature introduces
+itself, both players keep it, and lineage is preserved exactly as with a
+deliberate spoor. The roll is weighted by rarity: commons spread eagerly,
+rares reluctantly, legendaries never spread on their own. Meeting people is
+therefore how a gatherer's collection grows — and *who* you meet matters,
+because the pool is the other player's actual roster, not a lottery from
+nowhere.
+
+### Het vriendenboekje (the permanent layer)
+
+The vonk resets daily; the **vriendenboekje** never does. The first time two
+badges *ever* meet, each writes the other a page: companion avatar, name,
+day. It is a pure collection — it never decays, it grows all weekend, and it
+gives a snuffel between two empty-handed gatherers a payoff beyond the vonk.
+Every kid at a Flemish camp knows the friend-book ritual; the artifact frames
+meeting people as keeping memories, never as collecting people.
 
 ## Naming the clone
 
@@ -217,22 +287,27 @@ Both players receive a reward for the first successful introduction of a given
 creature between them. Repeating the same exchange does not produce unlimited
 public points (see *De vonk*).
 
-### Gatherer-to-gatherer sharing
+### How creatures spread
 
-A staged model preserves the value of hunting without making hunters permanent
-gatekeepers:
+One rule covers all distribution: **you may deliberately share a creature you
+found yourself; a creature you were introduced to spreads only by luck.**
 
-1. A hunter introduces a newly discovered creature.
-2. After reaching a strong bond level, a gatherer earns one mentor invitation
-   for that creature and may introduce it onward.
-3. The original hunter remains credited in the creature's lineage.
-4. Everyone keeps their creature.
+- **Deliberate spoor** — finder only. A hunter chooses to introduce their
+  find, as a gift or as their half of a food exchange.
+- **Spontaneous spoor** — anyone, by chance, through the vonk-geluk roll
+  above.
+
+This replaces the earlier bond-gated mentor-invitation model. It needs no
+server-side invitation accounting, yet gives the same outcomes: distribution
+decentralises (commons spread person-to-person like a rumour through the
+social graph), the original finder stays credited in the lineage, everyone
+keeps their creature, and late arrivals catch up quickly because commons
+spread fastest. Hunters keep what makes them special: they are the only
+source of *new* species entering the camp, and the only players who can
+introduce on purpose.
 
 Playdates remain unlimited because they create shared experiences rather than
 new creature ownership.
-
-This decentralises distribution over the weekend and helps late arrivals join
-when relatively few hunters are around.
 
 ## Economy across the weekend
 
@@ -250,9 +325,9 @@ Levers to keep both halves relevant all weekend:
 - **Staged fox activation.** Don't switch on every transmitter on Friday.
   Activating new foxes (or rotating which creature a fox transmits) each day
   keeps new creatures entering the economy, so hunters matter on Sunday too.
-- **Rotating forage spots.** Move or re-seed WiFi forage spots daily so
-  gathering stays an exploration, not a milk run, and no single spot gets
-  camped.
+- **Rotating yields.** The `(BSSID, day)` yield formula re-deals every
+  plukplek daily, so gathering stays an exploration, not a milk run — no
+  hardware moves, and the per-badge reload already stops camping.
 - **Gatherer-exclusive rares.** Favourite foods (big bond bonus) and habitat
   materials come primarily from foraging. Hunters *can* forage, but their time
   is split — realistic scarcity without hard role locks.
@@ -291,20 +366,26 @@ creatures are perpetually sad.
 
 ### Hardware unknowns (need debug tests before designing further)
 
-- **RSSI as a consent boundary.** -50 dBm is a guess until it is measured, and
-  it is now the only thing keeping the snuffel face-to-face. The failure modes
-  are asymmetric: too strict and the handshake never fires in a crowd, too
-  loose and you can be sniffed from the next picnic table. *Build the RSSI
-  debug test first*: log RSSI against measured distance outdoors, with badges
-  in hands and in pockets, with bodies in between, and with a dozen other
-  badges nearby. If the number proves unstable, promote the manual code to
-  co-equal status rather than shipping a boundary that lies.
-- **ESP-NOW and camp WiFi on one radio.** ESP-NOW peers must sit on the same
-  WiFi channel, and associating with an access point pins the badge to that
-  AP's channel. Confirm the two can coexist — and what happens to a snuffel
-  between one badge on camp WiFi and one that is not.
-- **Also confirm**: can the badge scan for SSIDs while associated with camp
-  WiFi (needed for forage spots)? What do continuous scans cost in battery?
+- **RSSI as a consent boundary — partly answered.** The espnow-test spike
+  measured badge-to-badge RSSI: touching is about -40 dBm, two metres about
+  -75, but the curve is *not monotonic* (antenna nulls, hands, bodies), so
+  -50 dBm works as a CLOSE verdict only if it is smoothed over several
+  consecutive beacons and required *on both sides*. Usefully, RSSI is read by
+  the receiver's own radio and never carried in the payload, so closeness
+  cannot be claimed — only amplified. Still to test outdoors in a crowd; if
+  the threshold proves unstable there, promote the manual code to co-equal
+  status rather than shipping a boundary that lies.
+- **ESP-NOW and camp WiFi on one radio — answered.** The espnow-test spike
+  measured it: a badge associated with an AP is pinned to that AP's channel
+  and cannot change it, so snuffel mode must disconnect (keeping the radio
+  up), pin one fixed camp-wide channel, exchange, and rejoin (~4-5 s). Both
+  badges entering the mode explicitly is what the consent design wanted
+  anyway.
+- **The WiFi scan spike is now the gating one**: can the badge scan while
+  associated with camp WiFi, how long does one scan take, and what does a
+  scan burst cost in battery? A warmer/colder loop needs a fresh reading
+  every few seconds; if scan-while-associated proves flaky, the plukscherm
+  falls back to the same disconnect-and-rejoin recipe as snuffelen.
 - **Battery.** LoRa + WiFi scanning + screen over a camp day, with scarce
   charging. The forage scan should be user-initiated bursts, not a background
   radar.
@@ -325,13 +406,15 @@ creatures are perpetually sad.
   every stranger in the food queue. Mitigate with the daily vonk cap, modest
   vonk value, and optionally requiring a 30-second joint payload (mini
   playdate) so each scored exchange has a time cost and an actual interaction.
-- **Food dumping.** A gatherer showers one friend with 50 berries →
-  instant max bond. The playful-refusal rule ("creature is full") must be a
-  real rate limit on bond-from-feeding, not just flavour text.
+- **Food dumping — resolved by the energy chain.** Bond comes from play, not
+  from feeding, so 50 gifted berries make a very full creature, not max bond.
+  The playful refusal ("creature is full / tired") is the visible face of a
+  real rate limit.
 - **Shaking the badge** to fake movement missions — already addressed: short
   foreground missions, no all-day step leaderboard, non-motion alternatives.
-- **Forage spot camping.** A known static spot becomes a farm; rotate spots
-  and cap yield per spot per player per day.
+- **Forage spot camping — resolved by the per-badge reload.** A plukplek
+  yields once per reload per badge; sitting beside it gains nothing over
+  walking a loop. The daily yield rotation keeps the loop itself fresh.
 
 ### Social risks
 
@@ -349,7 +432,7 @@ creatures are perpetually sad.
 ### Adversarial risks (it's a hacker camp)
 
 Assume the protocol is public by Saturday morning: forged shortcodes, spoofed
-handshakes, replayed spoor payloads, fake forage beacons. ESP-NOW widens this a
+handshakes, replayed spoor payloads, spoofed `fri3d-badge` hotspots. ESP-NOW widens this a
 little — an attacker with a stock ESP32 and an amplifier can present whatever
 RSSI they like, so the -50 dBm gate stops honest badges at range, not
 determined ones. Respond by making cheating *boring*, not impossible:
@@ -359,6 +442,8 @@ determined ones. Respond by making cheating *boring*, not impossible:
 - Public score counts only server-verified unique events (pair vonken,
   first introductions), which the server can dedupe and rate-limit.
 - A forged creature on your own badge is a single-player mod, not an exploit.
+- A spoofed `fri3d-badge` hotspot — or a spoofed whitelisted BSSID — mints
+  only local food: the same boring, single-player mod.
 - Lean in: hide an easter-egg creature that can *only* be obtained by
   reverse-engineering the ESP-NOW protocol. At Fri3d, the person who hacks the
   game should win a prize inside it, and it channels that energy toward a
@@ -373,7 +458,7 @@ receiver — receive only, there is no IR transmitter.
 | Mode | Example activity | Reward |
 |---|---|---|
 | **Op avontuur** | A short walk or movement session | Food and expedition postcards |
-| **Foerageren** | Follow WiFi forage spots around the terrain | Food, rare finds and materials |
+| **Plukken** | Walk to `fri3d-badge` hotspots around the terrain | Food, rare finds and materials |
 | **Beestenschool** | Tilt maze, rhythm game, Flappy-style game or LED Simon | Skills and bond |
 | **Habitat bouwen** | Gather and spend materials on a small habitat | Decorations and animations |
 | **Onderzoek** | Visual quizzes, behaviour puzzles and pattern matching | Dossier pages and discoveries |
@@ -462,7 +547,7 @@ Possible rewards include:
 - Habitat decorations.
 - Creature-specific mini-games or difficulty levels.
 - Companion accessories.
-- Playdates and mentor invitations.
+- Playdates.
 - Special postcards from expeditions.
 
 Progression should reward both breadth and depth:
@@ -490,7 +575,7 @@ of mastery rather than being forced into one raw leaderboard.
 - Deepest individual relationship.
 - Variety of forage finds and completed assignments.
 - Skills learned and dossier pages unlocked.
-- Vonken, playdates and successful mentorships.
+- Vonken, playdates and creatures spread onward through vonk-geluk.
 
 ### Shared camp progress
 
@@ -520,9 +605,10 @@ identities:
 The passive antenna cannot be detected reliably by software, so the Hunt track
 should be enabled explicitly during setup or in settings.
 
-The home experience will need a top-level distinction between collection,
-activities and hunting. Simply placing more buttons inside a caught creature's
-detail page would leave a new gatherer with nothing to do.
+The home experience's top level is the triad plus the collection —
+Snuffelen, Plukken, Spelen, Beesten — with Jagen added for players with an
+antenna. Simply placing more buttons inside a caught creature's detail page
+would leave a new gatherer with nothing to do.
 
 ## Connectivity and trust
 
@@ -542,17 +628,20 @@ owned.
 
 Before building a large economy, test a compact experience:
 
-0. **Hardware spikes first**: the ESP-NOW snuffel debug test (RSSI against
-   real distance, error rate, coexistence with camp WiFi) and a WiFi SSID scan
-   test. These two results shape everything above.
+0. **Hardware spikes first**: the ESP-NOW spike is done (see the espnow-test
+   experiment: the channel recipe, the RSSI curve, the trust model). The WiFi
+   scan spike remains: scan-while-associated, scan latency, battery per
+   burst, and a census of `fri3d-badge` BSSIDs on the terrain.
 1. Companion tutorial.
 2. Hunter-to-gatherer spoor via one-time code, then via snuffel.
-3. One WiFi forage spot with a signal-strength "warmer/colder" screen.
+3. Plukken against one real `fri3d-badge` hotspot: warmer/colder screen,
+   BSSID identity, per-badge reload.
 4. One motion mini-game, such as a tilt maze.
 5. One touch/button game, such as LED Simon or Flappy.
 6. Berry, nut and acorn inventory with favourite-food bonuses.
 7. Bond level 2 unlocks a dossier page and habitat decoration.
-8. One badge-to-badge playdate with the vonk rule.
+8. One badge-to-badge snuffel: the vonk rule, a vriendenboekje page and the
+   vonk-geluk roll.
 9. Separate discovery and bond achievements.
 
 This slice tests the essential questions: is caring for and playing with a
@@ -567,12 +656,19 @@ enough delight to carry the social economy?
   each with their own bond.
 - Should the main gatherer fantasy emphasise one deep relationship or a broad
   sanctuary collection?
-- How many mentor invitations may a strong gatherer create?
+- ~~How many mentor invitations may a strong gatherer create?~~
+  → Resolved: the mentor model is replaced by vonk-geluk spread; deliberate
+  sharing is finder-only.
+- How many `fri3d-badge` hotspots hang on the terrain, where, and can the
+  orga share their BSSIDs? (Gates plukken tuning and the baked allowlist.)
+- Tuning numbers that need playtesting: the vonk-geluk odds per rarity tier,
+  the plukplek reload duration, and energy cost/restore per play session.
 - Which rewards remain local and which contribute to public scoring?
 - How many foxes will be deployed, and can their activation be staged across
   the weekend? How many players will have antennas? (Both numbers gate the
   economy tuning — ask the orga.)
-- Which camp stations can host forage beacons or physical assignments?
+- Which camp stations sit near a `fri3d-badge` hotspot or can host physical
+  assignments?
 - Does the vonk need a time-cost payload (mini playdate) or is a plain
   handshake enough?
 - How prominent should competition be compared with the communal sanctuary?
@@ -584,7 +680,13 @@ Following the one-word-per-thing rule:
 | Code (English) | UI (Dutch) | What it is |
 | --- | --- | --- |
 | **gatherer** | **verzamelaar** | The non-antenna play track: foraging resources for creature care. |
-| **share / introduce** | **een spoor delen** | A hunter (or mentor) letting another player meet a creature; both keep it. Never "clone" in the UI. |
-| **boop** | **snuffelen** | The face-to-face handshake, over ESP-NOW, gated at -50 dBm RSSI. |
+| **share / introduce** | **een spoor delen** | The finder letting another player meet a creature; both keep it. Never "clone" in the UI. |
+| **spread** | **vonk-geluk** | The chance, on a vonk, that one of the other player's creatures introduces itself. |
+| **boop / socialize** | **snuffelen** | The face-to-face handshake over ESP-NOW, gated at -50 dBm RSSI on both sides — and the home-screen mode named after it. |
 | **spark** | **vonk** | The once-per-pair-per-day mutual reward for a first snuffel. |
-| **forage spot** | **plukplek** | A WiFi beacon location that yields resources when found. |
+| **friend book** | **vriendenboekje** | The permanent collection: one page per first-ever meeting between two badges. |
+| **forage** | **plukken** | Passively scanning for `fri3d-badge` hotspots and harvesting a nearby one. |
+| **forage spot** | **plukplek** | One physical hotspot, identified by its BSSID, that reloads per badge. |
+| **reload** | — | The per-badge cooldown before the same plukplek yields again. |
+
+Retired: **foerageren** (say plukken).
