@@ -46,7 +46,7 @@ class ProfileActivity(Activity):
         p = store.profile() or {"name": "Jager", "head": "vos", "accs": [], "bg": 0}
         caught = store.caught_ids()
 
-        ui.banner(s, "JAGERSPROFIEL", ui.GREEN)
+        ui.banner(s, "PROFIEL", ui.GREEN)
 
         portrait = ui.panel(s, ui.PAD, 32, 108, 108, bg=companion.BGS[p.get("bg", 0)])
         # animate=True: the one screen big and still enough for the sterren
