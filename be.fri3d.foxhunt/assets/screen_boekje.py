@@ -15,6 +15,30 @@ import companion
 
 _AVATAR_BG = 0xCFE0EA
 _CELL_W, _CELL_H, _GAP = 99, 60, 5
+_MAAND = (
+    "jan",
+    "feb",
+    "mrt",
+    "apr",
+    "mei",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "okt",
+    "nov",
+    "dec",
+)
+
+
+def _dag_label(dag):
+    """'2026-08-04' -> '4 aug' — the full ISO date doesn't fit the card and
+    the year is always this year anyway."""
+    try:
+        _, m, d = dag.split("-")
+        return "%d %s" % (int(d), _MAAND[int(m) - 1])
+    except (ValueError, IndexError):
+        return dag
 
 
 class BoekjeActivity(Activity):
@@ -46,7 +70,9 @@ class BoekjeActivity(Activity):
             # the edges, the face stays centred (same crop as the home header)
             companion.draw(ava, head, accs, 3, x=-4, y=-4)
             ui.label(card, f.get("naam", "?"), 49, 12, ui.INK, ui.font_label())
-            ui.label(card, f.get("dag", ""), 49, 30, ui.MYSTERY, ui.font_small())
+            ui.label(
+                card, _dag_label(f.get("dag", "")), 49, 30, ui.MYSTERY, ui.font_small()
+            )
             ui.focusable(card, focus_border=True)  # navigable, inert
 
     def _empty(self, s):

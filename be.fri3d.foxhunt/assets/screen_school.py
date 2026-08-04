@@ -62,9 +62,12 @@ class SchoolActivity(Activity):
         st = store.beast_state(self.fox_id)
         if st is None:
             return
-        segs = pet.segments(st["energy"])
+        # gate on exact energy points, not display segments: segments() may
+        # round 35 up to 2 cells while pet.play still refuses a 40-point game
+        energie = st["energy"]
+        segs = pet.segments(energie)
         cheapest = min(g[2] for g in GAMES)
-        moe = segs < cheapest
+        moe = energie < cheapest * pet.SEG
         naam = st.get("bijnaam") or self.c["naam"]
         fav = favourite_game(self.fox_id)
 
@@ -113,7 +116,7 @@ class SchoolActivity(Activity):
         tile_h = 40 if note else 52
         y = top
         for icon, gnaam, kost, sub in GAMES:
-            kan = not moe and segs >= kost
+            kan = not moe and energie >= kost * pet.SEG
             is_fav = icon == fav
             tile = ui.panel(
                 s,
@@ -137,15 +140,15 @@ class SchoolActivity(Activity):
             ui.label(
                 tile,
                 "-%d" % kost,
-                158,
+                150,
                 4,
                 ui.TERRA if kan else ui.MYSTERY,
                 ui.font_label(),
-                w=36,
+                w=44,
                 center=True,
             )
             ui.label(
-                tile, "energie", 158, 20, ui.MYSTERY, ui.font_small(), w=36, center=True
+                tile, "energie", 150, 20, ui.MYSTERY, ui.font_small(), w=44, center=True
             )
             if kan:
                 ui.focusable(
