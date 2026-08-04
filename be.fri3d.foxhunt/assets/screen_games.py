@@ -372,6 +372,20 @@ _CAMP_ART = (
     (art.PINE, _NEAR, 3, 286, 226),
 )
 
+# The playfield, named — the spawner does reachability maths off these numbers,
+# so a hand-tuned literal moving out from under it would silently make the game
+# unfair again.
+_RUN = 4.0  # beast px per tick; it never stops, it only turns
+_CX_MIN, _CX_MAX = 6.0, 282.0  # how far the beast can run
+_BEAST_Y = 196  # top of the beast: where a falling hapje is caught
+_ITEM_PX = 24  # a food icon at scale 3
+_DROP_Y = 30  # where a hapje appears
+_CATCH_Y = _BEAST_Y - _ITEM_PX  # item y at which its bottom meets the beast
+_GONE_Y = 232  # past here the hapje is missed
+# The catch window: cx may be anywhere in (item.x - 32, item.x + 24), so the
+# beast aims at item.x - _AIM and a target cx wants a hapje at cx + _AIM.
+_AIM = 4
+
 
 class VangActivity(GameActivity):
     TITLE = "VANGEN"
@@ -391,7 +405,7 @@ class VangActivity(GameActivity):
         self.beast = art.creature_panel(s, self.c, 2)
         self._cx = 144.0
         self._dir = 1
-        self.beast.set_pos(int(self._cx), 196)
+        self.beast.set_pos(int(self._cx), _BEAST_Y)
         self.items = []  # {"w", "x", "y", "vy"}
         self._spawn_t = 10
         self._missed = 0
@@ -434,37 +448,72 @@ class VangActivity(GameActivity):
         elif k == lv.KEY.RIGHT:
             self._dir = 1
 
+    def _due(self, it):
+        """Ticks until `it` is catchable — its place in the queue the player
+        has to work through, in order."""
+        return (_CATCH_Y - it["y"]) / it["vy"]
+
+    def _drop_x(self, vy):
+        """Where a hapje falling at `vy` may appear: only somewhere the beast
+        can still run to, given everything already in the air.
+
+        The beast moves a fixed _RUN per tick and cannot stop, so its range is
+        just speed times time — but time from WHERE. Measuring from where it
+        stands now is not enough: two or three hapjes are usually falling at
+        once, and a player who is off collecting the one that lands first has
+        no way back for a second that was only reachable from a standstill.
+        That is the version of this game that felt unfair.
+
+        So the window chains: it hangs off the last hapje already due, and is
+        as wide as the run the beast can make between that catch and this one.
+        Serving them in the order they land is then always possible, which is
+        the order a player plays in anyway. With an empty sky there is nothing
+        to chain to and the beast's own position anchors it.
+
+        The fall is measured to the FIRST catchable tick, not the last, so a
+        drop at the very edge of the window still arrives with a little slack
+        rather than demanding a frame-perfect turn."""
+        fall = (_CATCH_Y - _DROP_Y) / vy
+        if self.items:
+            last = max(self.items, key=self._due)
+            anchor, slack = last["x"] - _AIM, fall - max(0.0, self._due(last))
+        else:
+            anchor, slack = self._cx, fall
+        reach = max(0.0, slack) * _RUN
+        lo = max(_CX_MIN, anchor - reach) + _AIM
+        hi = min(_CX_MAX, anchor + reach) + _AIM
+        return random.randrange(int(lo), int(hi) + 1)
+
     def step(self):
-        self._cx += 4.0 * self._dir
-        if self._cx < 6:
-            self._cx, self._dir = 6.0, 1
-        elif self._cx > 282:
-            self._cx, self._dir = 282.0, -1
+        self._cx += _RUN * self._dir
+        if self._cx < _CX_MIN:
+            self._cx, self._dir = _CX_MIN, 1
+        elif self._cx > _CX_MAX:
+            self._cx, self._dir = _CX_MAX, -1
         self.beast.set_x(int(self._cx))
 
         self._spawn_t -= 1
         if self._spawn_t <= 0:
             self._spawn_t = max(16, 30 - self.score)
+            vy = min(6.0, 2.5 + self.score * 0.08)
             food = random.choice(store.FOODS)
             w = art.icon(self.screen, food, 3)
-            x = random.randrange(10, 286)
-            w.set_pos(x, 30)
-            self.items.append(
-                {"w": w, "x": x, "y": 30.0, "vy": min(6.0, 2.5 + self.score * 0.08)}
-            )
+            x = self._drop_x(vy)
+            w.set_pos(x, _DROP_Y)
+            self.items.append({"w": w, "x": x, "y": float(_DROP_Y), "vy": vy})
         for it in self.items[:]:
             it["y"] += it["vy"]
             it["w"].set_y(int(it["y"]))
             if (
-                it["y"] + 24 >= 196
-                and it["x"] + 24 > self._cx
+                it["y"] + _ITEM_PX >= _BEAST_Y
+                and it["x"] + _ITEM_PX > self._cx
                 and it["x"] < self._cx + 32
             ):
                 sound.play("tap")
                 it["w"].delete()
                 self.items.remove(it)
                 self.set_score(self.score + 1)
-            elif it["y"] > 232:
+            elif it["y"] > _GONE_Y:
                 it["w"].delete()
                 self.items.remove(it)
                 self._missed += 1
