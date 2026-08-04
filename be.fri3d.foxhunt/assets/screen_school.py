@@ -67,7 +67,7 @@ class SchoolActivity(Activity):
         energie = st["energy"]
         segs = pet.segments(energie)
         cheapest = min(g[3] for g in GAMES)
-        moe = energie < cheapest * pet.SEG
+        moe = energie < store.play_cost(cheapest) * pet.SEG
         naam = st.get("bijnaam") or self.c["naam"]
         fav = favourite_game(self.fox_id)
 
@@ -113,7 +113,7 @@ class SchoolActivity(Activity):
         tile_h = 40 if note else 52
         y = top
         for gid, icon, gnaam, kost, sub in GAMES:
-            kan = not moe and energie >= kost * pet.SEG
+            kan = not moe and energie >= store.play_cost(kost) * pet.SEG
             is_fav = gid == fav
             tile = ui.panel(
                 s,

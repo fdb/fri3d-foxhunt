@@ -65,7 +65,13 @@ def update_profile(**kv):
 # led is the NeoPixel duty in percent; full brightness is blinding on the
 # badge, so the default sits low. The settings screen steps it on a roughly
 # doubling ladder (see _LED_STEPS) because the eye is power-law, not linear.
-_DEFAULT_SETTINGS = {"geluid": True, "trillen": False, "led": 30, "pluk_any": False}
+_DEFAULT_SETTINGS = {
+    "geluid": True,
+    "trillen": False,
+    "led": 30,
+    "pluk_any": False,
+    "nooit_moe": False,
+}
 
 
 def settings():
@@ -217,13 +223,27 @@ def do_feed(cid, food):
     return state, ok, msg, is_fav
 
 
+def play_cost(cost):
+    """What a beestenschool session really costs in energy segments — the
+    tile's price normally, zero while the debug ONVERMOEIBAAR switch is on.
+
+    Three places gate on energy (the school's tiles, the game's NOG EEN KEER,
+    do_play itself) and they all ask here, so the switch can never leave one
+    of them refusing while another lets you in. It suspends the *price*, not
+    the reward: a free session still earns its normal band and humeur, and
+    like every debug path it never leaves the badge."""
+    return 0 if settings().get("nooit_moe") else cost
+
+
 def do_play(cid, cost, favourite):
     """A beestenschool session; persist; return (state, ok, msg)."""
     prefs = SharedPreferences(_APP)
     raw = _raw_state(prefs, cid)
     if raw is None:
         return None, False, ""
-    state, ok, msg = pet.play(pet.decay(raw, _now()), cost, favourite, _now())
+    state, ok, msg = pet.play(
+        pet.decay(raw, _now()), play_cost(cost), favourite, _now()
+    )
     prefs.edit().put_dict_item("beast", str(cid), state).commit()
     return state, ok, msg
 

@@ -220,6 +220,11 @@ class VliegActivity(GameActivity):
         b = ui.box(s, 320, y, 26, max(2, h), _BRANCH)
         b.set_style_border_width(ui.BORDER, 0)
         b.set_style_border_color(ui.hexc(ui.INK), 0)
+        # Only the two long sides get the ink edge. LVGL draws a border inside
+        # the widget, so a capped top/bottom would print a hard line across
+        # the branch exactly where it meets the screen edge — and read as a
+        # short plank floating there rather than a trunk running off-screen.
+        b.set_style_border_side(lv.BORDER_SIDE.LEFT | lv.BORDER_SIDE.RIGHT, 0)
         return b
 
     def _drift(self):
