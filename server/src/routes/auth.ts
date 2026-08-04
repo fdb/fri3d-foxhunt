@@ -36,7 +36,7 @@ authRoutes.post("/register", async (c) => {
 
   const hunterId = validateHunterId(body.hunter_id);
   if (hunterId === "invalid")
-    return c.json({ error: "invalid hunter_id (integer 0-9999)" }, 400);
+    return c.json({ error: "invalid hunter_id (integer 1-9999)" }, 400);
 
   // The companion shortcode rides along with registration: it is what a restore
   // hands back, so a badge that never sent one can never recover its avatar.
@@ -138,7 +138,7 @@ authRoutes.patch("/user", async (c) => {
   if (body.hunter_id !== undefined) {
     const hunterId = validateHunterId(body.hunter_id);
     if (hunterId === "invalid")
-      return c.json({ error: "invalid hunter_id (integer 0-9999)" }, 400);
+      return c.json({ error: "invalid hunter_id (integer 1-9999)" }, 400);
     fields.push("hunter_id = ?");
     values.push(hunterId);
     changes.hunter_id = hunterId;

@@ -77,7 +77,7 @@ and two different "companions" happened.
 | **companion** | **maatje** | The player's own avatar: a head + stacked accessories + a backdrop, built at registration. `companion.py`, `screen_companion.py`, `CompanionActivity`. |
 | **creature** | **beest** | One of the huntable animals in the roster (`creatures.py`). Never a "companion". |
 | **fox** | **vos** | A physical LoRa transmitter hidden in the field. The creature is what you *get*; the fox is what you *find*. |
-| **hunter** | **jager** | The player, when playing with a LoRa antenna: has a minted `hunter_id` (0-9999), shown as "JGR-0042". |
+| **hunter** | **jager** | The player, when playing with a LoRa antenna: has a minted `hunter_id` (1-9999), shown as "JGR-0042". |
 | **collector** | **verzamelaar** | The player, when playing WiFi-only (no antenna): `hunter_id` is None. The UI shows the mode word where a jager would see their id. |
 | **pet state** | — | The per-creature care stats — bond, hunger, mood (`pet.py`, `store.beast_state`). Belongs to a creature, never to the companion. |
 | **shortcode** | — | The companion serialized for the wire: `H1A003C1` (`companion.encode` / `.decode`). |
@@ -152,6 +152,25 @@ talks to `/api/v1/auth/*` there.
   with no catches.
 - The badge writes only what is its own to claim — name, `profile_pic`
   (companion shortcode), `hunter_id` — via register/PATCH.
+- **`hunter_id` is allocated 1-9999, four digits, even though the wire is wider.**
+  The LoRa spec (§2.2) makes HID a big-endian `uint16` — `HID_hi`, `HID_lo`,
+  1-65535, 0 reserved. We deliberately hand out only the bottom 1-9999 of that
+  field: a camp brings hundreds of badges, so four digits is ~16x headroom, and
+  a fixed-width id keeps "JGR-0042" the same size on every screen that prints it
+  (home, profiel, instellingen, registratie).
+  Two halves, and both matter:
+  - **This is a rule for the allocator, not just the validator.** Whoever mints
+    HIDs — the central node, at registration (§2.2) — must draw from 1-9999.
+    Allocate randomly across the full 16 bits and ~85% of hunters get an id this
+    server rejects with `400 invalid hunter_id`.
+  - **Anything parsing the air still reads a full `uint16`.** We narrowed the
+    allocation, never the field. Do not "optimise" a decoder down to 14 bits.
+  Do NOT copy the 0-31 that `fox_id` uses. That range is not a hunter range: it
+  is `CHAR`, the 5 MSB of the FID byte (§2.1) — the creature's character code,
+  which is why 0-31 is exactly right for `fox_id` and was a bug for `hunter_id`.
+  Never accept `0`: the spec reserves it, and every screen reads
+  `hunter_id or "Verzamelaar"`, so a falsy id silently renders a jager as a
+  collector.
 - **Debug catches must never score.** Creatures "attained" through the debug
   screen (opened by tapping the badge id five times in settings) — the 1111
   test code, the roster toggles — land only in the badge's local store. The

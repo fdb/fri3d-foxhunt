@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS game_events (
 
 CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  hunter_id INTEGER UNIQUE, -- LoRa id (0-9999), NULL until an antenna is attached
+  -- LoRa HID (spec §2.2): uint16 on the wire, allocated 1-9999. NULL until an antenna is attached.
+  hunter_id INTEGER UNIQUE,
   badge_id TEXT NOT NULL UNIQUE, -- machine.unique_id() / base MAC
   name TEXT NOT NULL,
   profile_pic TEXT NOT NULL DEFAULT '',

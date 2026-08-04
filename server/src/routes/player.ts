@@ -36,7 +36,7 @@ playerRoutes.post("/found", async (c) => {
   if (bridged) {
     const hunterId = validateHunterId(body.hunter_id);
     if (hunterId === null || hunterId === "invalid")
-      return c.json({ error: "invalid hunter_id (integer 0-9999)" }, 400);
+      return c.json({ error: "invalid hunter_id (integer 1-9999)" }, 400);
     player = await c.env.DB.prepare("SELECT * FROM players WHERE hunter_id = ?")
       .bind(hunterId)
       .first<Player>();
