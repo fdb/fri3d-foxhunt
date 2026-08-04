@@ -339,6 +339,16 @@ class VangActivity(GameActivity):
     def build(self, s):
         s.add_flag(lv.obj.FLAG.CLICKABLE)
         s.add_event_cb(lambda e: self._turn(), lv.EVENT.CLICKED, None)
+        # The screen itself takes focus so the joystick reaches the game: the
+        # board pushes LEFT/RIGHT to whatever the default group has focused,
+        # and during play that has to be the playfield, not a button. It is
+        # added bare — no ui.focusable — because a gold halo around the whole
+        # screen is exactly the wrong feedback.
+        s.add_event_cb(self._key, lv.EVENT.KEY, None)
+        g = lv.group_get_default()
+        if g:
+            g.add_obj(s)
+            lv.group_focus_obj(s)
         ui.box(s, 0, _HORIZON - 22, 320, 240 - _HORIZON + 22, _FIELD)
         for rows, pal, scale, x, base in _FIELD_ART:
             _scenery(s, rows, pal, scale, x, base - len(rows) * scale)
@@ -356,7 +366,7 @@ class VangActivity(GameActivity):
         self._hearts()
         ui.label(
             s,
-            "tik om te keren",
+            "tik om te keren - of stuur met de stick",
             0,
             226,
             ui.TEXT_MUTED,
@@ -378,6 +388,29 @@ class VangActivity(GameActivity):
     def _turn(self):
         if not self._over:
             self._dir = -self._dir
+
+    def _key(self, e):
+        """Joystick left/right steer the beast. Both controls set the same
+        _dir, so tapping and steering agree: a tap flips the direction, the
+        stick names it outright."""
+        if self._over:
+            return
+        k = e.get_key()
+        if k == lv.KEY.LEFT:
+            self._dir = -1
+        elif k == lv.KEY.RIGHT:
+            self._dir = 1
+
+    def game_over(self, kop, retry=True):
+        # Hand the joystick back before the end card is built. While playing
+        # the screen holds focus, so LEFT/RIGHT never reach a button — and the
+        # card's NOG EEN KEER / TERUG would be unreachable without the
+        # touchscreen if it kept it. Released first, so the first button the
+        # card registers is the one the group focuses.
+        g = lv.group_get_default()
+        if g:
+            lv.group_remove_obj(self.screen)
+        super().game_over(kop, retry)
 
     def step(self):
         self._cx += 4.0 * self._dir
