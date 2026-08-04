@@ -282,31 +282,39 @@ img {
   background: var(--focus-gold);
 }
 
-/* Hero: the title banner as a sign at the edge of the forest */
+/* Hero: the badge's title screen, blown up to page size.
+   Two textures lifted straight off assets/title-screen/title-screen.png —
+   a 4px scanline (two rows #182915, two rows #1c2c15, so a ~5% green lift on
+   half of them) and about 3% of monochrome grain, encoded as an inline SVG so
+   the sheet stays self-contained. Both are meant to be felt, not seen. */
 .hero {
   position: relative;
   overflow: hidden;
   padding: 3.5rem 0 3rem;
   background:
-    radial-gradient(
-      circle at 20% 25%,
-      rgba(232, 178, 58, 0.14) 0 2px,
-      transparent 2px
-    ),
-    radial-gradient(
-      circle at 72% 12%,
-      rgba(232, 178, 58, 0.12) 0 2px,
-      transparent 2px
-    ),
-    radial-gradient(
-      circle at 88% 60%,
-      rgba(232, 178, 58, 0.1) 0 2px,
-      transparent 2px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(
+      180deg,
+      rgba(134, 173, 100, 0.05) 0 2px,
+      transparent 2px 4px
     ),
     linear-gradient(180deg, #23381c 0%, var(--forest) 60%, var(--forest-d) 100%);
   border-bottom: 5px solid var(--ink);
   color: var(--cream);
   text-align: center;
+}
+
+/* The wordmark, in the banner's own yellow with a hard pixel drop shadow */
+.wordmark {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  font-size: clamp(2.75rem, 12vw, 7rem);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #eaf011;
+  text-shadow: 6px 6px 0 rgba(0, 0, 0, 0.45);
+  animation: float 6s ease-in-out infinite;
 }
 
 .hero .wrap {
@@ -430,16 +438,6 @@ img {
   animation-delay: 1.3s;
 }
 
-.sign {
-  display: inline-block;
-  padding: 6px;
-  background: var(--forest-d);
-  border: 4px solid var(--ink);
-  border-radius: 6px;
-  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.35);
-  animation: float 6s ease-in-out infinite;
-}
-
 @keyframes float {
   0%,
   100% {
@@ -448,13 +446,6 @@ img {
   50% {
     transform: translateY(-6px);
   }
-}
-
-.sign img {
-  display: block;
-  width: 100%;
-  max-width: 640px;
-  height: auto;
 }
 
 .tagline {
@@ -522,10 +513,13 @@ img {
   background: var(--green-d);
 }
 
-/* Sprite parade under the hero */
+/* Sprite parade under the hero. Never wraps: the Vos sits in the middle of the
+   eleven on purpose, and a second row would put it anywhere. Below the
+   breakpoint the sprites shrink to fit instead (flex-shrink), which costs some
+   pixel crispness and keeps the composition. */
 .strip {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.85rem;
   justify-content: center;
   margin-top: 2.5rem;
@@ -536,6 +530,9 @@ img {
 .strip img {
   width: 48px;
   height: 48px;
+  /* A replaced flex item's `min-width: auto` resolves to its specified width,
+     so without this the row overflows instead of shrinking on a narrow phone. */
+  min-width: 0;
   animation: hop 1.8s steps(2, jump-none) infinite alternate;
   animation-delay: calc(var(--i) * 0.14s);
 }
@@ -946,13 +943,24 @@ img {
   .quote {
     font-size: 1.1rem;
   }
-  /* Six sprites per row instead of five, so the strip doesn't leave an orphan */
+  /* Eleven still on one row: 32px is an exact 2x of the 16px source */
   .strip {
-    gap: 0.6rem;
+    gap: 0.4rem;
   }
   .strip img {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 32px no longer fits eleven across; 24px does, with room for the gaps */
+  .strip {
+    gap: 0.25rem;
+  }
+  .strip img {
+    width: 24px;
+    height: 24px;
   }
 }
 
@@ -960,7 +968,7 @@ img {
    goes away for anyone who asked for less motion. */
 @media (prefers-reduced-motion: reduce) {
   .stars span,
-  .sign,
+  .wordmark,
   .strip img {
     animation: none;
   }

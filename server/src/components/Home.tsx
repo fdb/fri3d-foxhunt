@@ -13,7 +13,19 @@
 // away: the silhouettes are numbered rather than named, because a filename in
 // view-source spoils just as well as a picture. Baked from artwork/animals/
 // by flattening the alpha to #86ad64, the title screen's silhouette green.
-const SILHOUETTES = 10;
+const PARADE = [
+  "/art/silhouettes/01.png",
+  "/art/silhouettes/02.png",
+  "/art/silhouettes/03.png",
+  "/art/silhouettes/04.png",
+  "/art/silhouettes/05.png",
+  "/art/animals/vos.png", // the one you may see, centred
+  "/art/silhouettes/06.png",
+  "/art/silhouettes/07.png",
+  "/art/silhouettes/08.png",
+  "/art/silhouettes/09.png",
+  "/art/silhouettes/10.png",
+];
 
 const Shot = ({
   src,
@@ -57,15 +69,7 @@ export const Home = () => (
         ))}
       </div>
       <div class="wrap">
-        <h1 class="sr-only">Vossenjacht</h1>
-        <div class="sign">
-          <img
-            src="/art/title-screen.png"
-            width="320"
-            height="120"
-            alt="Vossenjacht"
-          />
-        </div>
+        <h1 class="wordmark">Vossenjacht</h1>
         <p class="tagline">Spoor de beesten van het bos op.</p>
         <p class="lede">
           Vossenjacht is het badge-spel van Fri3d Camp. Ergens op het terrein
@@ -82,21 +86,8 @@ export const Home = () => (
           </a>
         </p>
         <div class="strip" aria-hidden="true">
-          <img
-            src="/art/animals/vos.png"
-            width="16"
-            height="16"
-            alt=""
-            style="--i:0"
-          />
-          {Array.from({ length: SILHOUETTES }, (_, i) => (
-            <img
-              src={`/art/silhouettes/${String(i + 1).padStart(2, "0")}.png`}
-              width="16"
-              height="16"
-              alt=""
-              style={`--i:${i + 1}`}
-            />
+          {PARADE.map((src, i) => (
+            <img src={src} width="16" height="16" alt="" style={`--i:${i}`} />
           ))}
         </div>
         <p class="strip-note">
