@@ -17,6 +17,64 @@ HEART = [
     "....k....",
 ]
 
+# ── Scenery: the beestenschool backdrops ────────────────────────────────────
+# Bare row grids like HEART, not ICONS entries, because here the palette IS the
+# depth cue: the same cloud drawn pale and small is far away, drawn bright and
+# big it is close, and one tree grid in two greens makes a treeline read as two
+# rows. An entry in ICONS would freeze that palette to one distance.
+CLOUD = [
+    "....wwww..ww..",
+    "..wwwwwwwwwww.",
+    ".wwwwwwwwwwwww",
+    "wwwwwwwwwwwwww",
+    "wwwwwwwwwwwwww",
+    ".ssssssssssss.",
+]
+PUFF = [
+    "..www....",
+    ".wwwwwww.",
+    "wwwwwwwww",
+    ".sssssss.",
+]
+TREE = [
+    "...ccccc...",
+    "..ccccccc..",
+    ".ccccccccc.",
+    "ccccccccccc",
+    "ccccccccccc",
+    ".ccccccccc.",
+    "..ccccccc..",
+    "...ccccc...",
+    "....ttt....",
+    "....ttt....",
+    "....ttt....",
+]
+PINE = [
+    "....c....",
+    "...ccc...",
+    "..ccccc..",
+    "...ccc...",
+    "..ccccc..",
+    ".ccccccc.",
+    "..ccccc..",
+    ".ccccccc.",
+    "ccccccccc",
+    "....t....",
+    "....t....",
+]
+# A camp tent — Fri3d is a field, not a skyline. Lit side 'a', shaded 'b', and
+# the gap that widens over the last three rows is the door flap.
+TENT = [
+    "......aa.....",
+    ".....aabb....",
+    "....aaabbb...",
+    "...aaaabbbb..",
+    "..aaaaabbbbb.",
+    ".aaaaa.bbbbb.",
+    "aaaaa...bbbbb",
+    "aaaaa...bbbbb",
+]
+
 # ── UI icons (action bar + foods), ported from the design ───────────────────
 # Mostly 8x8; each has its own palette, and chars not in the palette are
 # skipped (transparent). draw_sprite() reads the grid off the rows, so an icon

@@ -143,10 +143,38 @@ class GameActivity(Activity):
         self.finish()
 
 
+# ── scenery ──────────────────────────────────────────────────────────────
+# Backdrops are built before the player and before any obstacle, so LVGL's
+# creation order alone keeps them behind everything — no z-index juggling.
+def _scenery(parent, rows, pal, scale, x, y):
+    """One backdrop sprite. Scenery must never be tappable: the whole game
+    screen carries the tap-to-flap / tap-to-turn handler, and a clickable
+    child eats the event before it reaches the screen (same reason ui.box
+    drops the flag)."""
+    w = art.draw_sprite(parent, rows, pal, scale)
+    w.set_pos(x, y)
+    w.remove_flag(lv.obj.FLAG.CLICKABLE)
+    return w
+
+
 # ════ VLIEGEN — flappy: tik om te fladderen, ontwijk de takken ═══════════
 _BRANCH = 0x8A5F2C
 _GAP = 84  # opening between branch pair
 _BIRD_X = 50
+
+# Parallax layers: (grid, palette, scale, px per tick). Depth is signalled on
+# three channels at once — far clouds are smaller, paler and slower — because
+# speed alone is barely legible on a 320px screen. The branches scroll at 3.0,
+# so even the fastest cloud stays visibly behind the play field.
+_SKY = (
+    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 0.5),
+    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 0.5),
+    (art.CLOUD, {"w": 0xECF2D6, "s": 0xDFE9C2}, 2, 1.0),
+    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 1.6),
+    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 1.6),
+)
+_SKY_TOP = 32  # clear of the 26px banner, which is drawn before the clouds
+_SKY_BOT = 148
 
 
 class VliegActivity(GameActivity):
@@ -157,6 +185,16 @@ class VliegActivity(GameActivity):
     def build(self, s):
         s.add_flag(lv.obj.FLAG.CLICKABLE)
         s.add_event_cb(lambda e: self._flap(), lv.EVENT.CLICKED, None)
+        self.clouds = []
+        for i, (rows, pal, scale, sp) in enumerate(_SKY):
+            # seeded apart rather than at random, so a fresh round never starts
+            # with every cloud stacked in one corner
+            x = (i * 67 + random.randrange(0, 40)) % 320
+            y = random.randrange(_SKY_TOP, _SKY_BOT)
+            w = _scenery(s, rows, pal, scale, x, y)
+            self.clouds.append(
+                {"w": w, "x": float(x), "px": len(rows[0]) * scale, "sp": sp, "ix": x}
+            )
         self.bird = art.creature_panel(s, self.c, 2)
         self._y = 110.0
         self._vy = 0.0
@@ -184,8 +222,23 @@ class VliegActivity(GameActivity):
         b.set_style_border_color(ui.hexc(ui.INK), 0)
         return b
 
+    def _drift(self):
+        """Scroll the parallax sky. The int-x guard matters: the slowest layer
+        advances half a pixel per tick, so half its set_x calls would be a
+        no-move that still costs LVGL an invalidate + redraw."""
+        for c in self.clouds:
+            c["x"] -= c["sp"]
+            if c["x"] < -c["px"]:
+                c["x"] = 320.0 + random.randrange(0, 48)
+                c["w"].set_y(random.randrange(_SKY_TOP, _SKY_BOT))
+            x = int(c["x"])
+            if x != c["ix"]:
+                c["ix"] = x
+                c["w"].set_x(x)
+
     def step(self):
         s = self.screen
+        self._drift()
         self._vy = min(8.0, self._vy + 0.9)
         self._y += self._vy
         if self._y < 26 or self._y > 240 - 32:
@@ -232,6 +285,32 @@ class VliegActivity(GameActivity):
 
 
 # ════ VANGEN — het beest draaft heen en weer, tik om te keren ════════════
+# The backdrop is a camp field in two planes. Nothing here moves: the beast
+# runs along a fixed line, so a scrolling backdrop would only claim a motion
+# that isn't happening. Depth comes from the horizon instead — the ground band
+# starts where the far treeline stands, and the near row is drawn bigger and
+# greener on top of it.
+_FIELD = 0xD3E5AE  # far field, a shade under the screen's own bg
+_GROUND = 0xC3D897  # near ground; its top edge IS the horizon line
+_HORIZON = 198
+_FAR = {"c": 0xBAD48F, "t": 0xC4B489}
+_NEAR = {"c": 0x9CBE6C, "t": 0xA68E63}
+_CANVAS = {"a": 0xE7D49B, "b": 0xBFA469}
+# (grid, palette, scale, x, baseline) — y is derived so every tree stands ON
+# its line instead of being hand-placed and floating a pixel.
+_FIELD_ART = (
+    (art.PINE, _FAR, 2, 26, _HORIZON),
+    (art.TREE, _FAR, 2, 100, _HORIZON),
+    (art.PINE, _FAR, 2, 176, _HORIZON),
+    (art.TREE, _FAR, 2, 250, _HORIZON),
+)
+_CAMP_ART = (
+    (art.TREE, _NEAR, 3, 2, 226),
+    (art.TENT, _CANVAS, 3, 104, 226),
+    (art.PINE, _NEAR, 3, 286, 226),
+)
+
+
 class VangActivity(GameActivity):
     TITLE = "VANGEN"
     BG = 0xDFEEBF
@@ -240,6 +319,12 @@ class VangActivity(GameActivity):
     def build(self, s):
         s.add_flag(lv.obj.FLAG.CLICKABLE)
         s.add_event_cb(lambda e: self._turn(), lv.EVENT.CLICKED, None)
+        ui.box(s, 0, _HORIZON - 22, 320, 240 - _HORIZON + 22, _FIELD)
+        for rows, pal, scale, x, base in _FIELD_ART:
+            _scenery(s, rows, pal, scale, x, base - len(rows) * scale)
+        ui.box(s, 0, _HORIZON, 320, 240 - _HORIZON, _GROUND)
+        for rows, pal, scale, x, base in _CAMP_ART:
+            _scenery(s, rows, pal, scale, x, base - len(rows) * scale)
         self.beast = art.creature_panel(s, self.c, 2)
         self._cx = 144.0
         self._dir = 1
