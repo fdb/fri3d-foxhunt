@@ -65,7 +65,7 @@ def update_profile(**kv):
 # led is the NeoPixel duty in percent; full brightness is blinding on the
 # badge, so the default sits low. The settings screen steps it on a roughly
 # doubling ladder (see _LED_STEPS) because the eye is power-law, not linear.
-_DEFAULT_SETTINGS = {"geluid": True, "trillen": False, "led": 30}
+_DEFAULT_SETTINGS = {"geluid": True, "trillen": False, "led": 30, "pluk_any": False}
 
 
 def settings():

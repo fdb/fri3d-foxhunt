@@ -34,6 +34,9 @@ class PlukActivity(Activity):
 
     def onResume(self, screen):
         super().onResume(screen)
+        # debug switch (instellingen -> debug): pluk on ANY wifi network,
+        # for walking-around tests before the camp's hotspots exist
+        RADIO.any_ssid = bool(store.settings().get("pluk_any"))
         self.timer = lv.timer_create(self._tick, 700, None)
 
     def onPause(self, screen):
@@ -60,7 +63,11 @@ class PlukActivity(Activity):
             ring.set_style_border_width(ui.BORDER, 0)
             ring.set_style_border_color(ui.hexc(_RING), 0)
             ring.set_style_border_opa(90, 0)
-        ui.label(card, pluk_radio.SSID, 7, 5, _SSID_INK, ui.font_small())
+        # the network the meter is homing on: fri3d-badge at camp, the real
+        # SSID of whatever spot leads in any-wifi debug mode
+        self.ssid_l = ui.label(
+            card, pluk_radio.SSID, 7, 5, _SSID_INK, ui.font_small(), w=150
+        )
         self.spot = art.icon(card, "hotspot", 5)
         self.spot.set_pos(85, 45)
         self.bubble_panel = ui.panel(card, 10, 24, 176, 20, ui.CREAM)
@@ -124,6 +131,7 @@ class PlukActivity(Activity):
         ready = [r for r in readings if store.pluk_wait_s(r.bssid) == 0]
         target = ready[0] if ready else readings[0]
         self._target = target
+        self.ssid_l.set_text(target.ssid)
         self._show(target, store.pluk_wait_s(target.bssid))
 
     def _meter(self, level):

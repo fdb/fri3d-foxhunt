@@ -58,8 +58,33 @@ class DebugActivity(Activity):
             focus_border=True,
         )
 
-        ui.label(s, "BEESTENBOEK", 8, 96, ui.GREEN_D, ui.font_small())
-        self.roster = ui.panel(s, 6, 110, 308, 89, ui.SURFACE_SOFT)
+        # pluk on ANY wifi network — for walking-around tests away from the
+        # camp: no fri3d-badge hotspots exist yet, every AP becomes a
+        # plukplek (identity stays the BSSID, reloads and yields included)
+        pluk_panel = ui.panel(s, 6, 92, 308, 34, ui.CARD)
+        ui.label(pluk_panel, "PLUK OP ELKE WIFI", 8, 3, ui.TERRA_D, ui.font_small())
+        ui.label(pluk_panel, "thuis-testen", 8, 17, ui.INK, ui.font_small())
+        self.pluk_toggle = ui.box(
+            pluk_panel, 178, 2, 110, 26, ui.DORMANT, radius=ui.RADIUS
+        )
+        self.pluk_toggle.set_style_border_width(ui.BORDER, 0)
+        self.pluk_label = ui.label(
+            self.pluk_toggle, "", 0, 0, ui.INK, ui.font_small(), w=110, center=True
+        )
+        self.pluk_label.align(lv.ALIGN.CENTER, 0, 0)
+        self._paint_toggle(
+            self.pluk_toggle,
+            self.pluk_label,
+            bool(store.settings().get("pluk_any")),
+            on_text="ACTIEF",
+            off_text="NIET ACTIEF",
+        )
+        ui.focusable(
+            self.pluk_toggle, on_click=self._toggle_pluk_any, focus_border=True
+        )
+
+        ui.label(s, "BEESTENBOEK", 8, 134, ui.GREEN_D, ui.font_small())
+        self.roster = ui.panel(s, 6, 148, 308, 51, ui.SURFACE_SOFT)
         self.roster.add_flag(lv.obj.FLAG.SCROLLABLE)
         self.roster.set_scroll_dir(lv.DIR.VER)
         self.roster.set_flex_flow(lv.FLEX_FLOW.COLUMN)
@@ -120,6 +145,18 @@ class DebugActivity(Activity):
         )
         label.set_text(on_text if enabled else off_text)
         label.set_style_text_color(ui.hexc(ui.CREAM if enabled else ui.INK), 0)
+
+    def _toggle_pluk_any(self):
+        sound.play("tap")
+        enabled = not store.settings().get("pluk_any")
+        store.set_setting("pluk_any", enabled)
+        self._paint_toggle(
+            self.pluk_toggle,
+            self.pluk_label,
+            enabled,
+            on_text="ACTIEF",
+            off_text="NIET ACTIEF",
+        )
 
     def _toggle_debug_code(self):
         sound.play("tap")

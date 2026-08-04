@@ -22,10 +22,11 @@ def _level(rssi):
 
 
 class PlukReading:
-    def __init__(self, bssid, rssi):
+    def __init__(self, bssid, rssi, ssid=SSID):
         self.bssid = bssid  # "aa:bb:cc:dd:ee:ff" — the spot's identity
         self.rssi = rssi
         self.level = _level(rssi)
+        self.ssid = ssid  # display only; differs from SSID in any-wifi debug
 
 
 def yield_for(bssid, date):
@@ -47,11 +48,17 @@ def yield_for(bssid, date):
 class WifiPlukRadio:
     """Scan the real STA interface. A scan can fail transiently (radio busy,
     mid-association); we return the last good result rather than raising —
-    the plukscherm polls, so a hiccup just skips a beat."""
+    the plukscherm polls, so a hiccup just skips a beat.
+
+    any_ssid is the debug switch (instellingen -> debug): accept EVERY
+    network instead of only `fri3d-badge`, so plukken is walkable anywhere
+    there's WiFi — home, office — before the camp exists. Identity stays
+    the BSSID, so reloads and daily yields work exactly as at camp."""
 
     def __init__(self, wlan):
         self._wlan = wlan
         self._last = []
+        self.any_ssid = False
 
     def scan(self):
         try:
@@ -60,9 +67,13 @@ class WifiPlukRadio:
             found = []
             for net in self._wlan.scan():
                 # (ssid, bssid, channel, RSSI, security, hidden)
-                if net[0] == SSID.encode():
+                if self.any_ssid or net[0] == SSID.encode():
                     mac = ":".join("%02x" % b for b in net[1])
-                    found.append(PlukReading(mac, net[3]))
+                    try:
+                        name = net[0].decode() or "(verborgen)"
+                    except Exception:
+                        name = "(?)"
+                    found.append(PlukReading(mac, net[3], name))
             found.sort(key=lambda r: -r.rssi)
             self._last = found
         except Exception:
@@ -77,6 +88,7 @@ class FakePlukRadio:
 
     def __init__(self):
         self._near = -82.0  # the spot being walked toward
+        self.any_ssid = False  # accepted, ignored: the fake is always fake
 
     def bump(self, delta_dbm):
         self._near = max(-90.0, min(-40.0, self._near + delta_dbm))
