@@ -68,7 +68,9 @@ class HomeActivity(Activity):
         # standard ring.
         header = ui.panel(s, 6, 6, 262, 40, bg=ui.CARD)
         ui.focusable(header, on_click=self._profile)
-        portrait = ui.panel(header, 4, 2, 32, 32, bg=companion.BGS[p["bg"]])
+        # box, not panel: an ink frame here muddles into the sprite's own
+        # outlines at 32px — the backdrop swatch alone is enough of an edge.
+        portrait = ui.box(header, 4, 2, 32, 32, companion.BGS[p["bg"]])
         # 32px companion in a 28px opening: the art's transparent margin
         # falls off the edges, the face stays centred.
         companion.draw(portrait, p["head"], p["accs"], 2, x=-2, y=-2)
