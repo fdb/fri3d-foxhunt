@@ -290,13 +290,15 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
     h = len(rows) * scale
     canvas = lv.canvas(parent)
     canvas.set_size(w, h)
-    buf = bytearray(w * h * 4)  # ARGB8888 -> real alpha
-    canvas.set_buffer(buf, w, h, lv.COLOR_FORMAT.ARGB8888)
-    canvas.set_style_bg_opa(lv.OPA.TRANSP, 0)
-    canvas.fill_bg(lv.color_hex(0x000000), lv.OPA.TRANSP)
-    cover = lv.OPA.COVER
+    # Pixels go straight into the ARGB8888 buffer (memory order B,G,R,A —
+    # same as the atlas frames): one scaled line built per source row, then
+    # block-copied per scale row. set_px would cost a Python->C call per
+    # destination pixel — the 16px gear at scale 2 alone is ~1000 of them.
+    buf = bytearray(w * h * 4)  # zeroed = fully transparent
+    rowbytes = w * 4
     for y, row in enumerate(rows):
-        by = y * scale
+        line = bytearray(rowbytes)
+        opaque = False
         for x in range(len(row)):
             ch = row[x]
             if ch == "." or ch == " ":
@@ -307,12 +309,17 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
                 col = edge if (edge is not None and ch == "k") else fill
             if col is None:
                 continue
-            color = lv.color_hex(col)
-            bx = x * scale
+            opaque = True
+            px = bytes(((col) & 0xFF, (col >> 8) & 0xFF, (col >> 16) & 0xFF, 0xFF))
+            o = x * scale * 4
+            line[o : o + 4 * scale] = px * scale
+        if opaque:
+            base = y * scale * rowbytes
             for dy in range(scale):
-                yy = by + dy
-                for dx in range(scale):
-                    canvas.set_px(bx + dx, yy, color, cover)
+                o = base + dy * rowbytes
+                buf[o : o + rowbytes] = line
+    canvas.set_buffer(buf, w, h, lv.COLOR_FORMAT.ARGB8888)
+    canvas.set_style_bg_opa(lv.OPA.TRANSP, 0)
     # NB: lv.canvas.set_buffer() roots the buffer C-side (same as the built-in
     # space_invaders app), so we don't keep a Python ref — and native widgets
     # have no __dict__ to hang one on anyway.
@@ -326,6 +333,11 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
 # ("animals/vos.png"); a sheet (width N*16) is N consecutive frames. Only
 # screen-sized art (the title banner) is still a real PNG on disk.
 import atlas
+
+try:
+    from art_fast import upscale as _upscale_fast  # viper, badge only
+except Exception:  # desktop build has no native emitter
+    _upscale_fast = None
 
 # open() path, derived from where this module was imported from, so it holds
 # on badge and desktop alike. The title PNG goes through LVGL's own fs layer
@@ -368,6 +380,8 @@ def _frame_bytes(name, frame):
 def _upscale(src, scale):
     """16x16 BGRA bytes blown up by integer pixel replication: every source
     pixel becomes an exact scale x scale block."""
+    if _upscale_fast:
+        return _upscale_fast(src, scale)
     srow = _IMG_SRC * 4
     drow = srow * scale
     out = bytearray(len(src) * scale * scale)
