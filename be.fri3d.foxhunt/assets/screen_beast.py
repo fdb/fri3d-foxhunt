@@ -28,6 +28,12 @@ _SEG = (
     ("energy", "Energie", ui.GREEN),
     ("hunger", "Honger", ui.TERRA),
 )
+# rarity tag on the portrait card; "norm" gets none. Dark variants of the home
+# grid's rarity frame colours (rare=terra, leg=gold), for text on the light card.
+_RARITY_TAG = {
+    "rare": ("Zeldzaam", ui.TERRA_D),
+    "leg": ("Legendarisch", ui.GOLD_D),
+}
 
 
 class BeastActivity(Activity):
@@ -49,6 +55,9 @@ class BeastActivity(Activity):
         card.set_style_border_color(ui.hexc(ui.GOLD if rare else ui.GREEN_D), 0)
         sp = art.creature_panel(card, self.c, 5, animate=True)
         sp.align(lv.ALIGN.CENTER, 0, -12)
+        tag = _RARITY_TAG.get(self.c["rarity"])
+        if tag:
+            ui.label(card, tag[0], 0, 112, tag[1], ui.font_small(), w=128, center=True)
         self.bubble = ui.label(card, "", 4, 2, ui.INK, ui.font_small(), w=124)
         strip = ui.box(card, 0, 130, 128, 18, ui.GREEN)
         self.nick = ui.label(

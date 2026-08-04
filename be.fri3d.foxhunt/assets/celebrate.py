@@ -45,7 +45,10 @@ _CX, _CY = 160, 104  # creature centre — the halo radiates from here
 
 _CONFETTI = 22
 _TICK_MS = 80
-_FANFARE_TICKS = 46  # ~3.7s — re-trigger the loop a touch before it ends
+# The fanfare RTTTL runs ~4.3s (sound._TUNES["legendary"], b=200); re-trigger
+# just AFTER it ends — a hair of silence beats preempting the held final note,
+# which is what a too-eager loop point does to a single-voice buzzer.
+_FANFARE_TICKS = 55  # ~4.4s
 
 
 def _rgb(c):
@@ -217,16 +220,16 @@ class Fireworks:
 # ── the rare shimmer ────────────────────────────────────────────────────────
 _TWINKLE_MS = 120  # slower beat than the fireworks: a shimmer, not a strobe
 
-# Around the calm card (114,36 92x92) and its name line — never on top of
-# either, and clear of the VERDER button at the bottom.
+# Around the calm card (114,36 92x92), clear of the ZELDZAAM title along the
+# top, the name line under the card, and the VERDER button at the bottom.
 _STAR_SPOTS = (
-    (104, 22),
-    (216, 26),
+    (84, 20),
+    (228, 22),
     (70, 46),
     (246, 54),
     (56, 104),
     (252, 112),
-    (156, 12),
+    (36, 34),
 )
 
 
@@ -241,6 +244,9 @@ class Stardust:
         self.timer = None
         self.frame = 0
         self._leds = False  # set in start(): True only when real NeoPixels answered
+        ui.label(
+            screen, "ZELDZAAM", 0, 10, ui.GOLD, ui.font_title(), w=320, center=True
+        )
         self.stars = []
         for i, (sx, sy) in enumerate(_STAR_SPOTS):
             colour = ui.GOLD if i % 2 else 0xFFF7E6
