@@ -1,7 +1,8 @@
-# debug_unlock.py — pure state machine for the hidden debug-menu gesture.
+# debug_unlock.py — session-wide switch for the 1111 test code.
+#
+# The debug screen itself opens from settings (five taps on the badge id);
+# this module only holds the flag that screen makes the keypad honour.
 
-_CLEARED_CODES = ("1", "22", "333")
-_FINAL_CODE = "4444"
 DEBUG_CODE = "1111"
 _debug_code_enabled = False
 
@@ -22,26 +23,3 @@ def debug_code_enabled():
 
 def accepts_debug_code(code):
     return _debug_code_enabled and code == DEBUG_CODE
-
-
-class DebugUnlock:
-    """Recognise 1-clear, 22-clear, 333-clear, 4444.
-
-    Keeping this independent from LVGL makes the deliberately fussy sequence
-    easy to verify without starting the emulator.
-    """
-
-    def __init__(self):
-        self._step = 0
-
-    def cleared(self, code):
-        if self._step < len(_CLEARED_CODES) and code == _CLEARED_CODES[self._step]:
-            self._step += 1
-        else:
-            self._step = 0
-
-    def entered(self, code):
-        unlocked = self._step == len(_CLEARED_CODES) and code == _FINAL_CODE
-        if unlocked or len(code) >= len(_FINAL_CODE):
-            self._step = 0
-        return unlocked

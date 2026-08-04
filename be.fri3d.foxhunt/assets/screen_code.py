@@ -14,8 +14,7 @@ import sound
 import store
 from creatures import by_id
 from fox_radio import RADIO
-from debug_unlock import DebugUnlock, accepts_debug_code
-from screen_debug import DebugActivity
+from debug_unlock import accepts_debug_code
 from screen_win import WinActivity
 
 # No confirm key: the 4th digit IS the submit, so an OK would only ever fire on
@@ -40,7 +39,6 @@ class CodeActivity(Activity):
         self.fox_id = self.getIntent().extras.get("fox_id", 0)
         self.c = by_id(self.fox_id)
         self.entry = ""
-        self.debug_unlock = DebugUnlock()
         self.waiting = False  # a verdict is in flight; the keypad is dead
 
         s = ui.make_screen(0xDFEEBF)
@@ -128,7 +126,6 @@ class CodeActivity(Activity):
             return  # keypad is dead until the network answers
         sound.play("tap")
         if k == "<":
-            self.debug_unlock.cleared(self.entry)
             self.entry = ""
         elif len(self.entry) < CODE_LEN:
             self.entry += k
@@ -136,12 +133,6 @@ class CodeActivity(Activity):
         self.dots.set_text((self.entry + "____")[:CODE_LEN])
         self._draw_reveal()
         if len(self.entry) == CODE_LEN:
-            if self.debug_unlock.entered(self.entry):
-                self.entry = ""
-                self.dots.set_text("____")
-                self._draw_reveal()
-                self.startActivity(Intent(activity_class=DebugActivity))
-                return
             self._submit()
 
     def _submit(self):

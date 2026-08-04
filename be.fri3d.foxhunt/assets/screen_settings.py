@@ -5,12 +5,14 @@
 # for a vibration API. Companion/name editing lives on the profile screen, and
 # LoRa is not optional, so neither appears here.
 
-from mpos import Activity
+import lvgl as lv
+from mpos import Activity, Intent
 import ui
 import store
 import sound
 import leds
 import registrar
+from screen_debug import DebugActivity
 
 STRIP_BG = 0xEFE7D0
 TRACK_OFF = 0xE0D4B4  # switch track when off
@@ -77,10 +79,16 @@ class SettingsActivity(Activity):
         # ids, labels only: the badge id anchors recovery, the jager id is
         # minted over LoRa during registration ("-" until that happened)
         p = store.profile() or {}
-        strip = ui.panel(s, 6, 188, _ROW_W, 22, bg=STRIP_BG)
+        strip = ui.box(s, 6, 188, _ROW_W, 22, STRIP_BG, radius=ui.RADIUS)
         ui.label(strip, "BADGE ID", 6, 3, ui.MYSTERY, ui.font_small())
         ui.label(strip, registrar.badge_id(), 72, 3, ui.INK, ui.font_small())
-        strip = ui.panel(s, 6, 212, _ROW_W, 22, bg=STRIP_BG)
+        # The badge-id strip doubles as the hidden door: five taps opens the
+        # debug tools. Silent on purpose — no tap sound, no focus ring that
+        # would advertise the strip as interactive.
+        self._id_taps = 0
+        strip.add_flag(lv.obj.FLAG.CLICKABLE)
+        strip.add_event_cb(lambda e: self._id_tap(), lv.EVENT.CLICKED, None)
+        strip = ui.box(s, 6, 212, _ROW_W, 22, STRIP_BG, radius=ui.RADIUS)
         ui.label(strip, "JAGER ID", 6, 3, ui.MYSTERY, ui.font_small())
         ui.label(strip, p.get("hunter_id") or "-", 72, 3, ui.INK, ui.font_small())
 
@@ -88,7 +96,14 @@ class SettingsActivity(Activity):
 
     def onPause(self, screen):
         super().onPause(screen)
+        self._id_taps = 0  # a half-finished unlock doesn't survive leaving
         leds.off()  # don't leave the preview burning after leaving the screen
+
+    def _id_tap(self):
+        self._id_taps += 1
+        if self._id_taps >= 5:
+            self._id_taps = 0
+            self.startActivity(Intent(activity_class=DebugActivity))
 
     def _flip(self, key):
         value = not store.settings()[key]

@@ -146,11 +146,23 @@ talks to `/api/v1/auth/*` there.
   nobody else has. A badge that could report its own finds could report all of
   them. The badge *reads* its catch list back on restore
   (`GET /api/v1/auth/user` returns `creatures`) and never writes it.
+  ONE deliberate hole: the Glitch Vos (id 13, hard-coded on both sides) is
+  hack-only — never in the field — and is the single fox `/found` accepts
+  without the key, identified by `badge_id`. The whole badge-side path lives
+  in `glitch.py` (REPL spell + sync-on-boot); a hacker can only ever unlock
+  that one creature, for an account whose badge MAC they know.
   Consequence, accepted: a player with no antenna has `hunter_id = NULL`, so the
   bridge can't attribute their finds and a restore gives them back an account
   with no catches.
 - The badge writes only what is its own to claim — name, `profile_pic`
   (companion shortcode), `hunter_id` — via register/PATCH.
+- **Debug catches must never score.** Creatures "attained" through the debug
+  screen (opened by tapping the badge id five times in settings) — the 1111
+  test code, the roster toggles — land only in the badge's local store. The
+  no-badge-writes rule above already guarantees they can't reach the
+  scoreboard, but treat it as a requirement, not a happy accident: any future
+  debug or test path must stay local-only and never produce a server-side
+  catch.
 
 ## Server pages
 `/` is the public one-pager (`components/Home.tsx`): what the game is, both
