@@ -7,19 +7,13 @@
  * between those relies on `image-rendering: pixelated`.
  */
 
-const CREATURES = [
-  "vos",
-  "kat",
-  "egel",
-  "konijlpaard",
-  "everzwaan",
-  "kameleeuw",
-  "tijghert",
-  "axolotl",
-  "slakamander",
-  "koekoekoek",
-  "knoricorn",
-];
+// The parade shows one creature in colour — the Vos, which is already the
+// favicon — and the rest as flat silhouettes, the way the badge's own title
+// screen teases them. The roster is a discovery, so nothing here may give it
+// away: the silhouettes are numbered rather than named, because a filename in
+// view-source spoils just as well as a picture. Baked from artwork/animals/
+// by flattening the alpha to #86ad64, the title screen's silhouette green.
+const SILHOUETTES = 10;
 
 const Shot = ({
   src,
@@ -88,13 +82,20 @@ export const Home = () => (
           </a>
         </p>
         <div class="strip" aria-hidden="true">
-          {CREATURES.map((c, i) => (
+          <img
+            src="/art/animals/vos.png"
+            width="16"
+            height="16"
+            alt=""
+            style="--i:0"
+          />
+          {Array.from({ length: SILHOUETTES }, (_, i) => (
             <img
-              src={`/art/animals/${c}.png`}
+              src={`/art/silhouettes/${String(i + 1).padStart(2, "0")}.png`}
               width="16"
               height="16"
               alt=""
-              style={`--i:${i}`}
+              style={`--i:${i + 1}`}
             />
           ))}
         </div>
