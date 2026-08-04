@@ -20,6 +20,10 @@ _BG_ZOEK = 0xCFE2AD
 _BG_OOGST = 0xDFEEBF
 _RING = 0x9DB37A  # ring outline: the design's translucent green, flattened
 _SSID_INK = 0x8A9A6A
+# a rival spot must beat the one we're homing on by this much before the
+# meter switches to it — without it, a field of equally-strong networks
+# swaps target every sweep and the hot/cold meter is unreadable
+_STICKY_DBM = 6
 
 
 class PlukActivity(Activity):
@@ -44,6 +48,7 @@ class PlukActivity(Activity):
         if self.timer:
             self.timer.delete()
             self.timer = None
+        RADIO.stop()  # scanning hops channels; snuffelen pins one
         leds.off()
 
     # ── phase 1: zoeken ─────────────────────────────────────────────────
@@ -126,13 +131,27 @@ class PlukActivity(Activity):
         if not readings:
             self._show_none()
             return
+        # one prefs read for the whole scan, not one per network
+        waits = store.pluk_waits([r.bssid for r in readings])
         # prefer the strongest READY spot; only when everything nearby is
         # reloading do we show the reload story for the strongest one
-        ready = [r for r in readings if store.pluk_wait_s(r.bssid) == 0]
-        target = ready[0] if ready else readings[0]
+        ready = [r for r in readings if waits[r.bssid] == 0]
+        pool = ready or readings  # already sorted strongest-first
+        target = self._sticky(pool)
         self._target = target
         self.ssid_l.set_text(target.ssid)
-        self._show(target, store.pluk_wait_s(target.bssid))
+        self._show(target, waits[target.bssid])
+
+    def _sticky(self, pool):
+        """Keep homing on the spot we already lead with, unless it dropped
+        out of the pool or something clearly beats it."""
+        best = pool[0]
+        held = self._target
+        if held is not None:
+            for r in pool:
+                if r.bssid == held.bssid:
+                    return r if best.rssi - r.rssi < _STICKY_DBM else best
+        return best
 
     def _meter(self, level):
         leds.show_level(level)

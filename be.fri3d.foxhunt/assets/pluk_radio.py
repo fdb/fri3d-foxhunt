@@ -8,11 +8,29 @@
 #
 # Same seam pattern as fox_radio.py: a real WifiPlukRadio where the hardware
 # cooperates, a FakePlukRadio that drives the whole UI on desktop.
+#
+# THE SCAN NEVER RUNS ON THE UI THREAD. `wlan.scan()` is
+# `esp_wifi_scan_start(&config, block=1)` — it sweeps every channel and does
+# not return for 2-4 s. Called from the plukscherm's lv.timer it starved
+# LVGL of input completely: no tap, no back-swipe, not even a raw REPL. The
+# port releases the GIL around that call (network_wlan.c), so a worker
+# thread scans while LVGL keeps drawing. `scan()` is therefore a cheap
+# getter: it hands back the last published readings and makes sure a worker
+# is alive.
 
 import random
+import time
 
 SSID = "fri3d-badge"
+_SSID_B = SSID.encode()
 PLUK_LEVEL = 4  # harvestable at meter level >= 4 (about -55 dBm)
+
+_MAX_SPOTS = 12  # keep the strongest few; a city block can show 40+
+_SCAN_GAP_MS = 300  # breather between scans, so the radio is not pinned
+_IDLE_EXIT_MS = 5000  # worker retires once the screen stops asking
+_STALE_MS = 20000  # nothing scanned this long -> report nothing, not a lie
+_SMOOTH = 0.5  # per-BSSID RSSI smoothing: raw dBm jitters +-5 and would
+# flicker the meter across the PLUK! threshold
 
 
 def _level(rssi):
@@ -46,39 +64,137 @@ def yield_for(bssid, date):
 
 
 class WifiPlukRadio:
-    """Scan the real STA interface. A scan can fail transiently (radio busy,
-    mid-association); we return the last good result rather than raising —
-    the plukscherm polls, so a hiccup just skips a beat.
+    """Scan the real STA interface, on a worker thread (see module header).
 
-    any_ssid is the debug switch (instellingen -> debug): accept EVERY
+    A scan can fail transiently (radio busy, mid-association); we keep the
+    last good result rather than raising — the plukscherm polls, so a hiccup
+    just skips a beat. After _STALE_MS with no success we publish nothing,
+    so a wedged radio reads as "geen plukplek" instead of a frozen meter.
+
+    any_ssid is the debug switch (instellingen -> debug): accept EVERY named
     network instead of only `fri3d-badge`, so plukken is walkable anywhere
     there's WiFi — home, office — before the camp exists. Identity stays
-    the BSSID, so reloads and daily yields work exactly as at camp."""
+    the BSSID, so reloads and daily yields work exactly as at camp.
+
+    Hidden networks are never a plukplek, in either mode: the firmware asks
+    for them (`config.show_hidden = true`) and reports them with an empty
+    SSID, and its `hidden` tuple field is hardcoded False — so the empty
+    name is the only honest signal. A spot you cannot name is not a place.
+    """
 
     def __init__(self, wlan):
         self._wlan = wlan
         self._last = []
+        self._smooth = {}  # bssid -> smoothed dBm, pruned to what's in view
+        self._ok_ms = 0  # ticks_ms of the last successful scan
+        self._asked_ms = 0  # ticks_ms of the last scan() call
+        self._worker = False
+        self._lock = None
         self.any_ssid = False
+        try:
+            import _thread
 
+            self._thread = _thread
+            self._lock = _thread.allocate_lock()
+        except ImportError:
+            self._thread = None
+
+    # ── the UI side: cheap, never touches the radio ─────────────────────
     def scan(self):
+        self._asked_ms = time.ticks_ms()
+        self._pump()
+        if time.ticks_diff(self._asked_ms, self._ok_ms) > _STALE_MS:
+            return []
+        return self._last
+
+    def stop(self):
+        """Retire the worker now. The plukscherm calls this on pause because
+        a channel-hopping scan would wreck snuffelen, which pins the radio to
+        one channel — leaving the worker to time out is too slow for that.
+        ticks_add, not plain subtraction: ticks_ms() lives in a wrapping range
+        and a bare negative is not a valid tick value, so ticks_diff on it
+        returns nonsense and the worker would never see the signal."""
+        self._asked_ms = time.ticks_add(time.ticks_ms(), -(_IDLE_EXIT_MS + 1))
+
+    # ── the radio side ──────────────────────────────────────────────────
+    def _pump(self):
+        """Make sure exactly one worker is scanning. Without threads (some
+        desktop builds) fall back to scanning inline — slow, but the screen
+        still works."""
+        if self._thread is None:
+            self._scan_once()
+            return
+        with self._lock:
+            if self._worker:
+                return
+            self._worker = True
+        try:
+            from mpos import TaskManager
+
+            self._thread.stack_size(TaskManager.good_stack_size())
+            self._thread.start_new_thread(self._run, ())
+        except Exception as e:
+            print("pluk: worker:", e)
+            with self._lock:
+                self._worker = False
+
+    def _run(self):
+        try:
+            while time.ticks_diff(time.ticks_ms(), self._asked_ms) < _IDLE_EXIT_MS:
+                self._scan_once()
+                time.sleep_ms(_SCAN_GAP_MS)
+        finally:
+            with self._lock:
+                self._worker = False
+
+    def _scan_once(self):
+        """One blocking sweep, guarded by the OS-wide WiFi busy flag so we
+        never race auto_connect or the wifi app into a failed scan."""
+        svc = None
+        try:
+            from mpos.net.wifi_service import WifiService
+
+            svc = WifiService
+        except Exception:
+            pass
+        if svc is not None:
+            if svc.is_busy():
+                return
+            svc.wifi_busy = True
         try:
             if not self._wlan.active():
                 self._wlan.active(True)
-            found = []
-            for net in self._wlan.scan():
-                # (ssid, bssid, channel, RSSI, security, hidden)
-                if self.any_ssid or net[0] == SSID.encode():
-                    mac = ":".join("%02x" % b for b in net[1])
-                    try:
-                        name = net[0].decode() or "(verborgen)"
-                    except Exception:
-                        name = "(?)"
-                    found.append(PlukReading(mac, net[3], name))
-            found.sort(key=lambda r: -r.rssi)
-            self._last = found
+            nets = self._wlan.scan()
         except Exception:
-            pass
-        return self._last
+            return
+        finally:
+            if svc is not None:
+                svc.wifi_busy = False
+        self._publish(nets)
+
+    def _publish(self, nets):
+        smooth, names = {}, {}
+        for net in nets:
+            ssid = net[0]
+            if not ssid:
+                continue  # hidden AP: no name, no plukplek
+            if not self.any_ssid and ssid != _SSID_B:
+                continue
+            mac = ":".join("%02x" % b for b in net[1])
+            prev = self._smooth.get(mac)
+            smooth[mac] = net[3] if prev is None else prev + (net[3] - prev) * _SMOOTH
+            try:
+                names[mac] = ssid.decode()
+            except Exception:
+                names[mac] = "?"
+        out = [PlukReading(m, int(r), names[m]) for m, r in smooth.items()]
+        # sort on (rssi, bssid): MicroPython's sort is unstable, and a field
+        # full of same-strength networks would otherwise reshuffle the lead
+        # spot every sweep
+        out.sort(key=lambda r: (-r.rssi, r.bssid))
+        self._smooth = smooth
+        self._last = out[:_MAX_SPOTS]
+        self._ok_ms = time.ticks_ms()
 
 
 class FakePlukRadio:
@@ -92,6 +208,9 @@ class FakePlukRadio:
 
     def bump(self, delta_dbm):
         self._near = max(-90.0, min(-40.0, self._near + delta_dbm))
+
+    def stop(self):
+        pass
 
     def scan(self):
         self._near = min(-42.0, self._near + random.uniform(-1.0, 3.5))

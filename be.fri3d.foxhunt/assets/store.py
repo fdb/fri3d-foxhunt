@@ -365,9 +365,23 @@ def pluk_wait_s(bssid):
     return max(0, PLUK_RELOAD_S - (_now() - int(t)))
 
 
+def pluk_waits(bssids):
+    """Reload seconds for many spots in ONE prefs read -> {bssid: seconds}.
+    The plukscherm asks about every network in a scan, and SharedPreferences
+    re-reads and re-parses the whole config file on every construction — so
+    asking per spot cost one flash read per network, every tick."""
+    spots = _pluk()["spots"]
+    now = _now()
+    return {
+        b: max(0, PLUK_RELOAD_S - (now - int(spots[b]))) if b in spots else 0
+        for b in bssids
+    }
+
+
 def spots_ready_count():
     """Previously visited spots that have reloaded — the home-card stat."""
-    return sum(1 for b in _pluk()["spots"] if pluk_wait_s(b) == 0)
+    now = _now()
+    return sum(1 for t in _pluk()["spots"].values() if now - int(t) >= PLUK_RELOAD_S)
 
 
 def pluk_count_today():
