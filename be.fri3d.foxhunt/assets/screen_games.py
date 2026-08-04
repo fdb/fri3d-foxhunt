@@ -198,6 +198,11 @@ class VliegActivity(GameActivity):
         self.bird = art.creature_panel(s, self.c, 2)
         self._y = 110.0
         self._vy = 0.0
+        # The round starts on the first tap, not on the first tick. Gravity,
+        # the branches and the collision test all wait; only the sky keeps
+        # drifting, so the held frame still looks alive. Without this a player
+        # who is still reading the hint has already fallen out of the sky.
+        self._flying = False
         self.bird.set_pos(_BIRD_X, int(self._y))
         self.obs = []  # {"top", "bot", "x", "passed"}
         self._spawn_t = 10
@@ -214,6 +219,7 @@ class VliegActivity(GameActivity):
 
     def _flap(self):
         if not self._over:
+            self._flying = True
             self._vy = -6.5
 
     def _branch(self, s, y, h, cap):
@@ -244,6 +250,8 @@ class VliegActivity(GameActivity):
     def step(self):
         s = self.screen
         self._drift()
+        if not self._flying:
+            return
         self._vy = min(8.0, self._vy + 0.9)
         self._y += self._vy
         if self._y < 26 or self._y > 240 - 32:
