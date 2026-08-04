@@ -92,6 +92,37 @@ phase() { echo "[t+$((SECONDS - t0))s] $*"; }
 MP=(uvx mpremote connect "$PORT")
 APP_DIR="apps/$APP_ID"
 
+# ── Precompile the staged tree to .mpy ───────────────────────────────
+# The badge spends ~2s of every cold start compiling 5k lines of source;
+# shipping bytecode moves that cost here, where it is free (measured:
+# imports 5.7s -> 3.7s, the rest being per-file open() and top-level
+# exec, not compile). Three choices that matter:
+#   - The OS's IN-TREE mpy-cross, never a pip one: the .mpy format must
+#     match the firmware's bytecode version, and the in-tree binary comes
+#     from the same checkout that built the firmware.
+#   - -march=xtensawin, so a viper module (art_fast.py) carries ESP32-S3
+#     machine code. Plain modules are unaffected: the arch header is only
+#     set when native code is actually emitted.
+#   - -O2, NOT the OS's -O3: the only extra thing O3 strips is the
+#     line-number table, and a badge traceback without line numbers is
+#     useless. -s embeds the repo-relative path for the same reason.
+# The entrypoint compiles too: execute_script imports by module name, so
+# foxhunt.mpy loads the same as foxhunt.py did.
+# No mpy-cross -> ship source, exactly as before; the emulator always
+# runs source via its symlink and never sees this transform either way.
+MPY_CROSS="${MPY_CROSS:-/Users/fdb/Source/MicroPythonOS/lvgl_micropython/lib/micropython/mpy-cross/build/mpy-cross}"
+if [[ -x "$MPY_CROSS" ]]; then
+    n_mpy=0
+    while IFS= read -r f; do
+        "$MPY_CROSS" -s "${f#"$STAGE/"}" -O2 -march=xtensawin -o "${f%.py}.mpy" "$f"
+        rm "$f"
+        n_mpy=$((n_mpy + 1))
+    done < <(find "$STAGE" -name '*.py' -type f)
+    phase "Precompiled $n_mpy modules to .mpy."
+else
+    echo "note: mpy-cross not found at $MPY_CROSS; deploying .py source." >&2
+fi
+
 # ── Stop the app, and learn what the badge currently holds ───────────
 # One round trip: stop the app first (overwriting files under a live activity
 # leaves it running old code with new code on disk; onDestroy also lets it
