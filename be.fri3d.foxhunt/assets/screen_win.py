@@ -1,8 +1,10 @@
 # screen_win.py — the "Gevangen!" payoff. One button: back to Home.
 #
-# A normal/rare catch gets a calm card. A legendary catch ("leg") gets the full
-# maximalist fireworks (celebrate.Fireworks): rainbow halo, confetti, flashing
-# title, bouncing beast, looping fanfare and a rainbow LED chase.
+# The fuss scales with the rarity. Base: a calm card, jingle from the code
+# screen. Rare: the same card plus celebrate.Stardust — twinkling stars, a
+# gold glint, a soft LED breathe. Legendary: the full maximalist fireworks
+# (celebrate.Fireworks): rainbow halo, confetti, flashing title, bouncing
+# beast, looping fanfare and a rainbow LED chase.
 
 import lvgl as lv
 import mpos.ui
@@ -10,22 +12,24 @@ from mpos import Activity
 import ui
 import art
 from creatures import by_id
-from celebrate import Fireworks
+from celebrate import Fireworks, Stardust
 
 
 class WinActivity(Activity):
     def onCreate(self):
         self.fox_id = self.getIntent().extras.get("fox_id", 0)
         c = by_id(self.fox_id)
-        self.leg = c["rarity"] == "leg"
-        self.fireworks = None
+        leg = c["rarity"] == "leg"
+        self.fx = None
 
-        s = ui.make_screen(0x140A2E if self.leg else 0x20301C)
-        if self.leg:
-            self.fireworks = Fireworks(s, c)
+        s = ui.make_screen(0x140A2E if leg else 0x20301C)
+        if leg:
+            self.fx = Fireworks(s, c)
             self._verder_button(s, ui.GOLD, ui.INK)
         else:
-            self._calm_card(s, c)
+            panel = self._calm_card(s, c)
+            if c["rarity"] == "rare":
+                self.fx = Stardust(s, panel)
 
         self.setContentView(s)
 
@@ -48,6 +52,7 @@ class WinActivity(Activity):
             center=True,
         )
         self._verder_button(s, ui.GOLD, ui.INK)
+        return panel
 
     def _verder_button(self, s, bg, border):
         # y=202, not flush at the bottom: the focused button wears a 4px gold
@@ -63,13 +68,13 @@ class WinActivity(Activity):
 
     def onResume(self, screen):
         super().onResume(screen)
-        if self.fireworks:
-            self.fireworks.start()
+        if self.fx:
+            self.fx.start()
 
     def onPause(self, screen):
         super().onPause(screen)
-        if self.fireworks:
-            self.fireworks.stop()
+        if self.fx:
+            self.fx.stop()
 
     def go_home(self):
         # Stack is home -> hunt -> code -> win; pop the three to land on home.

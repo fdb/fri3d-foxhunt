@@ -1,10 +1,13 @@
-# celebrate.py — the legendary catch fireworks. Maximalist, more-is-more.
+# celebrate.py — the catch payoffs that move: Fireworks (leg) and Stardust
+# (rare). Base catches stay a still card with the plain jingle.
 #
-# Peggle-blast energy for a "leg" rarity catch: a pulsing rainbow halo, falling
-# confetti, twinkling sparkles, a bouncing beast, a flashing title, a looping
-# fanfare, and a rainbow chase across the 5 physical LEDs. All of it is driven
-# by one lv.timer; Fireworks.start()/stop() own its lifecycle so WinActivity
-# just wires it into onResume/onPause (and the LEDs/buzzer no-op on desktop).
+# Fireworks is Peggle-blast energy for a "leg" rarity catch: a pulsing rainbow
+# halo, falling confetti, twinkling sparkles, a bouncing beast, a flashing
+# title, a looping fanfare, and a rainbow chase across the 5 physical LEDs.
+# Stardust is deliberately a class below it: twinkling stars, a gold glint on
+# the card, a soft gold LED breathe — special, not unhinged. Each is driven by
+# one lv.timer; start()/stop() own its lifecycle so WinActivity just wires it
+# into onResume/onPause (and the LEDs/buzzer no-op on desktop).
 
 import lvgl as lv
 import math
@@ -209,3 +212,68 @@ class Fireworks:
         # loop the fanfare so the music never stops while the screen is up.
         if f % _FANFARE_TICKS == 0:
             sound.play("legendary")
+
+
+# ── the rare shimmer ────────────────────────────────────────────────────────
+_TWINKLE_MS = 120  # slower beat than the fireworks: a shimmer, not a strobe
+
+# Around the calm card (114,36 92x92) and its name line — never on top of
+# either, and clear of the VERDER button at the bottom.
+_STAR_SPOTS = (
+    (104, 22),
+    (216, 26),
+    (70, 46),
+    (246, 54),
+    (56, 104),
+    (252, 112),
+    (156, 12),
+)
+
+
+class Stardust:
+    """The rare-catch payoff on the calm card: stars twinkling around it, the
+    card border glinting gold, and the LEDs breathing gold. Same lifecycle
+    contract as Fireworks (start/stop around onResume/onPause); the catch
+    jingle itself still comes from the code screen, like any base catch."""
+
+    def __init__(self, screen, panel):
+        self.panel = panel
+        self.timer = None
+        self.frame = 0
+        self._leds = False  # set in start(): True only when real NeoPixels answered
+        self.stars = []
+        for i, (sx, sy) in enumerate(_STAR_SPOTS):
+            colour = ui.GOLD if i % 2 else 0xFFF7E6
+            star = art.draw_sprite(screen, _STAR, {"w": colour}, 2)
+            star.set_pos(sx, sy)
+            self.stars.append(star)
+
+    def start(self):
+        self._leds = leds.write([_rgb(ui.GOLD)] * 5)
+        self.timer = lv.timer_create(self._tick, _TWINKLE_MS, None)
+
+    def stop(self):
+        if self.timer:
+            self.timer.delete()
+            self.timer = None
+        if self._leds:
+            leds.off()
+
+    def _tick(self, t):
+        f = self.frame = self.frame + 1
+
+        # stars twinkle out of phase — each spends a third of the time dark.
+        for i, star in enumerate(self.stars):
+            if (f // 2 + i) % 3:
+                star.remove_flag(lv.obj.FLAG.HIDDEN)
+            else:
+                star.add_flag(lv.obj.FLAG.HIDDEN)
+
+        # the card border glints gold now and then, then settles back.
+        glint = (f // 4) % 3 == 0
+        self.panel.set_style_border_color(ui.hexc(ui.GOLD if glint else ui.GREEN_D), 0)
+
+        # LEDs breathe gold (badge only) — never fully dark, never a flash.
+        if self._leds:
+            lvl = 0.25 + 0.75 * (0.5 + 0.5 * math.sin(f * 0.35))
+            leds.write([_rgb(_dim(ui.GOLD, lvl))] * 5)
