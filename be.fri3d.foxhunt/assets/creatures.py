@@ -9,6 +9,11 @@
 # biotoop : dossier habitat
 # favoriet: favourite food ("bes" | "noot" | "eikel") — feeding it grants +band
 # weetje  : a fun fact shown on the dossier
+# img     : real art — bare filename under artwork/animals/ (art.py owns the
+#           folder); without it the procedural shape/pal placeholder draws
+# anim    : True when img is a sprite SHEET (width N*16 = N frames) that
+#           should play — on the win/celebrate payoff and the beast page.
+#           The frame count lives in the baked atlas, not here.
 #
 # Art is NOT final — swapping it later means editing art.SH/PALS or pointing
 # art.creature_panel() at real images. Nothing else in the app cares.
@@ -174,6 +179,21 @@ CREATURES = [
         "biotoop": "Regenboogwei",
         "favoriet": "bes",
         "weetje": "De Knoricorn verschijnt enkel voor wie nooit opgeeft.",
+    },
+    {
+        "id": 13,
+        "naam": "Glitch Vos",
+        "rarity": "leg",
+        "shape": "fox",
+        "pal": "gold",
+        "code": "1337",
+        "beacon": 13,
+        "img": "glitch_vos.png",
+        "anim": True,
+        "soort": "Storing",
+        "biotoop": "Tussen de pixels",
+        "favoriet": "noot",
+        "weetje": "De Glitch Vos flikkert tussen twee werelden.",
     },
 ]
 

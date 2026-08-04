@@ -476,6 +476,41 @@ def sprite_img(parent, name, scale, x=0, y=0, frame=0):
     return w
 
 
+_ANIM_FRAME_MS = 180  # sprite-sheet playback: ~5.5 fps reads as pixel art
+
+
+def animate_sprite(img, name, ms=_ANIM_FRAME_MS):
+    """Cycle a sprite_img through its sheet frames, forever.
+
+    An lv.anim_t rather than an lv.timer for the same reason as
+    companion._twinkle: LVGL kills an animation when its var is deleted, so
+    playback dies with the widget and a rebuilt screen never leaks a timer
+    poking a dead image. Values run 0..n over n*ms so each frame gets one
+    slot; %n folds the endpoint back onto frame 0."""
+    n = frames(name)
+    if n < 2:
+        return
+    a = lv.anim_t()
+    a.init()
+    a.set_var(img)
+    a.set_values(0, n)
+    a.set_duration(n * ms)
+    a.set_repeat_count(lv.ANIM_REPEAT_INFINITE)
+    a.set_custom_exec_cb(lambda _a, v: img.set_src(sprite_dsc(name, v % n)))
+    a.start()
+
+
+def picture(parent, src, x=0, y=0):
+    """A baked PNG drawn at its authored size — nearest-neighbour, so the
+    pixels stay pixels. For art that is already screen-sized (the title
+    banner); creature art goes through creature_panel() instead."""
+    w = lv.image(parent)
+    w.set_src(src)
+    w.set_pos(x, y)
+    w.set_antialias(False)
+    return w
+
+
 def _bare(o):
     o.set_style_pad_all(0, 0)
     o.set_style_border_width(0, 0)
@@ -485,7 +520,7 @@ def _bare(o):
     o.remove_flag(lv.obj.FLAG.CLICKABLE)  # let taps fall through to the cell
 
 
-def _layer(parent, c, scale, tint=None):
+def _layer(parent, c, scale, tint=None, animate=False):
     """One creature image/canvas at (0,0), sized 16*scale, full colour (tint
     None) or flattened to the tone `tint`. Non-clickable so it never steals
     taps from a clickable cell.
@@ -500,6 +535,8 @@ def _layer(parent, c, scale, tint=None):
         if tint is not None:
             w.set_style_image_recolor(lv.color_hex(tint[0]), 0)
             w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
+        elif animate and c.get("anim"):
+            animate_sprite(w, name)
     else:
         w = draw_sprite(parent, SH[c["shape"]], PALS[c["pal"]], scale, tint)
         w.set_pos(0, 0)
@@ -507,7 +544,9 @@ def _layer(parent, c, scale, tint=None):
     return w
 
 
-def creature_panel(parent, c, scale, reveal=1.0, silhouette=False, mask=None, veil=SIL):
+def creature_panel(
+    parent, c, scale, reveal=1.0, silhouette=False, mask=None, veil=SIL, animate=False
+):
     """The creature shown full / hidden / partially revealed (fills top-down).
     Backend-agnostic — PNG art and procedural sprites both come through here.
     Full/hidden return the bare sprite (no wrapper, so it never blocks clicks);
@@ -517,11 +556,15 @@ def creature_panel(parent, c, scale, reveal=1.0, silhouette=False, mask=None, ve
     the revealed part takes instead of the real art (None = the real art, i.e.
     an honest reveal). The code screen sets both, so it can show progress
     without ever spoiling which creature it is — the true reveal is the win
-    screen."""
+    screen.
+
+    `animate` plays a sprite sheet's frames, for creatures flagged "anim" —
+    only ever on the honest full reveal (the payoff screens and the beast
+    page); silhouettes and veils hold frame 0 so a mystery stays still."""
     if silhouette or reveal <= 0.0:
         return _layer(parent, c, scale, veil)
     if reveal >= 1.0:
-        return _layer(parent, c, scale, mask)
+        return _layer(parent, c, scale, mask, animate=(animate and mask is None))
     # partial: veiled base + revealed part clipped to the top `reveal`
     px = 16 * scale
     wrap = lv.obj(parent)

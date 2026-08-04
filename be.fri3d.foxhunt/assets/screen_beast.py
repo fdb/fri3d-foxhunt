@@ -47,7 +47,7 @@ class BeastActivity(Activity):
         rare = self.c["rarity"] != "norm"
         card = ui.panel(s, 8, 32, 132, 150, ui.SURFACE_SOFT)
         card.set_style_border_color(ui.hexc(ui.GOLD if rare else ui.GREEN_D), 0)
-        sp = art.creature_panel(card, self.c, 5)
+        sp = art.creature_panel(card, self.c, 5, animate=True)
         sp.align(lv.ALIGN.CENTER, 0, -12)
         self.bubble = ui.label(card, "", 4, 2, ui.INK, ui.font_small(), w=124)
         strip = ui.box(card, 0, 130, 128, 18, ui.GREEN)

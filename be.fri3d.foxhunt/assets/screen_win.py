@@ -33,7 +33,7 @@ class WinActivity(Activity):
         panel = ui.box(s, 114, 36, 92, 92, ui.SURFACE_SOFT, radius=2)
         panel.set_style_border_width(3, 0)
         panel.set_style_border_color(ui.hexc(ui.GREEN_D), 0)
-        sp = art.creature_panel(panel, c, 5)
+        sp = art.creature_panel(panel, c, 5, animate=True)
         sp.align(lv.ALIGN.CENTER, 0, 0)
 
         ui.label(s, c["naam"], 0, 136, ui.CREAM, ui.font_title(), w=320, center=True)

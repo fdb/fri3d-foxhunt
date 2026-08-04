@@ -52,10 +52,10 @@ per-file `open()`, ~0.28s each — buffer size makes no difference), and the res
 is REPL round trips at ~4s of interpreter start and serial handshake apiece,
 which is why the steps are folded into as few `exec` calls as possible.
 
-Two consequences of the file count, both pointing the same way: LittleFS bills a
-whole 4 KB block per file, so ~227 KB of app content occupies ~500 KB on device,
-and each file costs ~0.28s of every deploy. The 42 sprites under 1 KB are most
-of both — an atlas would reclaim ~150 KB and ~12s.
+The file count matters twice over: LittleFS bills a whole 4 KB block per file,
+and each file costs ~0.28s of every deploy's hash pass. That is why the 40+
+tiny sprite PNGs were folded into one `assets/sprites.bin` atlas (see
+Conventions → Artwork) — reclaiming ~150 KB on device and ~12s per deploy.
 
 End users never touch this path. The app store streams a `.mpk` over WiFi
 straight into `AppManager.download_and_install_package`, which unzips it as it
@@ -91,18 +91,28 @@ as a citation of the original design bundle file `mascotte.jsx`.
 - **Artwork:** PNGs (with their Aseprite sources) live in `artwork/<folder>/` —
   `animals/` are the huntable creatures (16×16 RGBA), `companions/` the maatje's
   heads and accessories (16×16 RGBA, one PNG per Aseprite layer, filename ==
-  the id in `companion.py`), `title-screen/` the 320×120 welcome banner. `scripts/bake_sprites.sh` mirrors
-  the PNGs (only) into `be.fri3d.foxhunt/assets/`, **keeping the folder
-  structure**, so `artwork/animals/vos.png` → `assets/animals/vos.png`. Re-run
-  it after changing artwork; `--check` reports drift. Both sides are committed,
-  and every PNG under `assets/` belongs to the script (orphans get pruned).
+  the id in `companion.py`), `title-screen/` the 320×120 welcome banner.
+  `scripts/bake_sprites.sh` packs every 16px-tall PNG into ONE atlas —
+  `assets/sprites.bin` (raw 16×16 BGRA frames, 1 KB each) plus the generated
+  index `assets/atlas.py` — because on LittleFS forty tiny files cost 4 KB and
+  ~0.28s of deploy each; other art (the title banner) is mirrored as PNG.
+  Sprites keep their artwork-relative path as atlas key (`"animals/vos.png"`).
+  Re-run the script after changing artwork; `--check` reports drift (CI). Both
+  sides are committed, and everything the script generates belongs to it.
   A creature opts into real art with an `"img"` field in `creatures.py` — the
   bare filename, `art.py` owns the folder; without it, it falls back to the
   procedural placeholder shape.
+- **Animated creatures:** a sprite that is a SHEET (width N×16, frames left to
+  right, like `glitch_vos.png` at 80×16) bakes into N atlas frames
+  automatically. Set `"anim": True` on the creature to play them — animation
+  runs only where the payoff is honest (win/celebrate screens and the beast
+  page pass `animate=True` to `art.creature_panel`); silhouettes, veils and
+  grids hold frame 0. Playback is an `lv.anim_t` (`art.animate_sprite`), which
+  LVGL kills with the widget — never an `lv.timer`, which would outlive it.
 - **Don't name an asset dir after an imported module** — a folder `creatures/`
-  shadows `creatures.py` on import. That's why creature art lives in
-  `assets/animals/` and companion art in `assets/companions/` (plural). The
-  failure is silent and confusing: the import succeeds, then the module has no
+  shadows `creatures.py` on import. That's why creature art keys live under
+  `animals/` and companion art under `companions/` (plural). The failure is
+  silent and confusing: the import succeeds, then the module has no
   attributes.
 - **Fonts** are 1-bit bitmap fonts in `assets/fonts/*.bin`, loaded with
   `lv.binfont_create`. Edit the source `.bdf` in `tools/bitmap_fonts/` (editor)

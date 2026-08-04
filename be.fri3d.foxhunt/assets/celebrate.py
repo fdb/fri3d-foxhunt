@@ -96,7 +96,7 @@ class Fireworks:
         # the beast itself: big, and drawn straight onto the screen (NOT a child
         # of the disc, so it isn't clipped) so it floats ON TOP of the rings —
         # its silhouette spills past the disc onto the rainbow. It bounces.
-        self.sprite = art.creature_panel(s, self.c, 8)  # scale 8 -> 128px
+        self.sprite = art.creature_panel(s, self.c, 8, animate=True)  # 128px
         self.sprite.align(lv.ALIGN.CENTER, 0, _CY - 120)
 
         # 3. flashing title + cycling praise.
