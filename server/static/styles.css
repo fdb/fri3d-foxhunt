@@ -98,8 +98,10 @@ main {
   margin: 0 auto;
 }
 
-/* Card panel: 2px ink frame + tiny radius, like ui.panel() */
-section,
+/* Card panel: 2px ink frame + tiny radius, like ui.panel().
+   Scoped to <main> — the landing page's full-bleed <section> bands must stay
+   square, or their rounded corners collide where two bands meet. */
+main section,
 .panel {
   background: var(--card);
   border: 3px solid var(--ink);
@@ -282,6 +284,8 @@ img {
 
 /* Hero: the title banner as a sign at the edge of the forest */
 .hero {
+  position: relative;
+  overflow: hidden;
   padding: 3.5rem 0 3rem;
   background:
     radial-gradient(
@@ -305,6 +309,127 @@ img {
   text-align: center;
 }
 
+.hero .wrap {
+  position: relative;
+}
+
+/* Pixel stars: a 9px plus drawn from two bars, blinking on a step timing so it
+   reads as 8-bit twinkle rather than a CSS fade. Positions are hand-placed to
+   stay out of the text column. */
+.stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.stars span {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  opacity: 0.18;
+  background:
+    linear-gradient(var(--focus-gold), var(--focus-gold)) center / 3px 9px
+      no-repeat,
+    linear-gradient(var(--focus-gold), var(--focus-gold)) center / 9px 3px
+      no-repeat;
+  animation: twinkle 4s steps(1, end) infinite;
+}
+
+@keyframes twinkle {
+  0%,
+  55% {
+    opacity: 0.18;
+  }
+  60%,
+  95% {
+    opacity: 1;
+  }
+}
+
+.stars span:nth-child(1) {
+  left: 6%;
+  top: 12%;
+  animation-duration: 3.1s;
+}
+.stars span:nth-child(2) {
+  left: 14%;
+  top: 34%;
+  animation-duration: 4.7s;
+  animation-delay: 0.6s;
+}
+.stars span:nth-child(3) {
+  left: 4%;
+  top: 62%;
+  animation-duration: 5.3s;
+  animation-delay: 1.9s;
+}
+.stars span:nth-child(4) {
+  left: 11%;
+  top: 84%;
+  animation-duration: 3.9s;
+  animation-delay: 1.1s;
+}
+.stars span:nth-child(5) {
+  left: 20%;
+  top: 22%;
+  animation-duration: 6.1s;
+  animation-delay: 2.4s;
+}
+.stars span:nth-child(6) {
+  left: 24%;
+  top: 70%;
+  animation-duration: 4.3s;
+  animation-delay: 0.3s;
+}
+.stars span:nth-child(7) {
+  left: 88%;
+  top: 10%;
+  animation-duration: 5.7s;
+  animation-delay: 1.5s;
+}
+.stars span:nth-child(8) {
+  left: 94%;
+  top: 40%;
+  animation-duration: 3.5s;
+  animation-delay: 2.8s;
+}
+.stars span:nth-child(9) {
+  left: 82%;
+  top: 26%;
+  animation-duration: 4.9s;
+  animation-delay: 0.9s;
+}
+.stars span:nth-child(10) {
+  left: 90%;
+  top: 72%;
+  animation-duration: 6.5s;
+  animation-delay: 2.1s;
+}
+.stars span:nth-child(11) {
+  left: 78%;
+  top: 88%;
+  animation-duration: 3.3s;
+  animation-delay: 1.7s;
+}
+.stars span:nth-child(12) {
+  left: 30%;
+  top: 6%;
+  animation-duration: 5.1s;
+  animation-delay: 0.4s;
+}
+.stars span:nth-child(13) {
+  left: 68%;
+  top: 4%;
+  animation-duration: 4.1s;
+  animation-delay: 2.6s;
+}
+.stars span:nth-child(14) {
+  left: 50%;
+  top: 3%;
+  animation-duration: 5.9s;
+  animation-delay: 1.3s;
+}
+
 .sign {
   display: inline-block;
   padding: 6px;
@@ -312,6 +437,17 @@ img {
   border: 4px solid var(--ink);
   border-radius: 6px;
   box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.35);
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .sign img {
@@ -395,9 +531,22 @@ img {
   margin-top: 2.5rem;
 }
 
+/* The parade hops in a wave: two discrete steps, so each sprite jumps a whole
+   pixel row instead of sliding — the way the badge would animate it. */
 .strip img {
   width: 48px;
   height: 48px;
+  animation: hop 1.8s steps(2, jump-none) infinite alternate;
+  animation-delay: calc(var(--i) * 0.14s);
+}
+
+@keyframes hop {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
 }
 
 .strip-note {
@@ -804,5 +953,21 @@ img {
   .strip img {
     width: 40px;
     height: 40px;
+  }
+}
+
+/* Every hero animation is decorative — none of it carries meaning, so it all
+   goes away for anyone who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .stars span,
+  .sign,
+  .strip img {
+    animation: none;
+  }
+  .stars span {
+    opacity: 0.55;
+  }
+  .btn {
+    transition: none;
   }
 }

@@ -57,6 +57,11 @@ export const Home = () => (
     </nav>
 
     <section class="hero">
+      <div class="stars" aria-hidden="true">
+        {Array.from({ length: 14 }, () => (
+          <span />
+        ))}
+      </div>
       <div class="wrap">
         <h1 class="sr-only">Vossenjacht</h1>
         <div class="sign">
@@ -83,8 +88,14 @@ export const Home = () => (
           </a>
         </p>
         <div class="strip" aria-hidden="true">
-          {CREATURES.map((c) => (
-            <img src={`/art/animals/${c}.png`} width="16" height="16" alt="" />
+          {CREATURES.map((c, i) => (
+            <img
+              src={`/art/animals/${c}.png`}
+              width="16"
+              height="16"
+              alt=""
+              style={`--i:${i}`}
+            />
           ))}
         </div>
         <p class="strip-note">
