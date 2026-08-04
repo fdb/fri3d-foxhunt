@@ -408,40 +408,71 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
     return canvas
 
 
-# ── Baked artwork: assets/<folder>/<name>.png, mirrored from artwork/ ───────
-# scripts/bake_sprites.sh keeps the tree structure, so the folders here are the
-# folders an artist sees. Creature art lives in animals/ (NOT creatures/ —
-# that would shadow creatures.py on import).
-_ART_DIR = "M:apps/be.fri3d.foxhunt/assets/"
-_CREATURE_DIR = _ART_DIR + "animals/"
-COMPANION_DIR = _ART_DIR + "companions/"  # plural: companion/ shadows companion.py
-TITLE_SRC = _ART_DIR + "title-screen/title-screen.png"
+# ── Baked artwork: one atlas for every 16x16 sprite ─────────────────────────
+# scripts/bake_sprites.sh packs artwork/**/16px PNGs into assets/sprites.bin
+# (raw BGRA frames, 1 KB each) + the generated atlas.py index — one LittleFS
+# file instead of forty. A sprite is named by its artwork-relative path
+# ("animals/vos.png"); a sheet (width N*16) is N consecutive frames. Only
+# screen-sized art (the title banner) is still a real PNG on disk.
+import atlas
+
+# open() path, derived from where this module was imported from, so it holds
+# on badge and desktop alike. The title PNG goes through LVGL's own fs layer
+# instead, which wants its M: driver letter and its canonical path.
+_SPRITE_BIN = __file__.rsplit("/", 1)[0] + "/sprites.bin"
+TITLE_SRC = "M:apps/be.fri3d.foxhunt/assets/title-screen/title-screen.png"
 _IMG_SRC = 16
+_FRAME_BYTES = _IMG_SRC * _IMG_SRC * 4
+
+# (name, frame) -> (dsc, data). The dsc holds a raw pointer INTO data, so the
+# bytes must stay referenced as long as the dsc lives — hence caching both.
+_dsc_cache = {}
 
 
-def sprite_img(parent, src, scale, x=0, y=0):
+def frames(name):
+    """How many animation frames the atlas holds for this sprite (1 = still)."""
+    return atlas.SPRITES[name][1]
+
+
+def sprite_dsc(name, frame=0):
+    """One 16x16 atlas frame as an lv.image_dsc_t (seek + 1 KB read, cached).
+    No PNG decode: sprites.bin already holds the bytes LVGL blits."""
+    key = (name, frame)
+    hit = _dsc_cache.get(key)
+    if hit:
+        return hit[0]
+    base, count = atlas.SPRITES[name]
+    with open(_SPRITE_BIN, "rb") as f:
+        f.seek((base + frame % count) * _FRAME_BYTES)
+        data = f.read(_FRAME_BYTES)
+    dsc = lv.image_dsc_t(
+        {
+            "header": {
+                "cf": lv.COLOR_FORMAT.ARGB8888,
+                "w": _IMG_SRC,
+                "h": _IMG_SRC,
+                "stride": _IMG_SRC * 4,
+            },
+            "data_size": _FRAME_BYTES,
+            "data": data,
+        }
+    )
+    _dsc_cache[key] = (dsc, data)
+    return dsc
+
+
+def sprite_img(parent, name, scale, x=0, y=0, frame=0):
     """A baked 16x16 sprite blown up to 16*scale, nearest-neighbour, at (x, y).
     The image counterpart of draw_sprite() — same grid, same scale factor, so
     a caller can swap art backends without moving anything else."""
     px = _IMG_SRC * scale
     w = lv.image(parent)
-    w.set_src(src)
+    w.set_src(sprite_dsc(name, frame))
     w.set_pos(x, y)
     w.set_size(px, px)
     w.set_inner_align(lv.image.ALIGN.STRETCH)  # scale src(16) to fill px x px
     w.set_antialias(False)  # nearest-neighbour -> crisp
     w.remove_flag(lv.obj.FLAG.CLICKABLE)  # let taps fall through to the cell
-    return w
-
-
-def picture(parent, src, x=0, y=0):
-    """A baked PNG drawn at its authored size — nearest-neighbour, so the
-    pixels stay pixels. For art that is already screen-sized (the title
-    banner); creature art goes through creature_panel() instead."""
-    w = lv.image(parent)
-    w.set_src(src)
-    w.set_pos(x, y)
-    w.set_antialias(False)
     return w
 
 
@@ -464,7 +495,8 @@ def _layer(parent, c, scale, tint=None):
     hunting for it, and the alternative — recolouring at partial opacity —
     would leak the real colours, which is the whole thing we are hiding."""
     if c.get("img"):
-        w = sprite_img(parent, _CREATURE_DIR + c["img"], scale)
+        name = "animals/" + c["img"]
+        w = sprite_img(parent, name, scale)
         if tint is not None:
             w.set_style_image_recolor(lv.color_hex(tint[0]), 0)
             w.set_style_image_recolor_opa(lv.OPA.COVER, 0)

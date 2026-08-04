@@ -2,9 +2,10 @@
 # stackable accessories and a backdrop colour, picked during registration.
 #
 # Every layer is a 16x16 PNG exported from artwork/companions/companion.aseprite,
-# one file per Aseprite layer. The invariant that keeps that honest:
+# one file per Aseprite layer, baked into the sprite atlas. The invariant that
+# keeps that honest:
 #
-#     aseprite layer name  ==  id here  ==  <id>.png in assets/companions/
+#     aseprite layer name  ==  id here  ==  atlas key "companions/<id>.png"
 #
 # so nothing has to carry a filename around. Rename an id and you must rename
 # the layer and re-run scripts/bake_sprites.sh.
@@ -121,8 +122,10 @@ def head_by_id(hid):
 
 
 def src(part_id):
-    """The baked PNG for a head or accessory id."""
-    return art.COMPANION_DIR + part_id + ".png"
+    """The atlas key for a head or accessory id (folder is plural on purpose:
+    companion/ would shadow this module on import back when these were files,
+    and the atlas keys kept the artwork paths)."""
+    return "companions/" + part_id + ".png"
 
 
 def is_unlocked(acc, caught_count):
