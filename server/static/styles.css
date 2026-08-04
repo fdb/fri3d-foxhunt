@@ -871,6 +871,14 @@ img {
   box-shadow: 5px 5px 0 rgba(52, 39, 26, 0.3);
 }
 
+/* On the dark forest band the ink frame disappears, and a dark screenshot
+   (the VONK payoff) melts straight into the background. A paper-tan edge
+   keeps every shot reading as a badge in a bezel. */
+.band-forest .bezel {
+  border-color: #cdb67d;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.35);
+}
+
 .bezel img {
   display: block;
   width: 100%;
