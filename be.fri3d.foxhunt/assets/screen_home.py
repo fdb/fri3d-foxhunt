@@ -135,7 +135,11 @@ class HomeActivity(Activity):
         grid.add_flag(lv.obj.FLAG.SCROLLABLE)
         grid.set_scroll_dir(lv.DIR.VER)
 
-        for c in sorted(CREATURES, key=lambda c: c["id"] not in caught):
+        # two passes, not sorted(): MicroPython's sort is unstable, and equal
+        # keys scramble the roster order the book is supposed to keep
+        boek = [c for c in CREATURES if c["id"] in caught]
+        boek += [c for c in CREATURES if c["id"] not in caught]
+        for c in boek:
             cid = c["id"]
             is_caught = cid in caught
             huntable = (cid in awake) and not is_caught
