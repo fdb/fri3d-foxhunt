@@ -17,6 +17,64 @@ HEART = [
     "....k....",
 ]
 
+# ── Scenery: the beestenschool backdrops ────────────────────────────────────
+# Bare row grids like HEART, not ICONS entries, because here the palette IS the
+# depth cue: the same cloud drawn pale and small is far away, drawn bright and
+# big it is close, and one tree grid in two greens makes a treeline read as two
+# rows. An entry in ICONS would freeze that palette to one distance.
+CLOUD = [
+    "....wwww..ww..",
+    "..wwwwwwwwwww.",
+    ".wwwwwwwwwwwww",
+    "wwwwwwwwwwwwww",
+    "wwwwwwwwwwwwww",
+    ".ssssssssssss.",
+]
+PUFF = [
+    "..www....",
+    ".wwwwwww.",
+    "wwwwwwwww",
+    ".sssssss.",
+]
+TREE = [
+    "...ccccc...",
+    "..ccccccc..",
+    ".ccccccccc.",
+    "ccccccccccc",
+    "ccccccccccc",
+    ".ccccccccc.",
+    "..ccccccc..",
+    "...ccccc...",
+    "....ttt....",
+    "....ttt....",
+    "....ttt....",
+]
+PINE = [
+    "....c....",
+    "...ccc...",
+    "..ccccc..",
+    "...ccc...",
+    "..ccccc..",
+    ".ccccccc.",
+    "..ccccc..",
+    ".ccccccc.",
+    "ccccccccc",
+    "....t....",
+    "....t....",
+]
+# A camp tent — Fri3d is a field, not a skyline. Lit side 'a', shaded 'b', and
+# the gap that widens over the last three rows is the door flap.
+TENT = [
+    "......aa.....",
+    ".....aabb....",
+    "....aaabbb...",
+    "...aaaabbbb..",
+    "..aaaaabbbbb.",
+    ".aaaaa.bbbbb.",
+    "aaaaa...bbbbb",
+    "aaaaa...bbbbb",
+]
+
 # ── UI icons (action bar + foods), ported from the design ───────────────────
 # Mostly 8x8; each has its own palette, and chars not in the palette are
 # skipped (transparent). draw_sprite() reads the grid off the rows, so an icon
@@ -258,7 +316,131 @@ ICONS = {
         ],
         "pal": {"k": 0xF2EAD6},
     },
+    # ── verzamelaar-track icons (verzamelen.jsx / plukken.jsx) ──────────
+    # Two maatjes shake hands: the snuffel. 16x16, terra + green — one hand
+    # per player, the same pair of colours the two home cards wear.
+    "snuf": {
+        "rows": [
+            "................",
+            "..aa........bb..",
+            ".aaaa......bbbb.",
+            ".aaaa......bbbb.",
+            "..aa........bb..",
+            "................",
+            ".aaaa......bbbb.",
+            "aaaaaa....bbbbbb",
+            "aaaaaa....bbbbbb",
+            "aa.aaa....bbb.bb",
+            "aa..aaa..bbb..bb",
+            "aa...aaabbb...bb",
+            "aa....aabb....bb",
+            "aa....aabb....bb",
+            "................",
+            "................",
+        ],
+        "pal": {"a": 0xCF6A3F, "b": 0x5A9A3C},
+    },
+    # A hand plucks a berry off the branch. 16x16.
+    "pluk": {
+        "rows": [
+            "..gg.......gg...",
+            "bbbbbbbbbbbbbbbb",
+            "..gg...b...gg...",
+            ".......b........",
+            "......rrrr......",
+            ".....rrrrrr.....",
+            ".....rrrrrr.....",
+            "......rrrr......",
+            "........h.......",
+            "..h....hh.......",
+            "..hh..hh........",
+            "...hhhhh........",
+            "...hhhhhh.......",
+            "....hhhhh.......",
+            "....hhhh........",
+            "................",
+        ],
+        "pal": {"b": 0x8A5F2C, "g": 0x5A9A3C, "r": 0xD6483A, "h": 0xC98B4E},
+    },
+    # Rising signal bars (the pluk day-stat strip).
+    "sig": {
+        "rows": [
+            ".......s",
+            ".......s",
+            ".....s.s",
+            ".....s.s",
+            "...s.s.s",
+            "...s.s.s",
+            ".s.s.s.s",
+            ".s.s.s.s",
+        ],
+        "pal": {"s": 0x3C6B2E},
+    },
+    # A `fri3d-badge` hotspot: rounded antenna dome on a foot. 10x10.
+    "hotspot": {
+        "rows": [
+            "....kk....",
+            "...kbbk...",
+            "...kbbk...",
+            "..kbbbbk..",
+            ".kbdddbk..",
+            "kbdddddbk.",
+            "kbdddddbk.",
+            ".kbdddbk..",
+            "..kkkkk...",
+            "...kkk....",
+        ],
+        "pal": {"k": 0x34271A, "b": 0x6AA24A, "d": 0x467030},
+    },
+    # ── beestenschool game tiles ────────────────────────────────────────
+    "vlieg": {
+        "rows": [
+            ".k......",
+            ".kwk....",
+            ".kwwk.k.",
+            "kwwwwkwk",
+            "kwwwwwwk",
+            ".kwwwwk.",
+            "..kwwk..",
+            "...kk...",
+        ],
+        "pal": {"k": 0x34271A, "w": 0xCF6A3F},
+    },
+    "doolhof": {
+        "rows": [
+            "kkkkkkkk",
+            "k......k",
+            "k.kkkk.k",
+            "k.k..k.k",
+            "k.k.kk.k",
+            "k...k..k",
+            "kkk.k.kk",
+            "......k.",
+        ],
+        "pal": {"k": 0x34271A},
+    },
+    "simon": {
+        "rows": [
+            ".aaabbb.",
+            "aaaabbbb",
+            "aaaabbbb",
+            ".aaabbb.",
+            ".cccddd.",
+            "ccccdddd",
+            "ccccdddd",
+            ".cccddd.",
+        ],
+        "pal": {"a": 0xD6483A, "b": 0xE8B23A, "c": 0x5A9A3C, "d": 0x7F93A6},
+    },
 }
+
+# Design-name aliases: the verzamelaar screens speak the glossary (bes/noot/
+# eikel, boek, spoor) while the icon grid keeps its original keys.
+ICONS["bes"] = ICONS["food"]
+ICONS["noot"] = ICONS["nut"]
+ICONS["eikel"] = ICONS["acorn"]
+ICONS["boek"] = ICONS["book"]
+ICONS["spoor"] = ICONS["paw"]
 
 
 def icon(parent, name, scale=2):

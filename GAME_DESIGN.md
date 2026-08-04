@@ -52,12 +52,11 @@ Creatures may playfully refuse an unsuitable action—a full creature need not
 eat and a tired creature may not want to play—but an unsuccessful choice should
 not subtract permanent progress.
 
-The same philosophy extends to the exchange economy: the UI knows **gifts**,
-not prices. One handshake can carry a gift in each direction — a hunter
-attaches a spoor, a gatherer attaches food — and both sides confirm. Whether
-that is generosity or a swap is a conversation between the players, not a
-screen: the app never shows an exchange rate and never blocks a one-sided
-gift.
+The same philosophy extends to the exchange economy: there is no exchange UI
+at all. A snuffel *is* the exchange — both badges automatically share a
+picknick, and sometimes a creature tags along (vonk-geluk). Nothing to
+choose, nothing to price, nothing to haggle over: the reward is for meeting,
+not for trading.
 
 ## Existing foundations
 
@@ -153,6 +152,13 @@ Mini-games close the economy. The chain is:
   food-dumping (50 berries is a very full creature, not max bond) and
   tap-farming (play needs energy, energy needs food, food needs walking).
 
+The beestenschool's three launch games cover the badge's inputs with nothing
+to explain — every control is one finger: **VLIEGEN** (tap to flap, dodge
+the branches), **VANGEN** (the creature trots left and right, tap to turn,
+catch the falling hapjes), **SIMON** (four pads, buzzer notes, the LEDs play
+along). Costs are 2/1/1 energy segments; each creature favours one game for
+extra band. DOOLHOF (tilt maze) waits on the IMU spike.
+
 The companion stars in exactly one game moment: the tutorial, before the
 player owns any creature. After that the active creature stars, because
 playing is how bond grows and bond belongs to creatures. Petting and basic
@@ -197,29 +203,27 @@ shortcode-sized, far under anything ESP-NOW strains at.
 A **manual short code** remains the universal fallback (handshake failure, shy
 players, broken hardware) and awards the same rewards.
 
-### Payloads
+### What a snuffel carries
 
-One handshake, several things it can carry:
+Nothing is chosen and nothing is attached: the handshake itself pays out,
+automatically and symmetrically, and the payoff screen has no buttons.
 
-| Payload | Direction | What happens |
-|---|---|---|
-| **Spoor** | finder → anyone | Introduces a creature the sender found; recipient starts their own bond. |
-| **Hapje / materiaal** | anyone → anyone | Gifts food or habitat material from inventory. |
-| **Speeldate** | any ↔ any | Cooperative interaction; both creatures gain a shared memory. |
-
-One handshake can carry a payload in **each direction** — a spoor one way,
-hapjes the other. That is how "food for a creature" happens between a hunter
-and a gatherer: the app shows two gifts and one confirm, the negotiation
-happens out loud, and no price ever appears on screen (see *Positive care
-philosophy*).
+- **Every snuffel shares food.** A vonk is a picknick — both players gain
+  2-5 hapjes of one random kind. A repeat meeting still hands both a single
+  hapje for the road, so snuffelling a friend again is never pointless,
+  just modest. The same pair can snuffel again after stepping apart.
+- **A vonk can carry a creature** (vonk-geluk, below): one of the other
+  player's creatures may introduce itself.
+- **Speeldate** (any ↔ any) stays a deliberate, longer cooperative
+  interaction — the one thing a plain handshake doesn't give you.
 
 ### De vonk (the anti-farming rule)
 
 The *handshake itself* is the scored social event, separate from the payload.
 The first snuffel between a given pair of players each day produces a **vonk**
 for both — the meet-new-people reward. Repeats within the same pair still
-transfer items (siblings and tent-mates can keep helping each other) but earn
-no further vonken that day. This gives:
+share a small hapje (siblings and tent-mates can keep topping each other up)
+but earn no further vonken that day. This gives:
 
 - an incentive to walk up to strangers (new pair → new vonk),
 - no incentive to stand in a corner farming one friend,
@@ -290,22 +294,19 @@ public points (see *De vonk*).
 
 ### How creatures spread
 
-One rule covers all distribution: **you may deliberately share a creature you
-found yourself; a creature you were introduced to spreads only by luck.**
+Only by meeting people: every vonk rolls vonk-geluk against the other
+player's roster. There is no share button — nobody can hand a chosen
+creature over, and nobody can be pestered into one. Distribution is pure
+contagion through the social graph: hunters seed new species by finding
+them, commons race through the camp, rares trickle, the original finder
+stays credited in the lineage, and everyone keeps their creature.
 
-- **Deliberate spoor** — finder only. A hunter chooses to introduce their
-  find, as a gift or as their half of a food exchange.
-- **Spontaneous spoor** — anyone, by chance, through the vonk-geluk roll
-  above.
-
-This replaces the earlier bond-gated mentor-invitation model. It needs no
-server-side invitation accounting, yet gives the same outcomes: distribution
-decentralises (commons spread person-to-person like a rumour through the
-social graph), the original finder stays credited in the lineage, everyone
-keeps their creature, and late arrivals catch up quickly because commons
-spread fastest. Hunters keep what makes them special: they are the only
-source of *new* species entering the camp, and the only players who can
-introduce on purpose.
+This replaces both the bond-gated mentor-invitation model and the earlier
+finder-only deliberate spoor. It costs the deliberate gift moment and the
+food-for-creature trade; it buys total simplicity, zero exchange UI, and an
+economy that cannot be spammed — the introduction-spam caps fall away with
+the feature. The staff safety valve survives: an organiser badge carrying
+only commons can simply guarantee its geluk roll.
 
 Playdates remain unlimited because they create shared experiences rather than
 new creature ownership.
@@ -399,10 +400,9 @@ creatures are perpetually sad.
   "sorry, out of clones". Saturation of commons is acceptable if rares keep
   trickling; the endgame shifts to bond depth and communal goals, which is by
   design.
-- **Introduction spam.** A hunter handing a spoor to fifty people at the bar
-  tops the discovery board without hunting anything new. Cap scored
-  introductions per creature (e.g. the first five unique recipients count);
-  further sharing is generosity, not points.
+- **Introduction spam — resolved by removing deliberate introductions.**
+  Creatures spread only through the vonk-geluk roll, which is bounded by the
+  vonk rules (per-pair-per-day, daily cap); there is no share button to spam.
 - **Badge speed-dating.** If vonken dominate scoring, optimal play is booping
   every stranger in the food queue. Mitigate with the daily vonk cap, modest
   vonk value, and optionally requiring a 30-second joint payload (mini
@@ -634,7 +634,7 @@ Before building a large economy, test a compact experience:
    scan spike remains: scan-while-associated, scan latency, battery per
    burst, and a census of `fri3d-badge` BSSIDs on the terrain.
 1. Companion tutorial.
-2. Hunter-to-gatherer spoor via one-time code, then via snuffel.
+2. Creature spread through vonk-geluk, over snuffel and the manual code.
 3. Plukken against one real `fri3d-badge` hotspot: warmer/colder screen,
    BSSID identity, per-badge reload.
 4. One motion mini-game, such as a tilt maze.
@@ -681,8 +681,7 @@ Following the one-word-per-thing rule:
 | Code (English) | UI (Dutch) | What it is |
 | --- | --- | --- |
 | **gatherer** | **verzamelaar** | The non-antenna play track: foraging resources for creature care. |
-| **share / introduce** | **een spoor delen** | The finder letting another player meet a creature; both keep it. Never "clone" in the UI. |
-| **spread** | **vonk-geluk** | The chance, on a vonk, that one of the other player's creatures introduces itself. |
+| **spread** | **vonk-geluk** | The chance, on a vonk, that one of the other player's creatures introduces itself; both keep it. Never "clone" in the UI. The only way creatures spread. |
 | **boop / socialize** | **snuffelen** | The face-to-face handshake over ESP-NOW, gated at -50 dBm RSSI on both sides — and the home-screen mode named after it. |
 | **spark** | **vonk** | The once-per-pair-per-day mutual reward for a first snuffel. |
 | **friend book** | **vriendenboekje** | The permanent collection: one page per first-ever meeting between two badges. |

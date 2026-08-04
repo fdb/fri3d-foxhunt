@@ -840,6 +840,14 @@ img {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.75rem;
   justify-items: center;
+  /* rows of shots follow cards or intro text — give them room to breathe */
+  margin-top: 2.5rem;
+}
+
+/* A standalone shot directly in the band (the op-pad hero): centred, with
+   air above and below instead of hugging the neighbouring blocks */
+.band .wrap > .shot {
+  margin: 2.25rem auto;
 }
 
 /* Two screenshots in one step: keep them narrow so the text column survives */
@@ -869,6 +877,14 @@ img {
   border: 3px solid var(--ink);
   border-radius: 10px;
   box-shadow: 5px 5px 0 rgba(52, 39, 26, 0.3);
+}
+
+/* On the dark forest band the ink frame disappears, and a dark screenshot
+   (the VONK payoff) melts straight into the background. A paper-tan edge
+   keeps every shot reading as a badge in a bezel. */
+.band-forest .bezel {
+  border-color: #cdb67d;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.35);
 }
 
 .bezel img {

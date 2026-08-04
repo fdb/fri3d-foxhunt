@@ -20,46 +20,41 @@ class DebugActivity(Activity):
         s = ui.make_screen(ui.PAPER)
         ui.banner(s, "DEBUG", ui.TERRA, right=DEBUG_CODE)
 
-        code_panel = ui.panel(s, 6, 34, 308, 54, ui.CARD)
-        ui.label(code_panel, "TESTCODE 1111", 8, 8, ui.TERRA_D, ui.font_small())
-        ui.label(
-            code_panel,
+        self.code_toggle, self.code_label = self._switch(
+            s,
+            34,
+            "TESTCODE 1111",
             "voor elk beest",
-            8,
-            28,
-            ui.INK,
-            ui.font_small(),
-        )
-        self.code_toggle = ui.box(
-            code_panel, 178, 12, 110, 28, ui.DORMANT, radius=ui.RADIUS
-        )
-        self.code_toggle.set_style_border_width(ui.BORDER, 0)
-        self.code_label = ui.label(
-            self.code_toggle,
-            "",
-            0,
-            0,
-            ui.INK,
-            ui.font_small(),
-            w=110,
-            center=True,
-        )
-        self.code_label.align(lv.ALIGN.CENTER, 0, 0)
-        self._paint_toggle(
-            self.code_toggle,
-            self.code_label,
             debug_code_enabled(),
-            on_text="ACTIEF",
-            off_text="NIET ACTIEF",
-        )
-        ui.focusable(
-            self.code_toggle,
-            on_click=self._toggle_debug_code,
-            focus_border=True,
+            self._toggle_debug_code,
         )
 
-        ui.label(s, "BEESTENBOEK", 8, 96, ui.GREEN_D, ui.font_small())
-        self.roster = ui.panel(s, 6, 110, 308, 89, ui.SURFACE_SOFT)
+        # pluk on ANY wifi network — for walking-around tests away from the
+        # camp: no fri3d-badge hotspots exist yet, every AP becomes a
+        # plukplek (identity stays the BSSID, reloads and yields included)
+        self.pluk_toggle, self.pluk_label = self._switch(
+            s,
+            72,
+            "PLUK OP ELKE WIFI",
+            "thuis-testen",
+            bool(store.settings().get("pluk_any")),
+            lambda: self._toggle_setting("pluk_any", self.pluk_toggle, self.pluk_label),
+        )
+
+        # a beestenschool game costs energy, and a tired creature refuses —
+        # right, but it makes testing a game a round of feeding first. This
+        # zeroes the price (store.play_cost); the reward is untouched.
+        self.moe_toggle, self.moe_label = self._switch(
+            s,
+            110,
+            "ONVERMOEIBAAR",
+            "spelen kost geen energie",
+            bool(store.settings().get("nooit_moe")),
+            lambda: self._toggle_setting("nooit_moe", self.moe_toggle, self.moe_label),
+        )
+
+        ui.label(s, "BEESTENBOEK", 8, 145, ui.GREEN_D, ui.font_small())
+        self.roster = ui.panel(s, 6, 160, 308, 45, ui.SURFACE_SOFT)
         self.roster.add_flag(lv.obj.FLAG.SCROLLABLE)
         self.roster.set_scroll_dir(lv.DIR.VER)
         self.roster.set_flex_flow(lv.FLEX_FLOW.COLUMN)
@@ -111,6 +106,23 @@ class DebugActivity(Activity):
 
         self.setContentView(s)
 
+    def _switch(self, s, y, kop, uitleg, enabled, on_click):
+        """One debug switch: a 34px titled panel with an ACTIEF / NIET ACTIEF
+        toggle on the right. Returns (button, label) so the click handler can
+        repaint it — LVGL widgets have no __dict__ to hang state on."""
+        panel = ui.panel(s, 6, y, 308, 34, ui.CARD)
+        ui.label(panel, kop, 8, 3, ui.TERRA_D, ui.font_small())
+        ui.label(panel, uitleg, 8, 17, ui.INK, ui.font_small())
+        button = ui.box(panel, 178, 2, 110, 26, ui.DORMANT, radius=ui.RADIUS)
+        button.set_style_border_width(ui.BORDER, 0)
+        label = ui.label(button, "", 0, 0, ui.INK, ui.font_small(), w=110, center=True)
+        label.align(lv.ALIGN.CENTER, 0, 0)
+        self._paint_toggle(
+            button, label, enabled, on_text="ACTIEF", off_text="NIET ACTIEF"
+        )
+        ui.focusable(button, on_click=on_click, focus_border=True)
+        return button, label
+
     def _paint_toggle(
         self, button, label, enabled, on_text="GEVANGEN", off_text="NIET GEV."
     ):
@@ -120,6 +132,14 @@ class DebugActivity(Activity):
         )
         label.set_text(on_text if enabled else off_text)
         label.set_style_text_color(ui.hexc(ui.CREAM if enabled else ui.INK), 0)
+
+    def _toggle_setting(self, key, button, label):
+        sound.play("tap")
+        enabled = not store.settings().get(key)
+        store.set_setting(key, enabled)
+        self._paint_toggle(
+            button, label, enabled, on_text="ACTIEF", off_text="NIET ACTIEF"
+        )
 
     def _toggle_debug_code(self):
         sound.play("tap")

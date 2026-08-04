@@ -17,6 +17,8 @@ from screen_hunt import HuntActivity
 from screen_beast import BeastActivity
 from screen_profile import ProfileActivity
 from screen_settings import SettingsActivity
+from screen_snuffel import SnuffelActivity
+from screen_pluk import PlukActivity
 
 _CELL_W, _CELL_H, _GAP = 74, 52, 4  # boek tiles
 _HAIR = 0xDCCFA9  # section hairline on paper
@@ -59,14 +61,19 @@ class HomeActivity(Activity):
         p = store.profile()
         awake = set(RADIO.active_foxes())
         caught = set(store.caught_ids())
+        jager = bool(p.get("hunter_id"))
 
         # ── header: your companion (tap -> profile) + settings gear ───────
         # Two SIBLING panels, not one panel with the gear inside: the badge's
         # directional focus navigation is geometric, and a target nested
         # inside another target's rectangle is unreachable by joystick. Side
         # by side, identity and gear are two clean focus stops, each with the
-        # standard ring.
-        header = ui.panel(s, 6, 6, 262, 40, bg=ui.CARD)
+        # standard ring. A jager grows two more stops (snuffel + pluk with
+        # count badges), so the fox row keeps its whole width and JE BOEK
+        # gives up nothing; the verzamelaar gets those verbs as big cards
+        # below instead (design: verzamelen.jsx PxHomeJager / PxHomeVerz).
+        header_w = 172 if jager else 262
+        header = ui.panel(s, 6, 6, header_w, 40, bg=ui.CARD)
         ui.focusable(header, on_click=self._profile)
         # box, not panel: an ink frame here muddles into the sprite's own
         # outlines at 32px — the backdrop swatch alone is enough of an edge.
@@ -80,52 +87,17 @@ class HomeActivity(Activity):
         # in — never a "coming soon" placeholder.
         sub = p.get("hunter_id") or "Verzamelaar"
         ui.label(header, sub, 46, 24, ui.MYSTERY, ui.font_small())
+        if jager:
+            self._kop_btn(182, "snuf", str(store.vonk_count_today()), self._snuffel)
+            self._kop_btn(227, "pluk", str(store.spots_ready_count()), self._pluk)
         gear = ui.panel(s, 272, 6, 42, 40, bg=ui.CARD)
         art.icon(gear, "gear", 2).align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(gear, on_click=self._settings)
 
-        # ── nu in de buurt: every transmitting fox, caught or not ─────────
-        self._section(52, "NU IN DE BUURT", ui.TERRA)
-        nearby = []
-        for c in CREATURES:
-            if c["id"] in awake:
-                r = RADIO.reading(c["id"])
-                heat = max(1, min(3, (r.level * 3 + 4) // 5))
-                nearby.append((c, heat))
-        # still-huntable first (the row is a hunt shortcut), warmest leading;
-        # already-caught ones trail as "she's out there" sightings
-        nearby.sort(key=lambda ch: (ch[0]["id"] in caught, -ch[1]))
-        if nearby:
-            cards = ui.row(s, 6, 68, 308, 52, gap=5)
-            for i, (c, heat) in enumerate(nearby[:4]):
-                is_caught = c["id"] in caught
-                cell = ui.box(cards, 0, 0, 73, 52, _NEAR_BG, radius=ui.RADIUS)
-                cell.set_style_border_width(ui.BORDER, 0)
-                # warmest card wears gold, the rest the hunt's terra
-                cell.set_style_border_color(ui.hexc(ui.GOLD if i == 0 else ui.TERRA), 0)
-                spr = art.creature_panel(cell, c, 2, silhouette=not is_caught)
-                spr.set_pos(18, 2)
-                for d in range(3):
-                    seg = ui.box(
-                        cell, 20 + d * 10, 40, 8, 5, ui.TERRA if d < heat else _SEG_OFF
-                    )
-                    seg.set_style_border_width(ui.BORDER_THIN, 0)
-                    seg.set_style_border_color(ui.hexc(ui.INK), 0)
-                on_click = self._open if is_caught else self._hunt
-                ui.focusable(
-                    cell,
-                    on_click=lambda cc=c["id"], fn=on_click: fn(cc),
-                    focus_border=True,
-                )
+        if jager:
+            self._nearby_row(s, awake, caught)
         else:
-            ui.label(
-                s,
-                "alles slaapt - kom straks terug",
-                6,
-                86,
-                ui.TEXT_MUTED,
-                ui.font_small(),
-            )
+            self._op_pad_row(s)
 
         # ── je boek: every creature, found first (roster order within), scrolls ──
         self._section(
@@ -186,6 +158,96 @@ class HomeActivity(Activity):
                 )
             else:
                 ui.focusable(cell, focus_border=True)
+
+    def _kop_btn(self, x, icon, count, on_click):
+        """Jager header shortcut: a 42px icon panel with a gold count badge
+        (today's vonken / reloaded plukplekken)."""
+        s = self.screen
+        btn = ui.panel(s, x, 6, 42, 40, bg=ui.CARD)
+        art.icon(btn, icon, 1).align(lv.ALIGN.CENTER, 0, 4)
+        badge = ui.box(btn, 24, 0, 14, 12, ui.GOLD)
+        badge.set_style_border_width(ui.BORDER_THIN, 0)
+        badge.set_style_border_color(ui.hexc(ui.INK), 0)
+        ui.label(badge, count, 0, 0, ui.INK, ui.font_small(), w=12, center=True)
+        ui.focusable(btn, on_click=on_click)
+
+    def _nearby_row(self, s, awake, caught):
+        # ── nu in de buurt: every transmitting fox, caught or not ─────────
+        self._section(52, "NU IN DE BUURT", ui.TERRA)
+        nearby = []
+        for c in CREATURES:
+            if c["id"] in awake:
+                r = RADIO.reading(c["id"])
+                heat = max(1, min(3, (r.level * 3 + 4) // 5))
+                nearby.append((c, heat))
+        # still-huntable first (the row is a hunt shortcut), warmest leading;
+        # already-caught ones trail as "she's out there" sightings
+        nearby.sort(key=lambda ch: (ch[0]["id"] in caught, -ch[1]))
+        if nearby:
+            cards = ui.row(s, 6, 68, 308, 52, gap=5)
+            for i, (c, heat) in enumerate(nearby[:4]):
+                is_caught = c["id"] in caught
+                cell = ui.box(cards, 0, 0, 73, 52, _NEAR_BG, radius=ui.RADIUS)
+                cell.set_style_border_width(ui.BORDER, 0)
+                # warmest card wears gold, the rest the hunt's terra
+                cell.set_style_border_color(ui.hexc(ui.GOLD if i == 0 else ui.TERRA), 0)
+                spr = art.creature_panel(cell, c, 2, silhouette=not is_caught)
+                spr.set_pos(18, 2)
+                for d in range(3):
+                    seg = ui.box(
+                        cell, 20 + d * 10, 40, 8, 5, ui.TERRA if d < heat else _SEG_OFF
+                    )
+                    seg.set_style_border_width(ui.BORDER_THIN, 0)
+                    seg.set_style_border_color(ui.hexc(ui.INK), 0)
+                on_click = self._open if is_caught else self._hunt
+                ui.focusable(
+                    cell,
+                    on_click=lambda cc=c["id"], fn=on_click: fn(cc),
+                    focus_border=True,
+                )
+        else:
+            ui.label(
+                s,
+                "alles slaapt - kom straks terug",
+                6,
+                86,
+                ui.TEXT_MUTED,
+                ui.font_small(),
+            )
+
+    def _op_pad_row(self, s):
+        # ── op pad: the verzamelaar's two verbs, where the (antenna-less,
+        # unhuntable) fox row would be. Big cards with a live stat each.
+        self._section(52, "OP PAD", ui.GREEN_D)
+        vonken = store.vonk_count_today()
+        klaar = store.spots_ready_count()
+        snuf_stat = (
+            "%d vonk%s vandaag" % (vonken, "" if vonken == 1 else "en")
+            if vonken
+            else "zoek een maatje"
+        )
+        pluk_stat = (
+            "%d plek%s klaar" % (klaar, "" if klaar == 1 else "ken")
+            if klaar
+            else "ga op zoek"
+        )
+        for x, icon, titel, stat, col, fn in (
+            (6, "snuf", "SNUFFELEN", snuf_stat, 0x8A6A2E, self._snuffel),
+            (163, "pluk", "PLUKKEN", pluk_stat, ui.TEXT_MUTED, self._pluk),
+        ):
+            card = ui.panel(s, x, 68, 151, 52, ui.CARD, border=ui.TERRA)
+            art.icon(card, icon, 2).set_pos(6, 8)
+            ui.label(card, titel, 44, 9, ui.INK, ui.font_label())
+            ui.label(card, stat, 44, 27, col, ui.font_small())
+            ui.focusable(card, on_click=fn)
+
+    def _snuffel(self):
+        sound.play("tap")
+        self.startActivity(Intent(activity_class=SnuffelActivity))
+
+    def _pluk(self):
+        sound.play("tap")
+        self.startActivity(Intent(activity_class=PlukActivity))
 
     def _hunt(self, cid):
         sound.play("tap")

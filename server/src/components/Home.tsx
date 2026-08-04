@@ -56,6 +56,7 @@ export const Home = () => (
       <a href="#spelen">Twee manieren</a>
       <a href="#begin">Beginnen</a>
       <a href="#jacht">De jacht</a>
+      <a href="#verzamelen">Verzamelen</a>
       <a href="#verzorgen">Verzorgen</a>
       <a class="nav-cta" href="/scores">
         Scorebord
@@ -162,7 +163,6 @@ export const Home = () => (
             </p>
           </article>
           <article class="card mode mode-gatherer">
-            <span class="ribbon">In ontwikkeling</span>
             <h3>
               <span class="icon" aria-hidden="true">
                 🧺
@@ -175,9 +175,10 @@ export const Home = () => (
               aan de WiFi die elke badge al aan boord heeft.
             </p>
             <p>
-              Je zoekt <b>plukplekken</b> op het terrein en speelt spelletjes.
-              Zo verzamel je bessen, noten, eikels en materiaal: precies wat de
-              beesten nodig hebben om te groeien.
+              Drie werkwoorden: <b>snuffelen</b> (zoek andere spelers op),{" "}
+              <b>plukken</b> (loop naar plukplekken voor eten) en <b>spelen</b>{" "}
+              (speel spelletjes met je beest). Alles wat je daarvoor nodig hebt
+              zit al op de badge.
             </p>
           </article>
         </div>
@@ -296,50 +297,90 @@ export const Home = () => (
       <div class="wrap">
         <h2>
           Verzamelen <span class="tag tag-gatherer">verzamelaar</span>
-          <span class="tag tag-soon">binnenkort</span>
         </h2>
         <p class="intro">
-          Geen antenne? Dan is er nog altijd genoeg te doen buiten. Verzamelaars
-          halen uit het kamp wat de beesten nodig hebben.
+          Geen antenne? Dan is er nog altijd genoeg te doen buiten. De hele
+          kringloop in één zin: <b>plukken geeft eten, eten geeft energie, en
+          met energie kan je spelen</b> — en van spelen groeit je band.
         </p>
+        <Shot
+          src="oppad"
+          alt="Het beginscherm van een verzamelaar met de knoppen snuffelen en plukken"
+          caption="Op pad: snuffelen en plukken staan vooraan, je boek eronder."
+          big
+        />
         <div class="cards cards-3">
           <div class="card">
             <span class="icon" aria-hidden="true">
               📶
             </span>
-            <h3>Plukplekken</h3>
+            <h3>Plukken</h3>
             <p>
-              Kleine WiFi-bakens, verspreid over het terrein. Je badge zoekt
-              ernaar en jij loopt erheen: hetzelfde warmer-kouder-gevoel als de
-              jacht, maar zonder antenne — en makkelijk genoeg voor een
-              zevenjarige.
+              Op het terrein hangen WiFi-hotspots. Je badge luistert ernaar en
+              jij loopt erheen: hetzelfde warmer-kouder-gevoel als de jacht,
+              maar zonder antenne — en makkelijk genoeg voor een zevenjarige.
+            </p>
+          </div>
+          <div class="card">
+            <span class="icon" aria-hidden="true">
+              🫐
+            </span>
+            <h3>De voorraad</h3>
+            <p>
+              Elke pluk levert bessen, noten of eikels op. Daarna is die plek
+              voor jou even leeg — dus loop je door naar de volgende. Elke dag
+              geven de plekken iets anders.
             </p>
           </div>
           <div class="card">
             <span class="icon" aria-hidden="true">
               🎮
             </span>
-            <h3>Spelletjes</h3>
+            <h3>Spelen</h3>
             <p>
-              Een tiltdoolhof, een ritmespel, LED-Simon. Elk beest heeft zijn
-              eigen lievelingsspel, en daar is het net iets beter in.
-            </p>
-          </div>
-          <div class="card">
-            <span class="icon" aria-hidden="true">
-              🗺️
-            </span>
-            <h3>Opdrachten</h3>
-            <p>
-              Korte wandelingen, workshops en stations in het kamp. Overal valt
-              iets te halen: bessen, noten, eikels en zeldzamer spul.
+              In de beestenschool kiest je beest een spelletje. Spelen kost
+              energie en geeft <b>band</b> — en elk beest heeft een
+              lievelingsspel dat extra telt.
             </p>
           </div>
         </div>
+        <div class="shots">
+          <Shot
+            src="plukken"
+            alt="Het plukscherm met warmtemeter en de knop PLUK"
+            caption="Volg het signaal tot de meter warm staat. Dan mag je plukken."
+          />
+          <Shot
+            src="oogst"
+            alt="Geplukt: de voorraad groeit met twee bessen"
+            caption="De oogst valt in je voorraad. Deze plek is nu even leeg — op naar de volgende."
+          />
+          <Shot
+            src="school"
+            alt="De beestenschool met drie spelletjes en hun energiekost"
+            caption="De beestenschool: drie spelletjes, elk met een energieprijsje. Goud = het lievelingsspel."
+          />
+          <Shot
+            src="vliegen"
+            alt="Het vliegspel: de Vos fladdert tussen takken door"
+            caption="VLIEGEN — tik om te fladderen, ontwijk de takken."
+          />
+          <Shot
+            src="vangen"
+            alt="Het vangspel: de Vos vangt vallende hapjes"
+            caption="VANGEN — je beest draaft heen en weer, tik om te keren en vang de hapjes."
+          />
+          <Shot
+            src="simon"
+            alt="Simon: vier gekleurde vlakken"
+            caption="SIMON — volg de kleuren en de lampjes op je badge."
+          />
+        </div>
         <p class="note">
-          Plukplekken wisselen van plaats, zodat verzamelen een verkenning
-          blijft en niemand op één plek gaat kamperen. En sommige lekkernijen
-          vind je alleen zo — dus ook jagers komen bij de verzamelaars langs.
+          Een geplukte plek is alleen voor <i>jou</i> even leeg, en elke dag
+          geven de plekken iets anders. Verzamelen blijft dus een verkenning —
+          en ook jagers komen eten tekort, dus die zie je hier net zo goed
+          rondlopen.
         </p>
       </div>
     </section>
@@ -359,8 +400,8 @@ export const Home = () => (
           />
           <Shot
             src="voeren"
-            alt="Voerscherm met bes, noot en eikel"
-            caption="Bes, noot of eikel. Elk beest heeft een lievelingshapje, en dat geeft extra band."
+            alt="Voerscherm met de voorraad aan bessen, noten en eikels"
+            caption="Bes, noot of eikel, recht uit je voorraad. Voeren vult de energie — en het lievelingshapje vult extra."
           />
           <Shot
             src="dossier"
@@ -382,9 +423,7 @@ export const Home = () => (
 
     <section class="band band-forest" id="samen">
       <div class="wrap">
-        <h2>
-          Elkaar tegenkomen <span class="tag tag-soon">binnenkort</span>
-        </h2>
+        <h2>Elkaar tegenkomen</h2>
         <div class="cards cards-2">
           <article class="card">
             <h3>
@@ -394,10 +433,12 @@ export const Home = () => (
               Snuffelen
             </h3>
             <p>
-              Hou twee badges met hun neuzen tegen elkaar. Via WiFi wisselen ze
-              iets uit: het <b>spoor</b> van een beest, een hapje uit je
-              voorraad, of gewoon een speeldate. Bij een geslaagde snuffel
-              juichen allebei de badges tegelijk.
+              Hou twee badges met hun neuzen tegen elkaar en allebei juichen
+              ze tegelijk. Je hoeft niets te kiezen: elke snuffel is vanzelf
+              een <b>picknick</b> — jullie krijgen allebei eten. En de eerste
+              keer dat twee badges elkaar <i>ooit</i> tegenkomen, schrijven ze
+              elkaar in hun <b>vriendenboekje</b>. Dat boekje raak je nooit
+              kwijt.
             </p>
             <p class="fine">
               De technologie hierachter heet ESP-NOW. Ze draagt verder dan een
@@ -415,16 +456,35 @@ export const Home = () => (
               De vonk
             </h3>
             <p>
-              De eerste keer per dag dat je iemand <i>nieuw</i> tegenkomt,
-              levert dat jullie allebei een <b>vonk</b> op. Bij dezelfde persoon
-              nog eens snuffelen mag altijd — spullen doorgeven blijft werken —
-              maar het levert die dag geen vonk meer op.
+              De eerste keer per dag dat je iemand tegenkomt, is het een{" "}
+              <b>vonk</b>: een flinke picknick — en met wat geluk stelt een
+              beest van de ander zich aan jou voor. Zo verspreiden de beesten
+              zich over het kamp, van speler naar speler.
             </p>
             <p class="fine">
-              Zo loont het om nieuwe mensen aan te spreken, en niet om in een
-              hoekje met dezelfde vriend te blijven staan.
+              Nog eens snuffelen met dezelfde persoon mag altijd (even uit
+              elkaar stappen en opnieuw): je krijgt dan een hapje voor
+              onderweg, maar geen nieuwe vonk. Nieuwe mensen aanspreken loont
+              dus het meest.
             </p>
           </article>
+        </div>
+        <div class="shots">
+          <Shot
+            src="snuffelen"
+            alt="Het snuffelscherm met spelers in de buurt en signaalbalkjes"
+            caption="Wie wil er snuffelen? Sam staat dichtbij — hou de badges tegen elkaar."
+          />
+          <Shot
+            src="vonk"
+            alt="VONK! Twee maatjes delen een picknick van twee bessen"
+            caption="VONK! Jullie delen een picknick, en Sam staat nu in je vriendenboekje."
+          />
+          <Shot
+            src="vriendenboekje"
+            alt="Het vriendenboekje met een pagina voor Sam"
+            caption="Elke eerste ontmoeting is een pagina. Het boekje groeit het hele weekend."
+          />
         </div>
       </div>
     </section>
