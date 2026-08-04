@@ -127,21 +127,29 @@ friendships. Hunger, energy and mood provide temporary context.
 All face-to-face interactions run through **one physical mechanic** with
 different payloads, rather than a different flow per feature.
 
-### Snuffelen (the IR "airdrop")
+### Snuffelen (the ESP-NOW handshake)
 
-Two badges are held nose-to-nose and exchange a small payload over IR. The
+Two badges are held together and exchange a small payload over **ESP-NOW**. The
 fiction writes itself in Dutch: when two animals meet, they sniff each other —
-**snuffelen**. The badges have IR "noses"; hold them together and the
-creatures *besnuffelen elkaar*. On success both badges celebrate
-simultaneously — LEDs, buzzer, matching animation — the audible "clink" that
-makes the moment feel real.
+**snuffelen**. Hold the badges nose to nose and the creatures *besnuffelen
+elkaar*. On success both badges celebrate simultaneously — LEDs, buzzer,
+matching animation — the audible "clink" that makes the moment feel real.
 
-IR is deliberately *bad* at range and alignment, and that is the feature: it is
-a consent mechanism. Nobody can be sniffed from across the field; both players
-must physically opt in. Payloads are shortcode-sized, well within TV-remote
-style IR bandwidth.
+**Not IR, and that costs us something.** This section originally specified an
+IR airdrop. The badge cannot do it: it has an IR *receiver* and no
+transmitter, so there is nothing to snuffel *with*. ESP-NOW replaces it.
 
-A **manual short code** remains the universal fallback (IR failure, shy
+The swap matters more than a transport swap usually does. With IR, the terrible
+range and alignment *were* the consent mechanism — free, and unspoofable from a
+distance. ESP-NOW carries across the field, so proximity is no longer a property
+of the radio. It is now **a rule we enforce, at an RSSI floor of -50 dBm**:
+below that, a handshake is ignored. The intent is unchanged — nobody can be
+sniffed from across the field, both players must physically opt in — but it
+rests on a threshold we picked rather than on physics, which means it has to be
+measured in the field and can be tuned or defeated. Payloads stay
+shortcode-sized, far under anything ESP-NOW strains at.
+
+A **manual short code** remains the universal fallback (handshake failure, shy
 players, broken hardware) and awards the same rewards.
 
 ### Payloads
@@ -283,15 +291,20 @@ creatures are perpetually sad.
 
 ### Hardware unknowns (need debug tests before designing further)
 
-- **IR in daylight.** Outdoor summer sunlight floods 38 kHz IR receivers; the
-  snuffel may only work reliably in shade, tents or evenings. *Build the IR
-  debug test first*: measure range and error rate outdoors at noon with a
-  shortcode-sized payload. If daylight IR is hopeless, either lean into it as
-  fiction ("beesten snuffelen bij schemering" — trading becomes a lovely
-  evening ritual) or promote the manual code to co-equal status.
-- **Also confirm**: does the badge IR have a *receiver* (not just a blaster)?
-  Can the badge WiFi scan for SSIDs while associated with camp WiFi (needed
-  for forage spots)? What do continuous scans cost in battery?
+- **RSSI as a consent boundary.** -50 dBm is a guess until it is measured, and
+  it is now the only thing keeping the snuffel face-to-face. The failure modes
+  are asymmetric: too strict and the handshake never fires in a crowd, too
+  loose and you can be sniffed from the next picnic table. *Build the RSSI
+  debug test first*: log RSSI against measured distance outdoors, with badges
+  in hands and in pockets, with bodies in between, and with a dozen other
+  badges nearby. If the number proves unstable, promote the manual code to
+  co-equal status rather than shipping a boundary that lies.
+- **ESP-NOW and camp WiFi on one radio.** ESP-NOW peers must sit on the same
+  WiFi channel, and associating with an access point pins the badge to that
+  AP's channel. Confirm the two can coexist — and what happens to a snuffel
+  between one badge on camp WiFi and one that is not.
+- **Also confirm**: can the badge scan for SSIDs while associated with camp
+  WiFi (needed for forage spots)? What do continuous scans cost in battery?
 - **Battery.** LoRa + WiFi scanning + screen over a camp day, with scarce
   charging. The forage scan should be user-initiated bursts, not a background
   radar.
@@ -336,8 +349,10 @@ creatures are perpetually sad.
 ### Adversarial risks (it's a hacker camp)
 
 Assume the protocol is public by Saturday morning: forged shortcodes, spoofed
-IR, replayed spoor payloads, fake forage beacons. Respond by making cheating
-*boring*, not impossible:
+handshakes, replayed spoor payloads, fake forage beacons. ESP-NOW widens this a
+little — an attacker with a stock ESP32 and an amplifier can present whatever
+RSSI they like, so the -50 dBm gate stops honest badges at range, not
+determined ones. Respond by making cheating *boring*, not impossible:
 
 - Personal care state is local and forgiving — nothing to steal, nothing worth
   forging.
@@ -345,14 +360,15 @@ IR, replayed spoor payloads, fake forage beacons. Respond by making cheating
   first introductions), which the server can dedupe and rate-limit.
 - A forged creature on your own badge is a single-player mod, not an exploit.
 - Lean in: hide an easter-egg creature that can *only* be obtained by
-  reverse-engineering the IR protocol. At Fri3d, the person who hacks the game
-  should win a prize inside it, and it channels that energy toward a target
-  you chose.
+  reverse-engineering the ESP-NOW protocol. At Fri3d, the person who hacks the
+  game should win a prize inside it, and it channels that energy toward a
+  target you chose.
 
 ## Activity families
 
 The badge has an accelerometer and gyroscope, touch screen, physical buttons,
-five LEDs, a buzzer, WiFi, IR and support for local wireless communication.
+five LEDs, a buzzer, WiFi (with ESP-NOW for badge-to-badge traffic) and an IR
+receiver — receive only, there is no IR transmitter.
 
 | Mode | Example activity | Reward |
 |---|---|---|
@@ -514,8 +530,8 @@ Core care and mini-games work offline and synchronise later. Sharing
 transports, in order of universality:
 
 - A short, one-time manual code as the universal baseline.
-- The IR snuffel for deliberate face-to-face exchanges.
-- Local wireless communication for richer playdates.
+- The ESP-NOW snuffel, gated at -50 dBm, for deliberate face-to-face exchanges.
+- The same ESP-NOW link, held open, for richer playdates.
 - Camp WiFi and the cloud server for durable provenance, scoring and recovery.
 
 Public points favour verifiable, unique events (vonken, first introductions,
@@ -526,11 +542,11 @@ owned.
 
 Before building a large economy, test a compact experience:
 
-0. **Hardware spikes first**: the IR snuffel debug test (daylight range,
-   error rate, payload size) and a WiFi SSID scan test. These two results
-   shape everything above.
+0. **Hardware spikes first**: the ESP-NOW snuffel debug test (RSSI against
+   real distance, error rate, coexistence with camp WiFi) and a WiFi SSID scan
+   test. These two results shape everything above.
 1. Companion tutorial.
-2. Hunter-to-gatherer spoor via one-time code, then via IR.
+2. Hunter-to-gatherer spoor via one-time code, then via snuffel.
 3. One WiFi forage spot with a signal-strength "warmer/colder" screen.
 4. One motion mini-game, such as a tilt maze.
 5. One touch/button game, such as LED Simon or Flappy.
@@ -569,6 +585,6 @@ Following the one-word-per-thing rule:
 | --- | --- | --- |
 | **gatherer** | **verzamelaar** | The non-antenna play track: foraging resources for creature care. |
 | **share / introduce** | **een spoor delen** | A hunter (or mentor) letting another player meet a creature; both keep it. Never "clone" in the UI. |
-| **boop** | **snuffelen** | The IR face-to-face handshake. |
+| **boop** | **snuffelen** | The face-to-face handshake, over ESP-NOW, gated at -50 dBm RSSI. |
 | **spark** | **vonk** | The once-per-pair-per-day mutual reward for a first snuffel. |
 | **forage spot** | **plukplek** | A WiFi beacon location that yields resources when found. |
