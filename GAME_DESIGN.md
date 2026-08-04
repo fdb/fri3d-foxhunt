@@ -127,10 +127,11 @@ network `fri3d-badge`. Foraging is **listening** to them:
   pantry requires covering ground, just as a complete roster requires
   finding every fox. Rare finds are a seeded roll on the same inputs, so
   rescanning cannot reroll them.
-- If the orga can share the hotspots' BSSIDs, bake the list into the app, so
-  a phone hotspot named `fri3d-badge` next to someone's tent is not a farm.
-  Spoofing a listed BSSID remains possible and remains boring: food is local
-  state (see *Adversarial risks*).
+- **Any BSSID that broadcasts the SSID counts — no allowlist.** Someone who
+  runs their own `fri3d-badge` hotspot beside their tent has hacked
+  themselves some berries; at a hacker camp that is a feature, not a leak.
+  Food is local state, so the cheat stays a single-player mod (see
+  *Adversarial risks*).
 
 Camp assignments, movement missions and mini-games stay as alternative food
 sources for players who cannot roam.
@@ -442,8 +443,8 @@ determined ones. Respond by making cheating *boring*, not impossible:
 - Public score counts only server-verified unique events (pair vonken,
   first introductions), which the server can dedupe and rate-limit.
 - A forged creature on your own badge is a single-player mod, not an exploit.
-- A spoofed `fri3d-badge` hotspot — or a spoofed whitelisted BSSID — mints
-  only local food: the same boring, single-player mod.
+- A home-brew `fri3d-badge` hotspot mints only local food: the same boring,
+  single-player mod — and at this camp, a small prize in itself.
 - Lean in: hide an easter-egg creature that can *only* be obtained by
   reverse-engineering the ESP-NOW protocol. At Fri3d, the person who hacks the
   game should win a prize inside it, and it channels that energy toward a
@@ -659,8 +660,8 @@ enough delight to carry the social economy?
 - ~~How many mentor invitations may a strong gatherer create?~~
   → Resolved: the mentor model is replaced by vonk-geluk spread; deliberate
   sharing is finder-only.
-- How many `fri3d-badge` hotspots hang on the terrain, where, and can the
-  orga share their BSSIDs? (Gates plukken tuning and the baked allowlist.)
+- How many `fri3d-badge` hotspots hang on the terrain, and roughly where?
+  (Gates plukken tuning: reload duration and yields per day.)
 - Tuning numbers that need playtesting: the vonk-geluk odds per rarity tier,
   the plukplek reload duration, and energy cost/restore per play session.
 - Which rewards remain local and which contribute to public scoring?
