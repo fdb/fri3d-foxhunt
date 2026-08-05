@@ -259,9 +259,7 @@ Every vonk also rolls a chance that one of the *other* player's creatures
 takes a liking to you — a **spontaneous spoor**: the creature introduces
 itself, both players keep it, and lineage is preserved exactly as with a
 deliberate spoor. The roll is weighted by rarity: commons spread eagerly,
-rares reluctantly, legendaries never spread on their own. Within a tier it
-weights by bond — a well-loved creature introduces itself more eagerly (see
-*What bond buys*). Meeting people is
+rares reluctantly, legendaries never spread on their own. Meeting people is
 therefore how a gatherer's collection grows — and *who* you meet matters,
 because the pool is the other player's actual roster, not a lottery from
 nowhere. The startbeest guarantees that pool is never empty: even two
@@ -495,6 +493,10 @@ receiver — receive only, there is no IR transmitter.
 | **Speeldate** | A cooperative interaction between two badges | Friendship stamps and shared rewards |
 | **Camp-opdracht** | Visit a workshop or staff station and enter a code | Special materials or story chapters |
 
+**Scope 2026: of this table only Beestenschool ships**, alongside the
+three verbs. Every other family is a later year — a lot already ships this
+year, and the core loop must stay the focus.
+
 ### Creature-specific variations
 
 The same small set of game systems can feel different through creature
@@ -530,20 +532,20 @@ reward.
 
 ## Onboarding: the antenna question and the startbeest
 
-Setup answers its one game question by itself: **is the LoRa kit
-installed?** The kit's radio — a Seeed Wio-SX1262-N module — solders onto
-the badge's SPI bus, so the app can probe for it: read a register with a
-known reset value, and a missing module answers with bus noise (0x00/0xFF).
-Detected → Jagen is on, and setup says so ("Antenne gevonden!"). Not
-detected → verzamelaar, and no question is asked. A settings toggle remains
-as the override in both directions, because the probe sees the radio
-module, not the antenna: the spiral antenna solders on separately and is
-invisible to software, so a player mid-assembly may want Jagen off, and a
-false negative must never lock anyone out. Probing is receive-only and
-safe; the module must simply never transmit without its antenna (a
-hardware warning, and another reason the badge only listens). A wrongly
-enabled Jagen is harmless either way: a quiet hunt screen, and a hunter_id
-the LoRa bridge never attributes anything to.
+Setup asks no antenna question: everyone starts as verzamelaar, and the
+upgrade is one button. Instellingen has **WORD JAGER**: it probes the SPI
+bus for the LoRa radio (a Seeed Wio-SX1262-N; read a register with a known
+reset value — a missing module answers bus noise), celebrates "Antenne
+gevonden!", enables Jagen and mints the hunter_id. Not found → a friendly
+"geen antenne gevonden" and nothing changes. An explicit button beats a
+boot probe: the player presses it at the moment they finished soldering,
+which is exactly when the celebration lands. The probe sees the radio
+module, not the antenna (the spiral solders on separately and is invisible
+to software), so Jagen can also be toggled off again for a mid-assembly
+badge. Probing is receive-only and safe; the module must simply never
+transmit without its antenna. A wrongly enabled Jagen is harmless either
+way: a quiet hunt screen, and a hunter_id the LoRa bridge never attributes
+anything to.
 
 **Upgrading is purely additive.** A verzamelaar who installs an antenna
 gains the Hunt track and loses nothing — not creatures, not bond, not food.
@@ -554,10 +556,10 @@ hooked without an antenna and then went and got one. What keeps hunting
 meaningful for an upgrader is already in the design — rares and legendaries
 never arrive by vonk-geluk, staged fox activation keeps new species
 entering all weekend, and *zelf vinden* (below) makes re-finding a known
-creature a scored, celebrated event. The kit is soldered, so the upgrade
-moment is a boot: the first launch that detects the module celebrates it —
-"Antenne gevonden!" — and mints a hunter_id (via the existing profile
-PATCH). Toggling Jagen off later simply leaves the id dormant.
+creature a scored, celebrated event. The upgrade moment is the WORD JAGER
+button above — pressed right after soldering, celebrated on the spot, the
+hunter_id minted through the server. Toggling Jagen off later simply
+leaves the id dormant.
 
 ### The startbeest
 
@@ -593,9 +595,12 @@ to a true backstop.
 
 ### Zelf vinden (the re-find)
 
-A hunter will sooner or later track a fox whose creature they already know
-— as their startbeest or through a snuffel. That find is not a dud; it is
-an upgrade:
+This is the payoff of the **wordt-jager** upgrade: a verzamelaar whose
+roster grew through snuffels presses WORD JAGER, and every known
+creature's fox becomes a fresh target — the collection turns back into a
+hunting list. It applies equally to any hunter tracking the fox of a
+creature they already know (startbeest, snuffel). That find is not a dud;
+it is an upgrade:
 
 - The dossier gains the **"Zelf gevonden!"** stamp. The social history
   stays honest and gets richer — "Ontmoet via Noor · Later zelf gevonden".
@@ -613,13 +618,12 @@ an upgrade:
 ## The first gatherer experience
 
 Nobody begins with an empty collection: the startbeest (see *Onboarding*)
-arrives at registration. The companion opens the game as the tutorial
-guide:
-
-- Complete a first short activity.
-- Gather a starter berry, nut and acorn.
-- Learn how feeding and playing work.
-- Hand over to the startbeest, which those resources then feed.
+arrives at registration. The tutorial is one taught tap, not a course: the
+starter pantry is pre-seeded (2 bes, 1 noot, 1 eikel) and the startbeest
+reveal ends in a **guided first feeding** — "geef het eerste hapje" — so
+the player leaves onboarding having fed a creature once. Playing teaches
+itself from the beest page's own buttons; the uitleg screen (see *Roles
+and navigation*) names the wider loop.
 
 The companion need not become a collectible creature. Its purpose is to make
 the game immediately playable and give every participant a personal identity.
@@ -675,18 +679,14 @@ The chain ends in bond, so bond must end in something. Animal Crossing's
 answer applies directly: the terminal reward is expression, identity and
 social display — never power. There is no battle system and nothing to
 min-max, so a power reward would have nothing to spend itself on. Bond pays
-out four ways:
+out in this order — the first two ship in 2026, the rest are parked.
 
-- **The walking friend (display).** At band 5 the creature walks beside the
-  maatje on the home/idle screen — the "wil snuffelen" screen every
-  passer-by sees. The badge hangs on a chest all camp; the display *is* the
-  trophy shelf. This is the personal payoff: identity, worn in public.
-- **De foto (the finish line).** Reaching band 5 stamps the creature's foto
-  into the dossier — the beste-vrienden page, dated — and a star marks its
-  tile on the home grid. A creature can be *finished*. That is the
-  anti-grind: depth has a destination, and the next creature offers a fresh
-  one. (Animal Crossing's villager photo — the community's canonical proof
-  of friendship — is the model.)
+- **De ster (the finish line — ships 2026).** Reaching band 5 marks the
+  creature's tile on the home grid with a gold star and its beest page
+  trades the meters for "Beste vriend!". A creature can be *finished*.
+  That is the anti-grind: depth has a destination, and the next creature
+  offers a fresh one. (Animal Crossing's villager photo — the community's
+  canonical proof of friendship — is the model.)
 
   **A finished friend retires from the economy, not from the game.** At
   band 5 the living stats freeze — permanently content, never hungry or
@@ -701,28 +701,23 @@ out four ways:
   friend becomes the infinite farming route; and the stats *freeze* rather
   than the costs being waived, so the meters never show a hungry creature
   happily playing.
-- **Ambassadeurschap (the social function).** The vonk-geluk roll weights by
-  bond *within a rarity tier*: a well-loved creature introduces itself more
-  eagerly. Care converts into spread — bond makes the carer a better node in
-  the contagion graph. The fiction writes itself: a creature that loves you
-  tags along when you meet people. Rarity caps are untouched — legendaries
-  still never spread, however loved.
-- **Many small thrones (per-creature fame).** No global "strongest bond"
-  ladder — one winner, ninety-nine losers, and the winner is a teenager.
-  Instead the scoreboard names each creature's **beste vriend**: every
-  player at band 5 with that creature, the first crowned. Twenty creatures
-  make twenty chances for a seven-year-old to top something.
+- **The bonded count (ships 2026).** The scoreboard shows how many
+  creatures each player has fully bonded, next to their catch count. The
+  badge reports the number itself (through the report outbox, below) —
+  self-claimed, display-only, and never the ranking key, so it stays
+  consistent with "public score counts only server-verified events" by not
+  being score at all: it is a public shelf for private care.
 
-### De zin (the daily return hook)
+### Parked bond ideas (not 2026)
 
-Animal Crossing's other pillar: the reason to return daily is novelty, not
-obligation. Each creature rolls a daily **zin** — "Everzwaan heeft vandaag
-zin in eikels", "…wil vandaag VLIEGEN spelen" — seeded
-`f(creature, badge, day)` exactly like the plukplek yields, so re-opening
-the app cannot reroll it. Fulfilling a zin pays bonus band and writes a
-memory line. Ignoring it costs nothing — pull, not push, the same rule as
-hunger. Every morning gets a small fresh agenda; no morning gets a chore
-list.
+Designed, still wanted, deliberately not this year — the star and the
+bonded count carry the payoff alone: the **walking friend** (band-5
+creature beside the maatje on the home screen), **de foto** (a dated
+beste-vrienden page in the dossier), **ambassadeurschap** (vonk-geluk
+weighted by bond within a tier — note it needs a "loved" bit per roster
+entry in the snuffel payload, a protocol change), **beste-vriend thrones**
+(per-creature fame on the scoreboard), and **de zin** (the seeded daily
+want). Revisit after a camp of playtest data.
 
 ### What gatherers give hunters
 
@@ -744,10 +739,9 @@ price — consistent with the snuffel philosophy.
 The full loop, by timescale:
 
 > **Minute:** pluk → voer → speel.
-> **Day:** zin, first vonken per pair, re-dealt plukplekken, newly staged
-> foxes.
-> **Weekend:** fotos collected, walking friends earned, the communal
-> sanctuary growing.
+> **Day:** fresh vonken per pair, re-dealt plukplekken, newly staged foxes.
+> **Weekend:** the roster fills, the stars accumulate, the bonded count
+> climbs the scoreboard.
 
 ## Scoring
 
@@ -764,9 +758,8 @@ of mastery rather than being forced into one raw leaderboard.
 
 ### Gatherer progress
 
-- Bond milestones across creatures — fotos collected.
-- Deepest individual relationship, shown as per-creature beste-vriend
-  titles, never as one global bond ladder.
+- Fully bonded creatures — the scoreboard's bonded count (self-reported,
+  display-only, never the ranking key).
 - Variety of forage finds and completed assignments.
 - Skills learned and dossier pages unlocked.
 - Vonken, playdates and creatures spread onward through vonk-geluk.
@@ -796,9 +789,17 @@ identities:
 - Players with an antenna can additionally enable Hunt.
 - Players may add an antenna or change their preference later.
 
-The LoRa kit's radio module sits on the badge's SPI bus and is probed at
-startup, so the Hunt track enables itself; a settings toggle covers the
-edge cases the probe cannot see (see *Onboarding*).
+The Hunt track enables through the WORD JAGER button in instellingen,
+which probes the badge's SPI bus for the LoRa radio (see *Onboarding*).
+Verzamelaars never enter the hunt: an awake creature's grid tile shows a
+teaser ("vraag een jager"), not the hunt screen — a mode you cannot play
+must not open.
+
+One **uitleg** screen states the core loop in the player's own mode, in
+three short lines — jager: "jij vindt de beesten; verzamelaars hebben het
+eten"; verzamelaar: "jij plukt het eten, ontmoet spelers en speelt;
+jagers brengen nieuwe beesten binnen". It shows once after onboarding and
+stays reachable from instellingen. The text changes when the mode does.
 
 The home experience's top level is the triad plus the collection —
 Snuffelen, Plukken, Spelen, Beesten — with Jagen added for players with an
@@ -843,7 +844,10 @@ writer:
   **snuffel report**: when the badge next has WiFi it posts its snuffel
   events (pair, day, and which creature introduced itself). The badge still
   never claims a *catch* — it reports a *meeting*, which the server can
-  cross-check against the partner's matching report.
+  cross-check against the partner's matching report. Reports queue in an
+  on-badge **outbox** and flush whenever WiFi actually works — woods WiFi
+  is spotty, and the outbox is the general mechanism for every
+  badge→server report (snuffel events, the bonded count).
 
 **Grants are generous; points are verified.** A single-sided snuffel report
 is enough to store the creature — rate-limited, per-pair-per-day enforced,
@@ -938,8 +942,9 @@ enough delight to carry the social economy?
 - Does the vonk need a time-cost payload (mini playdate) or is a plain
   handshake enough?
 - How prominent should competition be compared with the communal sanctuary?
-- Is the startbeest score-neutral (everyone has one) or does it count in
-  breadth milestones?
+- ~~Is the startbeest score-neutral (everyone has one) or does it count?~~
+  → Resolved: it counts. Every player starts with one "free" point;
+  uniform, so it never changes a ranking.
 
 ## Glossary additions
 
@@ -959,8 +964,10 @@ Following the one-word-per-thing rule:
 | **self-found** | **zelf gevonden** | The dossier upgrade when a hunter finds the fox of a creature they already knew. Scores as a discovery and pays a verzorgingspakket; nothing is removed. |
 | **care package** | **verzorgingspakket** | The food bundle a zelf-gevonden creature hands over, weighted toward its favourite. |
 | **snuffel report** | — | The badge→server sync of a snuffel event (pair, day, vonk-geluk outcome). Grants are single-sided and rarity-capped; score needs both sides. |
-| **photo** | **foto** | The band-5 dossier stamp — the beste-vrienden page. The finish line of one relationship; a creature can be *finished*. Its stats freeze and play is free forever. |
-| **daily want** | **zin** | A creature's seeded daily craving (`f(creature, badge, day)`) — one food or one game. Fulfilling it pays bonus band; ignoring it costs nothing. |
-| **best friend** | **beste vriend** | The per-creature scoreboard title: every player at band 5 with that creature, the first crowned. |
+| **star** | **ster** | The band-5 finish mark on grid tile and beest page. A creature can be *finished*: its stats freeze and play is free forever. |
+| **photo** | **foto** | Parked (not 2026): a dated beste-vrienden dossier page at band 5. |
+| **daily want** | **zin** | Parked (not 2026): a creature's seeded daily craving — one food or one game. Bonus band to fulfil; free to ignore. |
+| **best friend** | **beste vriend** | The band-5 state of one creature (the star). The per-creature scoreboard title is parked (not 2026); the scoreboard shows the bonded *count* instead. |
+| **report outbox** | — | The on-badge queue of badge→server reports (snuffel events, bonded count), flushed whenever WiFi works. |
 
 Retired: **foerageren** (say plukken).
