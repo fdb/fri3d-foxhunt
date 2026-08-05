@@ -99,9 +99,9 @@ only raise creatures — they are one.
 ### Snuffelen — meet people
 
 The face-to-face ESP-NOW handshake, described in full under *The exchange*
-below. It is a gatherer's only source of creatures (vonk-geluk and deliberate
-spoor gifts), the source of vonken and vriendenboekje pages, and the way
-surplus food reaches hungry hunters.
+below. It is how a collection grows beyond the startbeest (vonk-geluk), the
+source of vonken and vriendenboekje pages, and the way surplus food reaches
+hungry hunters.
 
 ### Plukken — work the terrain
 
@@ -243,7 +243,8 @@ deliberate spoor. The roll is weighted by rarity: commons spread eagerly,
 rares reluctantly, legendaries never spread on their own. Meeting people is
 therefore how a gatherer's collection grows — and *who* you meet matters,
 because the pool is the other player's actual roster, not a lottery from
-nowhere.
+nowhere. The startbeest guarantees that pool is never empty: even two
+brand-new verzamelaars have something to spread from their first handshake.
 
 ### Het vriendenboekje (the permanent layer)
 
@@ -316,8 +317,10 @@ new creature ownership.
 The economy's centre of gravity shifts naturally, and that shift *is* the
 pacing:
 
-- **Day 1 — hunters have leverage.** Creatures are scarce; everyone wants an
-  introduction. Food is plentiful because nobody has much to feed yet.
+- **Day 1 — hunters have leverage.** Everyone has a startbeest, but variety
+  is scarce: new species enter the camp only through foxes, so everyone
+  wants to meet a hunter. Food is plentiful because nobody has much to feed
+  yet.
 - **Day 2–3 — gatherers have leverage.** Most players have creatures; bond
   progression consumes food, and favourite/rare foods come from forage spots
   hunters haven't had time to cover. Now hunters queue at the gatherers.
@@ -334,9 +337,11 @@ Levers to keep both halves relevant all weekend:
   materials come primarily from foraging. Hunters *can* forage, but their time
   is split — realistic scarcity without hard role locks.
 - **A staff safety valve.** An organiser badge at the infodesk can introduce
-  one common starter creature to anyone who can't find a hunter. Cap it to
-  commons so hunters keep their prestige; no child should be blocked from the
-  whole game because they don't know the right teenager.
+  one common creature to anyone the normal paths missed. Cap it to commons
+  so hunters keep their prestige. The startbeest makes this a true backstop
+  (swapped badges, failed registrations) rather than a queue every child
+  must pass; no child should be blocked from the whole game because they
+  don't know the right teenager.
 
 Tuning target, order of magnitude: a creature wants a few feedings per day; an
 hour of casual foraging should feed one creature for a day with a small
@@ -443,6 +448,9 @@ determined ones. Respond by making cheating *boring*, not impossible:
 - Public score counts only server-verified unique events (pair vonken,
   first introductions), which the server can dedupe and rate-limit.
 - A forged creature on your own badge is a single-player mod, not an exploit.
+- A forged snuffel report mints at most a spreadable-tier creature on the
+  forger's own profile and no vonk score (score needs the partner's
+  matching report): boring.
 - A home-brew `fri3d-badge` hotspot mints only local food: the same boring,
   single-player mod — and at this camp, a small prize in itself.
 - Lean in: hide an easter-egg creature that can *only* be obtained by
@@ -499,17 +507,90 @@ Examples include:
 Every motion assignment should have a non-motion alternative with an equivalent
 reward.
 
+## Onboarding: the antenna question and the startbeest
+
+Setup asks one game question: **"Heb je een antenne?"** A yes adds the Jagen
+mode; a no makes a verzamelaar. The framing is additive, never a class
+choice — the answer stays a settings toggle forever after, in both
+directions, because the passive antenna is invisible to software and
+circumstances change (an antenna bought on Saturday, one that breaks, one
+that was borrowed). Nothing verifies the answer and nothing needs to: a
+jager without an antenna just has a quiet hunt screen, and their hunter_id
+scores nothing the LoRa bridge never attributes.
+
+**Upgrading is purely additive.** A verzamelaar who installs an antenna
+gains the Hunt track and loses nothing — not creatures, not bond, not food.
+An earlier draft considered wiping the roster "so there is something to
+hunt"; that breaks the game's one absolute rule (permanent progress is
+safe) and lands on exactly the player most worth rewarding: the kid who got
+hooked without an antenna and then went and got one. What keeps hunting
+meaningful for an upgrader is already in the design — rares and legendaries
+never arrive by vonk-geluk, staged fox activation keeps new species
+entering all weekend, and *zelf vinden* (below) makes re-finding a known
+creature a scored, celebrated event. The toggle mints a hunter_id (via the
+existing profile PATCH); switching back simply leaves it dormant.
+
+### The startbeest
+
+**Every player receives one base-tier creature at registration** — jager
+and verzamelaar alike. It is the tutorial creature: the companion teaches
+the verbs, then hands over to a real beest, so feeding, playing and bond
+start immediately — before the first fox is found or the first stranger
+snuffeled.
+
+- **The creature chooses the player.** The pick is deterministic —
+  `f(badge_id) → one of the base tier` — and presented as "…heeft jou
+  gekozen!". That is the same fiction as vonk-geluk (creatures always
+  introduce themselves), and determinism means re-registering cannot reroll
+  it — the same principle as the seeded plukken yields.
+- **Random-per-badge, not player-chosen**, because the camp needs variety:
+  the vonk-geluk pool is the other player's roster, and a hundred
+  hand-picked vossen would make day-1 contagion monotone. A spread of
+  starters seeds the social graph with something to pass on from the first
+  handshake.
+- **The reveal is a setup moment.** After registration succeeds, a
+  dedicated screen introduces the creature — silhouette first, then the
+  reveal, then straight into a first feeding with the tutorial's gathered
+  hapjes. It is the emotional payoff of onboarding and the bridge from
+  companion tutorial to care game.
+
+The startbeest fixes the cold-start hole in the contagion model: vonk-geluk
+rolls against the *other player's* roster, and before hunters fan out every
+roster was empty — two day-1 verzamelaars could snuffel forever and spread
+nothing. With starters seeded, gatherer↔gatherer spread works from the
+first morning. It also covers the day-1 jager whose first hunts come home
+empty — direction finding is hard — and it demotes the staff safety valve
+to a true backstop.
+
+### Zelf vinden (the re-find)
+
+A hunter will sooner or later track a fox whose creature they already know
+— as their startbeest or through a snuffel. That find is not a dud; it is
+an upgrade:
+
+- The dossier gains the **"Zelf gevonden!"** stamp. The social history
+  stays honest and gets richer — "Ontmoet via Noor · Later zelf gevonden".
+  Lineage is never rewritten, only extended.
+- The find scores as a discovery. Hunter score is for *finding foxes*, not
+  for first ownership, so a former verzamelaar's hunt track is worth
+  exactly as much as anyone's.
+- The creature, delighted to be visited at home, hands over a
+  **verzorgingspakket** — a bundle of hapjes weighted toward its own
+  favourite food. The bonus lands in the care economy, where an active
+  hunter is chronically short.
+- Nothing is removed, replaced or reset. Bond carries straight through;
+  the beest simply knows the player better now.
+
 ## The first gatherer experience
 
-A gatherer should not begin with an empty collection and an instruction to
-find somebody with extra hardware.
-
-The existing companion can serve as a tutorial guide:
+Nobody begins with an empty collection: the startbeest (see *Onboarding*)
+arrives at registration. The companion opens the game as the tutorial
+guide:
 
 - Complete a first short activity.
 - Gather a starter berry, nut and acorn.
 - Learn how feeding and playing work.
-- Carry those resources forward when the first creature is introduced.
+- Hand over to the startbeest, which those resources then feed.
 
 The companion need not become a collectible creature. Its purpose is to make
 the game immediately playable and give every participant a personal identity.
@@ -566,7 +647,9 @@ of mastery rather than being forced into one raw leaderboard.
 
 ### Hunter progress
 
-- Unique creatures discovered.
+- Unique creatures discovered — including zelf vinden: re-finding a creature
+  first met through others scores as a discovery, because the score is for
+  finding the fox, not for first ownership.
 - Unique players introduced to each creature, with sensible caps.
 - Special discoveries and legendary appearances.
 
@@ -625,6 +708,38 @@ Public points favour verifiable, unique events (vonken, first introductions,
 cooperative handshakes). Personal care state remains forgiving and locally
 owned.
 
+### How a creature reaches the profile
+
+The server's creature list is the durable record a restore rebuilds from, so
+every legitimate acquisition path must end there — and each path has its own
+writer:
+
+- **Startbeest** — minted by the server itself inside the registration POST
+  and returned in the response. The pick function is deterministic and
+  shared, so a badge that registers offline computes the identical creature
+  and the records converge on the next sync.
+- **Hunt** — written only by the LoRa bridge, exactly as before; the badge
+  never claims its own catches. If the row already exists from another
+  source, the bridge report *upgrades* it to zelf gevonden instead of
+  duplicating it.
+- **Snuffel** — the gap: a verzamelaar has no antenna, so nothing on the
+  bridge path ever writes their vonk-geluk creatures, and a restore would
+  hand back an account without them. The fix is a narrow badge→server
+  **snuffel report**: when the badge next has WiFi it posts its snuffel
+  events (pair, day, and which creature introduced itself). The badge still
+  never claims a *catch* — it reports a *meeting*, which the server can
+  cross-check against the partner's matching report.
+
+**Grants are generous; points are verified.** A single-sided snuffel report
+is enough to store the creature — rate-limited, per-pair-per-day enforced,
+and rarity-capped at the spreadable tiers — because a child must never lose
+a beest to a friend's dead battery or a badge that never reconnects. Vonk
+*score*, by contrast, counts only when both sides' reports corroborate,
+consistent with the rule that public score counts only server-verified
+unique events. The worst a forged report can mint is a common creature on
+the forger's own profile and no points: the same boring single-player mod
+the adversarial section already accepts.
+
 ## Recommended first playable slice
 
 Before building a large economy, test a compact experience:
@@ -633,8 +748,10 @@ Before building a large economy, test a compact experience:
    experiment: the channel recipe, the RSSI curve, the trust model). The WiFi
    scan spike remains: scan-while-associated, scan latency, battery per
    burst, and a census of `fri3d-badge` BSSIDs on the terrain.
-1. Companion tutorial.
-2. Creature spread through vonk-geluk, over snuffel and the manual code.
+1. Companion tutorial, ending in the startbeest reveal (server-minted in
+   the registration POST).
+2. Creature spread through vonk-geluk, over snuffel and the manual code,
+   with the snuffel report syncing the result to the profile.
 3. Plukken against one real `fri3d-badge` hotspot: warmer/colder screen,
    BSSID identity, per-badge reload.
 4. One motion mini-game, such as a tilt maze.
@@ -673,6 +790,8 @@ enough delight to carry the social economy?
 - Does the vonk need a time-cost payload (mini playdate) or is a plain
   handshake enough?
 - How prominent should competition be compared with the communal sanctuary?
+- Is the startbeest score-neutral (everyone has one) or does it count in
+  breadth milestones?
 
 ## Glossary additions
 
@@ -688,5 +807,9 @@ Following the one-word-per-thing rule:
 | **forage** | **plukken** | Passively scanning for `fri3d-badge` hotspots and harvesting a nearby one. |
 | **forage spot** | **plukplek** | One physical hotspot, identified by its BSSID, that reloads per badge. |
 | **reload** | — | The per-badge cooldown before the same plukplek yields again. |
+| **starter** | **startbeest** | The one base-tier creature every player receives at registration, deterministic per badge; the tutorial creature for both tracks. |
+| **self-found** | **zelf gevonden** | The dossier upgrade when a hunter finds the fox of a creature they already knew. Scores as a discovery and pays a verzorgingspakket; nothing is removed. |
+| **care package** | **verzorgingspakket** | The food bundle a zelf-gevonden creature hands over, weighted toward its favourite. |
+| **snuffel report** | — | The badge→server sync of a snuffel event (pair, day, vonk-geluk outcome). Grants are single-sided and rarity-capped; score needs both sides. |
 
 Retired: **foerageren** (say plukken).
