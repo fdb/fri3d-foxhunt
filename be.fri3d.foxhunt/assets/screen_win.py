@@ -57,9 +57,7 @@ class WinActivity(Activity):
                 w=320,
                 center=True,
             )
-            regel = "  ".join(
-                "+%d %s" % (n, f) for f, n in sorted(self.pakket.items())
-            )
+            regel = "  ".join("+%d %s" % (n, f) for f, n in sorted(self.pakket.items()))
             ui.label(
                 s,
                 "verzorgingspakket: " + regel,
