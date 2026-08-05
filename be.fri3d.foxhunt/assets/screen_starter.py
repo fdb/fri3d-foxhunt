@@ -2,17 +2,22 @@
 #
 # Registration minted one base-tier creature server-side (deterministic per
 # badge — GAME_DESIGN.md, "The startbeest"); reg_send has already stored it
-# locally before opening this. So this screen holds no game logic at all: it
-# only performs the introduction. Two states rebuilt in place (the reg_send
+# locally before opening this. States rebuilt in place (the reg_send
 # pattern): a veiled silhouette first — "er wacht iemand op je" — then the
 # reveal, framed the way the design asks: the creature chose YOU. The calm
 # card copies the win screen's geometry, so the two payoffs rhyme.
+#
+# The reveal flows into a GUIDED FIRST FEEDING — the whole tutorial is this
+# one taught tap (GAME_DESIGN.md, "The first gatherer experience"): the
+# pantry was pre-seeded, the player picks a hapje, the beest eats. Real
+# mechanics, not a mock — store.do_feed spends the pantry and pays energie.
 
 import lvgl as lv
 from mpos import Activity
 import ui
 import art
 import sound
+import store
 from creatures import by_id
 
 BG = 0x20301C
@@ -116,6 +121,76 @@ class StarterActivity(Activity):
             "Zorg er goed voor - geef het hapjes en speel!",
             0,
             166,
+            TEXT_SOFT,
+            ui.font_small(),
+            w=320,
+            center=True,
+        )
+        self._button(s, "GEEF EEN HAPJE", self._build_feed)
+
+    # ---- state: the guided first feeding ----------------------------------
+    def _build_feed(self):
+        s = self.screen
+        s.clean()
+        sound.play("tap")
+        ui.label(
+            s, "+ EERSTE HAPJE +", 0, 10, ui.GOLD, ui.font_small(), w=320, center=True
+        )
+        self._card(s, silhouette=False)
+        ui.label(
+            s,
+            "Waar heeft %s zin in?" % self.c["naam"],
+            0,
+            136,
+            ui.CREAM,
+            ui.font_label(),
+            w=320,
+            center=True,
+        )
+        v = store.voorraad()
+        fw = 92
+        row = ui.row(s, 14, 158, 3 * fw + 2 * 8, 38, gap=8)
+        for food, lab in (("bes", "Bes"), ("noot", "Noot"), ("eikel", "Eikel")):
+            fav = food == self.c.get("favoriet")
+            p = ui.panel(
+                row, 0, 0, fw, 38, ui.CARD, border=(ui.GOLD if fav else ui.BORDER_REST)
+            )
+            art.icon(p, food, 2).set_pos(8, 10)
+            ui.label(p, "%s x%d" % (lab, v.get(food, 0)), 32, 12, ui.INK, ui.font_small())
+            ui.focusable(p, on_click=lambda f=food: self._first_feed(f), focus_border=True)
+
+    def _first_feed(self, food):
+        st, ok, msg, is_fav = store.do_feed(self.fox_id, food)
+        sound.play("caught" if is_fav else "tap" if ok else "error")
+        self._build_fed(ok, msg, is_fav)
+
+    def _build_fed(self, ok, msg, is_fav):
+        s = self.screen
+        s.clean()
+        for x, y, sc in ((24, 46, 2), (282, 44, 2)):
+            art.icon(s, "spark", sc).set_pos(x, y)
+        ui.label(
+            s, "+ SMAKELIJK +", 0, 10, ui.GOLD, ui.font_small(), w=320, center=True
+        )
+        self._card(s, silhouette=False)
+        kop = "%s %s" % (self.c["naam"], "smikkelt!" if ok else "zit al vol!")
+        ui.label(s, kop, 0, 138, ui.CREAM, ui.font_title(), w=320, center=True)
+        if ok:
+            ui.label(
+                s,
+                msg,
+                0,
+                162,
+                ui.GOLD if is_fav else TEXT_SOFT,
+                ui.font_small(),
+                w=320,
+                center=True,
+            )
+        ui.label(
+            s,
+            "hapjes vind je met plukken - band groeit door spelen",
+            0,
+            180,
             TEXT_SOFT,
             ui.font_small(),
             w=320,
