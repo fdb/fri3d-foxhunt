@@ -248,19 +248,28 @@ def do_action(cid, action):
 def do_feed(cid, food):
     """Feed a hapje ('bes'|'noot'|'eikel') FROM THE VOORRAAD; persist;
     (state, ok, msg, is_fav). An empty pantry refuses before the creature
-    gets a say — the hapje is only consumed when it is actually eaten."""
+    gets a say — the hapje is only consumed when it is actually eaten.
+
+    ONE instance, ONE editor, deliberately: SharedPreferences snapshots the
+    file per instance and commit() writes the whole snapshot back, so a
+    take_food() on a second instance here was silently reverted by the
+    beast-state commit from the first — the pantry never drained. The
+    voorraad decrement must ride the same commit as the beast state."""
+    v = voorraad()  # may seed the starter pantry — must run BEFORE prefs snapshots
     prefs = SharedPreferences(_APP)
     raw = _raw_state(prefs, cid)
     if raw is None:
         return None, False, "", False
-    if voorraad().get(food, 0) <= 0:
+    if v.get(food, 0) <= 0:
         return pet.decay(raw, _now()), False, "op - ga plukken!", False
     c = by_id(cid)
     favoriet = c.get("favoriet") if c else None
     state, ok, msg, is_fav = pet.feed(pet.decay(raw, _now()), food, favoriet, _now())
+    e = prefs.edit()
     if ok:
-        take_food(food)
-    prefs.edit().put_dict_item("beast", str(cid), state).commit()
+        v[food] -= 1
+        e.put_dict("voorraad", v)
+    e.put_dict_item("beast", str(cid), state).commit()
     return state, ok, msg, is_fav
 
 

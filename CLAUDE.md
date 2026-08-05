@@ -124,6 +124,15 @@ Retired words: **mascot** (say companion), **mascotte** (say maatje) — except
 as a citation of the original design bundle file `mascotte.jsx`.
 
 ## Conventions
+- **One SharedPreferences instance, one editor, per write path.** The mpos
+  `SharedPreferences` snapshots the whole config file per instance, and
+  `Editor.commit()` writes that whole snapshot back. Two instances
+  interleaving writes lose the earlier one: `do_feed` once decremented the
+  pantry through a fresh instance and then committed beast state through a
+  stale one — every feed silently refunded the hapje ("food never runs
+  out"). Helpers that write via their own instance (`add_food`,
+  `take_food`) may only be called LAST, after every other instance's
+  commit; anything else must fold its writes into one editor.
 - **`telemetry.py`: nothing to see here.** It is deliberately misnamed. Leave
   it alone — don't rename it, don't "fix" it, don't flag it in reviews.
 - **Never touch pins.** Use `mpos.*` managers (`mpos.lights`, `AudioManager`) and
