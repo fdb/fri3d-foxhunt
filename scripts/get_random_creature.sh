@@ -66,7 +66,9 @@ import sys, machine
 sys.path.insert(0, '/apps/$APP_ID/assets')
 import store
 badge = ':'.join('%02X' % b for b in machine.unique_id())
-print('STATE', badge, ','.join(str(i) for i in store.caught_ids()) or '-')
+p = store.profile() or {}
+print('STATE', badge, ','.join(str(i) for i in store.caught_ids()) or '-',
+      'synced' if p.get('synced') else 'unsynced')
 " 2>&1)" || { echo "error: badge did not answer; device said:" >&2
               echo "$state" >&2; exit 1; }
 
@@ -75,7 +77,13 @@ case "$state" in
     *) echo "error: badge did not report its state; device said:" >&2
        echo "$state" >&2; exit 1 ;;
 esac
-read -r _ badge caught <<< "${state##*STATE }"
+# Two fields, not three: the `##*STATE ` above already ate the sentinel. And
+# the serial REPL ends every line with CR, which `read` leaves on the LAST
+# field (a non-whitespace IFS char delimits, it does not get trimmed) — so an
+# empty roster arrives as "-\r" and the emptiness check below fails on a badge
+# that has nothing. Drop the CRs before parsing.
+state="${state//$'\r'/}"
+read -r badge caught synced <<< "${state##*STATE }"
 echo "  badge $badge"
 
 if [[ "$caught" != "-" ]]; then
@@ -98,6 +106,16 @@ body="${resp%$'\n'*}"
 case "$code" in
     200) ;;
     404) echo "error: the server does not know this badge ($body)." >&2
+         if [[ "$synced" == "synced" ]]; then
+             # The badge says it registered and the server has never heard of
+             # it. That combination is a profile written by FakeRegistrar (or
+             # against a local wrangler DB): nothing ever left the badge. A
+             # hunter_id in that profile is the giveaway — the real transport
+             # skips the bridge leg, so it can only ever store None.
+             echo "       The badge claims 'synced', so this profile was written" >&2
+             echo "       offline (FakeRegistrar) or against a local server —" >&2
+             echo "       it never reached $SERVER." >&2
+         fi
          echo "       Register on the badge first — registration now grants" >&2
          echo "       the startbeest by itself." >&2
          exit 1 ;;
