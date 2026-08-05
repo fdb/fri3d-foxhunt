@@ -250,7 +250,9 @@ Every vonk also rolls a chance that one of the *other* player's creatures
 takes a liking to you — a **spontaneous spoor**: the creature introduces
 itself, both players keep it, and lineage is preserved exactly as with a
 deliberate spoor. The roll is weighted by rarity: commons spread eagerly,
-rares reluctantly, legendaries never spread on their own. Meeting people is
+rares reluctantly, legendaries never spread on their own. Within a tier it
+weights by bond — a well-loved creature introduces itself more eagerly (see
+*What bond buys*). Meeting people is
 therefore how a gatherer's collection grows — and *who* you meet matters,
 because the pool is the other player's actual roster, not a lottery from
 nowhere. The startbeest guarantees that pool is never empty: even two
@@ -658,6 +660,71 @@ Progression should reward both breadth and depth:
 The emotional centre can be one favourite creature while the wider collection
 provides variety.
 
+## What bond buys
+
+The chain ends in bond, so bond must end in something. Animal Crossing's
+answer applies directly: the terminal reward is expression, identity and
+social display — never power. There is no battle system and nothing to
+min-max, so a power reward would have nothing to spend itself on. Bond pays
+out four ways:
+
+- **The walking friend (display).** At band 5 the creature walks beside the
+  maatje on the home/idle screen — the "wil snuffelen" screen every
+  passer-by sees. The badge hangs on a chest all camp; the display *is* the
+  trophy shelf. This is the personal payoff: identity, worn in public.
+- **De foto (the finish line).** Reaching band 5 stamps the creature's foto
+  into the dossier — the beste-vrienden page, dated. A creature can be
+  *finished*. That is the anti-grind: depth has a destination, and the next
+  creature offers a fresh one. (Animal Crossing's villager photo — the
+  community's canonical proof of friendship — is the model.)
+- **Ambassadeurschap (the social function).** The vonk-geluk roll weights by
+  bond *within a rarity tier*: a well-loved creature introduces itself more
+  eagerly. Care converts into spread — bond makes the carer a better node in
+  the contagion graph. The fiction writes itself: a creature that loves you
+  tags along when you meet people. Rarity caps are untouched — legendaries
+  still never spread, however loved.
+- **Many small thrones (per-creature fame).** No global "strongest bond"
+  ladder — one winner, ninety-nine losers, and the winner is a teenager.
+  Instead the scoreboard names each creature's **beste vriend**: every
+  player at band 5 with that creature, the first crowned. Twenty creatures
+  make twenty chances for a seven-year-old to top something.
+
+### De zin (the daily return hook)
+
+Animal Crossing's other pillar: the reason to return daily is novelty, not
+obligation. Each creature rolls a daily **zin** — "Everzwaan heeft vandaag
+zin in eikels", "…wil vandaag VLIEGEN spelen" — seeded
+`f(creature, badge, day)` exactly like the plukplek yields, so re-opening
+the app cannot reroll it. Fulfilling a zin pays bonus band and writes a
+memory line. Ignoring it costs nothing — pull, not push, the same rule as
+hunger. Every morning gets a small fresh agenda; no morning gets a chore
+list.
+
+### What gatherers give hunters
+
+Two flows, both UI-less, both firing automatically on the same handshake:
+
+- **Food.** Hunters run short by design (about half a day of care); every
+  snuffel picknick moves gatherer surplus to them.
+- **Reach.** Hunter score counts *unique players introduced to each
+  creature* — so every vonk-geluk spread of a hunter's find scores for the
+  original finder, forever, through lineage. A gatherer bonding with and
+  spreading a hunter's creature earns the hunter points while they sleep.
+  Surface it hunter-side: "jouw vos heeft 12 nieuwe vrienden gemaakt."
+
+This is the symmetric want that makes an economy with no trade UI: hunters
+want their finds in the hands of good carers (reach and food), carers want
+hunters nearby (new species and zin variety). Nothing to choose, nothing to
+price — consistent with the snuffel philosophy.
+
+The full loop, by timescale:
+
+> **Minute:** pluk → voer → speel.
+> **Day:** zin, first vonken per pair, re-dealt plukplekken, newly staged
+> foxes.
+> **Weekend:** fotos collected, walking friends earned, the communal
+> sanctuary growing.
+
 ## Scoring
 
 Hunter and gatherer accomplishments should remain legible as different kinds
@@ -673,8 +740,9 @@ of mastery rather than being forced into one raw leaderboard.
 
 ### Gatherer progress
 
-- Bond milestones across creatures.
-- Deepest individual relationship.
+- Bond milestones across creatures — fotos collected.
+- Deepest individual relationship, shown as per-creature beste-vriend
+  titles, never as one global bond ladder.
 - Variety of forage finds and completed assignments.
 - Skills learned and dossier pages unlocked.
 - Vonken, playdates and creatures spread onward through vonk-geluk.
@@ -795,15 +863,19 @@ enough delight to carry the social economy?
   species from which each player receives their own individual creature?~~
   → Resolved by the "spoor" fiction: the same creature known to many players,
   each with their own bond.
-- Should the main gatherer fantasy emphasise one deep relationship or a broad
-  sanctuary collection?
+- ~~Should the main gatherer fantasy emphasise one deep relationship or a
+  broad sanctuary collection?~~ → Resolved by *What bond buys*: both, in
+  series. Breadth is free to hold (hunger is pull, no upkeep); depth has a
+  finish line (de foto), so the fantasy is a sanctuary of *finished*
+  friendships, built one beste vriend at a time.
 - ~~How many mentor invitations may a strong gatherer create?~~
   → Resolved: the mentor model is replaced by vonk-geluk spread; deliberate
   sharing is finder-only.
 - How many `fri3d-badge` hotspots hang on the terrain, and roughly where?
   (Gates plukken tuning: reload duration and yields per day.)
 - Tuning numbers that need playtesting: the vonk-geluk odds per rarity tier,
-  the plukplek reload duration, and energy cost/restore per play session.
+  the bond weighting inside a tier, the zin bonus size, the plukplek reload
+  duration, and energy cost/restore per play session.
 - Which rewards remain local and which contribute to public scoring?
 - How many foxes will be deployed, and can their activation be staged across
   the weekend? How many players will have antennas? (Both numbers gate the
@@ -834,5 +906,8 @@ Following the one-word-per-thing rule:
 | **self-found** | **zelf gevonden** | The dossier upgrade when a hunter finds the fox of a creature they already knew. Scores as a discovery and pays a verzorgingspakket; nothing is removed. |
 | **care package** | **verzorgingspakket** | The food bundle a zelf-gevonden creature hands over, weighted toward its favourite. |
 | **snuffel report** | — | The badge→server sync of a snuffel event (pair, day, vonk-geluk outcome). Grants are single-sided and rarity-capped; score needs both sides. |
+| **photo** | **foto** | The band-5 dossier stamp — the beste-vrienden page. The finish line of one relationship; a creature can be *finished*. |
+| **daily want** | **zin** | A creature's seeded daily craving (`f(creature, badge, day)`) — one food or one game. Fulfilling it pays bonus band; ignoring it costs nothing. |
+| **best friend** | **beste vriend** | The per-creature scoreboard title: every player at band 5 with that creature, the first crowned. |
 
 Retired: **foerageren** (say plukken).
