@@ -9,11 +9,13 @@
 # full streak (~3 s of -50 dBm or better), both sides celebrate — the first
 # side to complete claims it on the air (SNF) and the other mirrors, so the
 # streaks need not line up. There is
-# nothing to choose and no buttons on the payoff — every snuffel shares food
-# automatically (a vonk is a picknick, a repeat a bite), and a vonk can
-# spark one of the other player's creatures to introduce itself. The same
-# pair can snuffel again after stepping apart. Everything written is local,
-# forgiving state — never public score (frames are unauthenticated).
+# nothing to choose and no buttons on the payoff — food shares itself when
+# the pair's cooldown allows (a vonk is a picknick, a repeat inside 4h a
+# single hapje at most once an hour; inside the hour the handshake pays
+# nothing), and a vonk can spark one of the other player's creatures to
+# introduce itself. The same pair can snuffel again after stepping apart.
+# Everything written is local, forgiving state — never public score (frames
+# are unauthenticated).
 
 import lvgl as lv
 from mpos import Activity, Intent
@@ -243,7 +245,7 @@ class VonkActivity(Activity):
             )
             ui.label(
                 s,
-                "al gesnuffeld vandaag",
+                "al gesnuffeld",
                 100,
                 50,
                 _VONK_MUTED,
@@ -262,26 +264,50 @@ class VonkActivity(Activity):
             center=True,
         )
 
-        # the picknick: every snuffel shares food, no questions asked
+        # the picknick: food shares itself when the pair's cooldown allows;
+        # a fully cooled-down pair still celebrates, just empty-handed
+        amount = x.get("amount", 0)
         fp = ui.panel(s, 8, 94, 304, 46, _VONK_PANEL, border=ui.GOLD_D)
-        art.icon(fp, x.get("food", "bes"), 3).set_pos(12, 8)
-        ui.label(
-            fp,
-            "+%d %s" % (x.get("amount", 1), x.get("food", "bes")),
-            52,
-            4,
-            _VONK_TEXT,
-            ui.font_title(),
-        )
-        ui.label(
-            fp,
-            "jullie delen een picknick!" if vonk else "een hapje voor onderweg",
-            52,
-            28,
-            _VONK_MUTED,
-            ui.font_small(),
-        )
-        art.icon(fp, "spark", 1).set_pos(284, 16)
+        if amount:
+            art.icon(fp, x.get("food", "bes"), 3).set_pos(12, 8)
+            ui.label(
+                fp,
+                "+%d %s" % (amount, x.get("food", "bes")),
+                52,
+                4,
+                _VONK_TEXT,
+                ui.font_title(),
+            )
+            ui.label(
+                fp,
+                "jullie delen een picknick!" if vonk else "een hapje voor onderweg",
+                52,
+                28,
+                _VONK_MUTED,
+                ui.font_small(),
+            )
+            art.icon(fp, "spark", 1).set_pos(284, 16)
+        else:
+            ui.label(
+                fp,
+                "genoeg gedeeld voor nu",
+                0,
+                8,
+                _VONK_TEXT,
+                ui.font_label(),
+                w=304,
+                center=True,
+            )
+            ui.label(
+                fp,
+                "kom over een uurtje terug",
+                0,
+                26,
+                _VONK_MUTED,
+                ui.font_small(),
+                w=304,
+                center=True,
+            )
 
         # vonk-geluk: one of THEIR creatures introduces itself
         if self.geluk is not None:

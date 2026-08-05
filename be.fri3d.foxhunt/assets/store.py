@@ -8,7 +8,8 @@
 #                dossier lineage
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
-#   "vonk"     : today's snuffel log (pairs met + vonk count, daily reset)
+#   "vonk"     : snuffel log — {date, count (daily reset), pairs: {mac:
+#                {vonk: epoch, food: epoch}}} — pair cooldown timestamps
 #   "pluk"     : {spots: {bssid: epoch}, date, count} — reloads + day stat
 #
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
@@ -301,10 +302,15 @@ def take_food(food):
     return True
 
 
-# ── snuffelen: vrienden (permanent) + vonken (daily) ────────────────────────
-# The vriendenboekje never decays; the vonk log resets each day. Identity is
-# the peer's MAC (snuffel_link) or a manual code — either way one string.
+# ── snuffelen: vrienden (permanent) + vonken (cooldown-gated) ───────────────
+# The vriendenboekje never decays. The vonk log holds per-pair timestamps:
+# a pair scores a new vonk after ~4h (daily cap on top), and shares picknick
+# food after ~1h — inside the hour a repeat snuffel pays NOTHING, so two
+# badges cannot be farmed for food. Identity is the peer's MAC (snuffel_link)
+# or a manual code — either way one string.
 VONK_DAY_CAP = 10  # scored vonken per day: meet SOME new people, not everyone
+SNF_VONK_COOLDOWN_S = 4 * 60 * 60
+SNF_FOOD_COOLDOWN_S = 60 * 60
 
 
 def vrienden():
@@ -313,8 +319,14 @@ def vrienden():
 
 def _vonk_log():
     d = SharedPreferences(_APP).get_dict("vonk", {})
+    pairs = d.get("pairs", {})
+    if not isinstance(pairs, dict):  # pre-cooldown logs kept a daily mac list
+        pairs = {}
     if d.get("date") != _today():
-        return {"date": _today(), "pairs": [], "count": 0}
+        # the day rolls the CAP counter only; pair cooldowns are wall-clock
+        # and survive midnight, or a 23:00 vonk would re-arm at 00:00
+        return {"date": _today(), "pairs": pairs, "count": 0}
+    d["pairs"] = pairs
     return d
 
 
@@ -324,11 +336,13 @@ def vonk_count_today():
 
 def record_snuffel(mac, naam, code):
     """A completed snuffel with peer `mac`. Writes the boekje page on a
-    first-ever meeting, scores a vonk on the first meeting of the day
-    (capped), and ALWAYS shares food — a vonk is a picknick (2-5 hapjes of
-    one kind), a repeat meeting a single hapje for the road. Nothing is
-    chosen: the handshake itself pays out.
-    Returns {"new_friend", "vonk", "dag", "food", "amount"}."""
+    first-ever meeting; scores a vonk when the pair's 4h cooldown has passed
+    (daily cap on top) — a vonk is a picknick, 2-5 hapjes of one kind; a
+    repeat inside the vonk cooldown shares a single hapje at most once an
+    hour per pair. Inside the hour the handshake still celebrates but pays
+    nothing. Nothing is chosen: the handshake itself pays out.
+    Returns {"new_friend", "vonk", "dag", "food", "amount"} —
+    food None / amount 0 when the pair is fully cooled down."""
     prefs = SharedPreferences(_APP)
     vr = prefs.get_list("vrienden", [])
     new_friend = not any(f.get("mac") == mac for f in vr)
@@ -338,16 +352,27 @@ def record_snuffel(mac, naam, code):
         vr.append({"mac": mac, "naam": naam, "code": code, "dag": dag})
         e.put_list("vrienden", vr)
     log = _vonk_log()
-    vonk = mac not in log["pairs"] and log["count"] < VONK_DAY_CAP
-    if mac not in log["pairs"]:
-        log["pairs"].append(mac)
+    now = _now()
+    pair = log["pairs"].get(mac, {})
+    vonk = (
+        now - pair.get("vonk", -SNF_VONK_COOLDOWN_S) >= SNF_VONK_COOLDOWN_S
+        and log["count"] < VONK_DAY_CAP
+    )
+    picknick = (
+        vonk or now - pair.get("food", -SNF_FOOD_COOLDOWN_S) >= SNF_FOOD_COOLDOWN_S
+    )
     if vonk:
         log["count"] += 1
+        pair["vonk"] = now
+    if picknick:
+        pair["food"] = now
+    log["pairs"][mac] = pair
     e.put_dict("vonk", log)
     e.commit()
-    food = random.choice(FOODS)
-    amount = random.randrange(2, 6) if vonk else 1
-    add_food(food, amount)
+    food = random.choice(FOODS) if picknick else None
+    amount = (random.randrange(2, 6) if vonk else 1) if picknick else 0
+    if amount:
+        add_food(food, amount)
     return {
         "new_friend": new_friend,
         "vonk": vonk,

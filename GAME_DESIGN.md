@@ -218,10 +218,13 @@ players, broken hardware) and awards the same rewards.
 Nothing is chosen and nothing is attached: the handshake itself pays out,
 automatically and symmetrically, and the payoff screen has no buttons.
 
-- **Every snuffel shares food.** A vonk is a picknick — both players gain
-  2-5 hapjes of one random kind. A repeat meeting still hands both a single
-  hapje for the road, so snuffelling a friend again is never pointless,
-  just modest. The same pair can snuffel again after stepping apart.
+- **Food shares itself, on a per-pair cooldown.** A vonk is a picknick —
+  both players gain 2-5 hapjes of one random kind. A repeat meeting shares
+  a single hapje for the road at most **once an hour per pair**; inside the
+  hour the handshake still celebrates but pays nothing. Without the
+  cooldown two badges are an infinite food fountain, and food is supposed
+  to come from working the terrain. The same pair can snuffel again after
+  stepping apart.
 - **A vonk can carry a creature** (vonk-geluk, below): one of the other
   player's creatures may introduce itself.
 - **Speeldate** (any ↔ any) stays a deliberate, longer cooperative
@@ -230,19 +233,22 @@ automatically and symmetrically, and the payoff screen has no buttons.
 ### De vonk (the anti-farming rule)
 
 The *handshake itself* is the scored social event, separate from the payload.
-The first snuffel between a given pair of players each day produces a **vonk**
-for both — the meet-new-people reward. Repeats within the same pair still
-share a small hapje (siblings and tent-mates can keep topping each other up)
-but earn no further vonken that day. This gives:
+A snuffel between a given pair produces a **vonk** for both — the
+meet-new-people reward — once the pair's **4-hour cooldown** has passed,
+with a daily cap on top (the first ~10 count). Repeats inside the cooldown
+still share the hourly hapje (siblings and tent-mates can keep topping each
+other up, slowly) but earn no vonk. This gives:
 
 - an incentive to walk up to strangers (new pair → new vonk),
 - no incentive to stand in a corner farming one friend,
-- no hard "never again" wall between friends — utility transfer stays
-  unlimited, only *score* is pair-limited.
+- no hard "never again" wall between friends — utility transfer continues,
+  once an hour; only *score* is pair-and-cap limited,
+- and, because the cooldown is 4h rather than a calendar day, a morning
+  friend is worth a fresh vonk again by the evening campfire.
 
-Consider additionally capping vonken per day (e.g. the first ~10 count) so the
-optimal strategy is "meet some new people every day", not "speed-boop the
-entire dinner queue".
+The cooldowns are wall-clock and survive midnight — a 23:00 vonk does not
+re-arm at 00:00. The daily cap keeps the optimal strategy "meet some new
+people every day", not "speed-boop the entire dinner queue".
 
 ### Vonk-geluk (the creature chance)
 
@@ -912,7 +918,7 @@ Following the one-word-per-thing rule:
 | **gatherer** | **verzamelaar** | The non-antenna play track: foraging resources for creature care. |
 | **spread** | **vonk-geluk** | The chance, on a vonk, that one of the other player's creatures introduces itself; both keep it. Never "clone" in the UI. The only way creatures spread. |
 | **boop / socialize** | **snuffelen** | The face-to-face handshake over ESP-NOW, gated at -50 dBm RSSI on both sides — and the home-screen mode named after it. |
-| **spark** | **vonk** | The once-per-pair-per-day mutual reward for a first snuffel. |
+| **spark** | **vonk** | The mutual reward for a snuffel, per pair every ~4 hours, capped per day. |
 | **friend book** | **vriendenboekje** | The permanent collection: one page per first-ever meeting between two badges. |
 | **forage** | **plukken** | Passively scanning for `fri3d-badge` hotspots and harvesting a nearby one. |
 | **forage spot** | **plukplek** | One physical hotspot, identified by its BSSID, that reloads per badge. |
