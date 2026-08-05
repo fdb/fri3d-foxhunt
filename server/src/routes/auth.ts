@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Bindings, Player } from "../types";
 import { logEvent } from "../lib/events";
+import { starterFor } from "../lib/starter";
 import {
   validateBadgeId,
   validateHunterId,
@@ -45,7 +46,10 @@ authRoutes.post("/register", async (c) => {
   if (body.profile_pic !== undefined) {
     const validated = validateProfilePic(body.profile_pic);
     if (validated === null)
-      return c.json({ error: "invalid profile_pic (companion shortcode)" }, 400);
+      return c.json(
+        { error: "invalid profile_pic (companion shortcode)" },
+        400,
+      );
     profilePic = validated;
   }
 
@@ -70,7 +74,79 @@ authRoutes.post("/register", async (c) => {
     name,
     profile_pic: profilePic,
   });
-  return c.json(player, 201);
+
+  // The startbeest rides the registration: the server is the durable record
+  // a restore rebuilds from, so the grant happens here, not on the badge.
+  // Normal catches stay bridge-only; this is the one creature the server
+  // itself hands out (GAME_DESIGN.md, "How a creature reaches the profile").
+  const starterId = starterFor(badgeId);
+  await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO players_creatures (player_id, creature_id) VALUES (?, ?)",
+  )
+    .bind(player!.id, starterId)
+    .run();
+  await logEvent(c.env.DB, "starter_granted", {
+    player_id: player!.id,
+    badge_id: badgeId,
+    creature_id: starterId,
+  });
+
+  return c.json({ ...player, starter: starterId }, 201);
+});
+
+// POST /api/v1/auth/starter
+// Body: { badge_id }. The catch-up path: hand the deterministic startbeest to
+// an account that predates the feature (scripts/get_random_creature.sh drives
+// it over USB) or that adopted an existing row via re-register. Only an EMPTY
+// roster is granted — an account with creatures already had its start.
+// Unauthenticated on purpose: the only thing this can ever do is give an
+// empty account the same creature registration would have given it, and the
+// pick cannot be chosen or rerolled.
+authRoutes.post("/starter", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid JSON body" }, 400);
+  }
+
+  const badgeId = validateBadgeId(body.badge_id);
+  if (!badgeId) return c.json({ error: "invalid badge_id" }, 400);
+
+  const player = await c.env.DB.prepare(
+    "SELECT * FROM players WHERE badge_id = ?",
+  )
+    .bind(badgeId)
+    .first<Player>();
+  if (!player) return c.json({ error: "unknown badge_id" }, 404);
+
+  const { results } = await c.env.DB.prepare(
+    "SELECT creature_id FROM players_creatures WHERE player_id = ? ORDER BY creature_id",
+  )
+    .bind(player.id)
+    .all<{ creature_id: number }>();
+  const have = results.map((r) => r.creature_id);
+
+  const starterId = starterFor(badgeId);
+  if (have.length > 0) {
+    // Re-running the script is not an error when all it would redo is done.
+    if (have.length === 1 && have[0] === starterId)
+      return c.json({ ok: true, starter: starterId, duplicate: true });
+    return c.json({ error: "roster not empty", creatures: have }, 409);
+  }
+
+  await c.env.DB.prepare(
+    "INSERT INTO players_creatures (player_id, creature_id) VALUES (?, ?)",
+  )
+    .bind(player.id, starterId)
+    .run();
+  await logEvent(c.env.DB, "starter_granted", {
+    player_id: player.id,
+    badge_id: badgeId,
+    creature_id: starterId,
+  });
+
+  return c.json({ ok: true, starter: starterId, duplicate: false });
 });
 
 // GET /api/v1/auth/user?badge_id=...
@@ -146,7 +222,10 @@ authRoutes.patch("/user", async (c) => {
   if (body.profile_pic !== undefined) {
     const profilePic = validateProfilePic(body.profile_pic);
     if (profilePic === null)
-      return c.json({ error: "invalid profile_pic (companion shortcode)" }, 400);
+      return c.json(
+        { error: "invalid profile_pic (companion shortcode)" },
+        400,
+      );
     fields.push("profile_pic = ?");
     values.push(profilePic);
     changes.profile_pic = profilePic;

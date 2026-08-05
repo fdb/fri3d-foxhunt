@@ -7,13 +7,15 @@
 # so a failure costs nothing but a retry ("je profiel is wel bewaard").
 
 import lvgl as lv
-from mpos import Activity
+from mpos import Activity, Intent
 import ui
 import art
 import sound
 import store
 import companion
+from creatures import by_id
 from registrar import REGISTRAR
+from screen_starter import StarterActivity
 
 SEND_BG = 0xDFEEBF
 DONE_BG = 0x20301C
@@ -73,6 +75,7 @@ class RegSendActivity(Activity):
         }
         self.screen = ui.make_screen(SEND_BG)
         self._bar_timer = None
+        self._starter = None  # startbeest id once the server grants one
         self.setContentView(self.screen)
         self._start_sending()
 
@@ -185,6 +188,12 @@ class RegSendActivity(Activity):
             if st["ok"]:
                 store.update_profile(hunter_id=st["hunter_id"], synced=True)
                 self.p = store.profile() or self.p
+                # Bank the startbeest right away — the reveal is only
+                # theatre, so a player who backs out of it keeps the beest.
+                starter = st.get("starter")
+                if starter is not None and by_id(starter) is not None:
+                    store.add_caught(starter, origin="start")
+                    self._starter = starter
                 sound.play("caught")
                 self._build_done(st)
             else:
@@ -310,5 +319,20 @@ class RegSendActivity(Activity):
 
     def _finish_registered(self):
         sound.play("tap")
+        if self._starter is not None:
+            # The reveal rides between "ingeschreven" and home: START opens
+            # it, VERDER there closes the whole onboarding chain.
+            self.startActivityForResult(
+                Intent(
+                    activity_class=StarterActivity,
+                    extras={"fox_id": self._starter},
+                ),
+                self._starter_done,
+            )
+            return
+        self.setResult("registered")
+        self.finish()
+
+    def _starter_done(self, _result):
         self.setResult("registered")
         self.finish()

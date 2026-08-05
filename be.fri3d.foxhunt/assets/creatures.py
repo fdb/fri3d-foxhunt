@@ -296,3 +296,18 @@ def by_id(cid):
         if c["id"] == cid:
             return c
     return None
+
+
+def starter_for(badge_id):
+    """The startbeest this badge is destined for: a base-tier creature picked
+    by FNV-1a over the canonical badge id, so a re-registration can never
+    reroll it. MUST stay in step with the server's copy (server/src/lib/
+    starter.ts) — the server runs the same hash over the same lowercased id,
+    and both sides landing on the same creature is what lets an offline
+    registration converge on sync."""
+    h = 0x811C9DC5
+    for b in badge_id.strip().lower().encode():
+        h ^= b
+        h = (h * 0x01000193) & 0xFFFFFFFF
+    base = sorted(c["id"] for c in CREATURES if c["rarity"] == "norm")
+    return base[h % len(base)]

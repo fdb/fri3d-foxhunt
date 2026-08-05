@@ -58,6 +58,10 @@ class Registrar:
 
             "cloud" / "bridge" / "hunter": "wait"|"busy"|"ok"|"fail"|"skip"
             "hunter_id": the minted id (with hunter ok), else None
+            "starter": (with done+ok) the startbeest creature id the server
+                      granted at registration, or None when the account
+                      already had creatures (a re-register instead of a
+                      restore) — the reveal screen only opens on a real grant
             "done": True on the terminal update
             "ok": (with done) the whole registration succeeded
             "error": (with done, not ok) "E-01" cloud down | "E-02" bridge down
@@ -114,6 +118,7 @@ class FakeRegistrar(Registrar):
             "bridge": "wait",
             "hunter": "wait",
             "hunter_id": None,
+            "starter": None,
             "done": False,
             "ok": False,
             "error": None,
@@ -129,6 +134,10 @@ class FakeRegistrar(Registrar):
 
         def cloud_done():
             st["cloud"] = "ok"
+            # same pick the real server makes: deterministic per badge
+            from creatures import starter_for
+
+            st["starter"] = starter_for(badge)
             if not lora:
                 st["bridge"] = "skip"
                 st["hunter"] = "skip"
@@ -223,6 +232,7 @@ class HttpRegistrar(Registrar):
             "bridge": "wait",
             "hunter": "wait",
             "hunter_id": None,
+            "starter": None,
             "done": False,
             "ok": False,
             "error": None,
@@ -233,13 +243,27 @@ class HttpRegistrar(Registrar):
     async def _register(self, name, badge, companion, st, on_update):
         body = {"badge_id": badge, "name": name, "profile_pic": companion}
         ok = False
+        starter = None
         try:
-            status, _ = await _json_request("POST", "/api/v1/auth/register", body)
-            if status == 409:
+            status, data = await _json_request("POST", "/api/v1/auth/register", body)
+            if status == 201:
+                # A fresh account comes back holding its startbeest.
+                starter = data.get("starter") if data else None
+            elif status == 409:
                 # Already in the book. Not an error: this is what a player who
                 # re-registers after a wipe instead of restoring looks like, so
                 # adopt the account by updating it rather than refusing them.
                 status, _ = await _json_request("PATCH", "/api/v1/auth/user", body)
+                if status == 200:
+                    # An adopted account may predate the startbeest. The
+                    # server grants one only to an empty roster (409 there
+                    # means "you already have creatures" and is not our
+                    # problem to solve here — a restore is).
+                    s2, d2 = await _json_request(
+                        "POST", "/api/v1/auth/starter", {"badge_id": badge}
+                    )
+                    if s2 == 200 and d2 and d2.get("ok"):
+                        starter = d2.get("starter")
             ok = status in (200, 201)
             if not ok:
                 print("registrar: register rejected, HTTP", status)
@@ -252,6 +276,7 @@ class HttpRegistrar(Registrar):
         # same rule the flow already applies to an antenna-less badge.
         st["bridge"] = "skip" if ok else "fail"
         st["hunter"] = "skip" if ok else "fail"
+        st["starter"] = starter
         st["done"] = True
         st["ok"] = ok
         st["error"] = None if ok else "E-01"

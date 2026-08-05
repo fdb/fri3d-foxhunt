@@ -3,8 +3,9 @@
 #
 #   "caught"   : list of caught creature ids
 #   "beast"    : dict {str(id): pet-state} — care stats per caught creature
-#   "origins"  : dict {str(id): "vangst"|"spoor"} — how a creature arrived
-#                (own find vs vonk-geluk); feeds the dossier lineage
+#   "origins"  : dict {str(id): "vangst"|"spoor"|"start"} — how a creature
+#                arrived (own find / vonk-geluk / startbeest); feeds the
+#                dossier lineage
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
 #   "vonk"     : today's snuffel log (pairs met + vonk count, daily reset)
@@ -108,15 +109,20 @@ def is_caught(cid):
 
 def add_caught(cid, origin="vangst"):
     """Add a creature. origin records HOW it arrived: "vangst" (found it
-    yourself — hunt, code) or "spoor" (a vonk-geluk introduction). Pure
-    lineage data for the dossier; it gates nothing."""
+    yourself — hunt, code), "spoor" (a vonk-geluk introduction) or "start"
+    (the startbeest granted at registration). Pure lineage data for the
+    dossier; it gates nothing."""
     prefs = SharedPreferences(_APP)
     ids = prefs.get_list("caught", [])
     e = prefs.edit()
     if cid not in ids:
         ids.append(cid)
         e.put_list("caught", ids)
-        e.put_dict_item("origins", str(cid), origin)
+        # put_dict_item silently drops non-dict values (mpos config.py), so
+        # the origin string must go through a whole-dict write.
+        origins = prefs.get_dict("origins", {})
+        origins[str(cid)] = origin
+        e.put_dict("origins", origins)
     # First catch seeds the pet state; a recatch never overwrites its stats.
     beast = prefs.get_dict("beast", {})
     if str(cid) not in beast:

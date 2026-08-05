@@ -45,15 +45,21 @@ ffmpeg -vcodec rawvideo -f rawvideo -pix_fmt rgb565le -s 320x240 -i shot.raw sho
   `import sys; sys.modules['registrar'].FakeRegistrar.FAIL_BRIDGE = True`.
 - **Widget introspection**: `f = g.get_focused()`, then `f.get_state()`,
   `f.get_width()`, `f.get_parent()`, or force styles on it to probe rendering.
+- **Widget lookup**: `get_child(i)` returns properly TYPED wrappers, so a
+  recursive walk with `isinstance(c, lv.textarea)` finds any widget — that is
+  how a scripted run fills the register screen's name field without the OS
+  keyboard. Multi-line helpers don't survive the line-based stdin REPL;
+  drop a helper module into `<MicroPythonOS>/internal_filesystem/` and
+  `import` it instead (the fs root is on `sys.path`).
 
 ## App state
 
-Preferences live at
-`<MicroPythonOS>/internal_filesystem/prefs/be.fri3d.foxhunt/config.json`
-(NOT `data/` at the repo root, and no longer `internal_filesystem/data/` —
-MPOS moved prefs to `prefs/` and keeps `data/` only as the legacy source of a
-one-time migration, so seeding the old path silently does nothing). Edit it
-between runs to set up scenarios:
+Preferences live under `<MicroPythonOS>/internal_filesystem/` in
+`prefs/be.fri3d.foxhunt/config.json` OR `data/be.fri3d.foxhunt/config.json`
+— which one wins depends on the OS build (the current source checkout loads
+`data/`; other builds moved to `prefs/`). Don't guess: the boot log prints
+`Loaded preferences from <path>`, and `scripts/clear_app_data.sh` sweeps
+both. Edit the winning file between runs to set up scenarios:
 delete the `profile` key to re-trigger first-run onboarding, seed a profile
 dict to skip it, delete `settings` to reset toggles.
 
