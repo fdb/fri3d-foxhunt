@@ -513,8 +513,8 @@ img {
   background: var(--green-d);
 }
 
-/* Sprite parade under the hero. Never wraps: the Vos sits in the middle of the
-   eleven on purpose, and a second row would put it anywhere. Below the
+/* Sprite parade under the hero. Never wraps: the eleven read as one line-up,
+   and a second row of two or three strays reads as an accident. Below the
    breakpoint the sprites shrink to fit instead (flex-shrink), which costs some
    pixel crispness and keeps the composition. */
 .strip {

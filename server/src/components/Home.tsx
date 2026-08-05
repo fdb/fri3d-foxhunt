@@ -7,19 +7,21 @@
  * between those relies on `image-rendering: pixelated`.
  */
 
-// The parade shows one creature in colour — the Vos, which is already the
-// favicon — and the rest as flat silhouettes, the way the badge's own title
-// screen teases them. The roster is a discovery, so nothing here may give it
-// away: the silhouettes are numbered rather than named, because a filename in
-// view-source spoils just as well as a picture. Baked from artwork/animals/
-// by flattening the alpha to #86ad64, the title screen's silhouette green.
+// The parade shows the roster as flat silhouettes, the way the badge's own
+// title screen teases them — the Vos included. It used to stand in colour,
+// being the favicon anyway, but one full-colour animal in a row of shapes
+// reads as a mistake rather than as a hint. The roster is a discovery, so
+// nothing here may give it away: the silhouettes are numbered rather than
+// named, because a filename in view-source spoils just as well as a picture.
+// Baked from artwork/animals/ by flattening the alpha to #86ad64, the title
+// screen's silhouette green.
 const PARADE = [
   "/art/silhouettes/01.png",
   "/art/silhouettes/02.png",
   "/art/silhouettes/03.png",
   "/art/silhouettes/04.png",
   "/art/silhouettes/05.png",
-  "/art/animals/vos.png", // the one you may see, centred
+  "/art/silhouettes/11.png",
   "/art/silhouettes/06.png",
   "/art/silhouettes/07.png",
   "/art/silhouettes/08.png",

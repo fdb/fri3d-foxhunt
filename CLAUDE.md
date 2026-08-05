@@ -236,12 +236,14 @@ Its screenshots in `static/screens/` are 640×480 — an exact 2× of the badge'
 320×240 screen — so they stay pixel-crisp at 320 or 640 CSS px, and
 `image-rendering: pixelated` covers the sizes in between.
 
-**The roster is a spoiler; the public site must not hold it.** Only the Vos
-appears in colour (it is already the favicon). Every other creature ships as a
-flat `#86ad64` silhouette — the title banner's own green, alpha kept, colour
-discarded — under `static/art/silhouettes/NN.png`. Numbered, not named: a
+**The roster is a spoiler; the public site must not hold it.** Every creature
+ships as a flat `#86ad64` silhouette — the title banner's own green, alpha kept,
+colour discarded — under `static/art/silhouettes/NN.png`. Numbered, not named: a
 filename in view-source gives the roster away exactly as well as a picture
-does. Never copy `artwork/animals/` into `server/static/` again. Body copy is Nunito;
+does. The Vos is no exception: it may be the favicon, but one full-colour
+animal in a parade of shapes reads as a rendering fault, not as a hint. The
+favicon and the nav brand keep their own copy at `static/vos.png`.
+Never copy `artwork/animals/` into `server/static/` again. Body copy is Nunito;
 Pixelify Sans is for headings and the badge-mirroring UI (tables, buttons,
 tags) only — it is unreadable at paragraph length.
 
