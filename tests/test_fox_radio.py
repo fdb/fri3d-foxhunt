@@ -37,7 +37,9 @@ class FoxRadioTest(unittest.TestCase):
             return timer
 
         lv.timer_create = timer_create
-        spec = importlib.util.spec_from_file_location("fox_radio_under_test", ASSETS / "fox_radio.py")
+        spec = importlib.util.spec_from_file_location(
+            "fox_radio_under_test", ASSETS / "fox_radio.py"
+        )
         cls.module = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, {"lvgl": lv}):
             spec.loader.exec_module(cls.module)
@@ -50,7 +52,9 @@ class FoxRadioTest(unittest.TestCase):
         results = []
         creature = self.module.CREATURES[0]
 
-        returned = self.radio.submit_code(creature["id"], creature["code"], results.append)
+        returned = self.radio.submit_code(
+            creature["id"], creature["code"], results.append
+        )
 
         self.assertIsNone(returned)
         self.assertEqual(results, [])

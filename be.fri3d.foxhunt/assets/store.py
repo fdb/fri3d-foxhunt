@@ -3,15 +3,16 @@
 #
 #   "caught"   : list of caught creature ids
 #   "beast"    : dict {str(id): pet-state} — care stats per caught creature
-#   "origins"  : dict {str(id): "vangst"|"spoor"|"start"} — how a creature
-#                arrived (own find / vonk-geluk / startbeest); feeds the
-#                dossier lineage
+#   "origins"  : dict {str(id): "vangst"|"spoor"|"pluk"|"start"} — how a
+#                creature arrived (own find / vonk-geluk / wild pluk encounter
+#                / startbeest); feeds the dossier lineage
 #   "zelf"     : list of ids stamped zelf gevonden (re-found at the fox)
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
 #   "vonk"     : snuffel log — {date, count (daily reset), pairs: {mac:
 #                {vonk: epoch, food: epoch}}} — pair cooldown timestamps
-#   "pluk"     : {spots: {bssid: epoch}, date, count} — reloads + day stat
+#   "pluk"     : {spots: {bssid: epoch}, phase, count, creature_spots: []} —
+#                hourly food reloads + one creature roll per spot/camp phase
 #   "outbox"   : list of queued badge→server reports (sync.py drains it)
 #
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
@@ -21,7 +22,7 @@ import random
 from mpos import SharedPreferences
 import mpos.time
 import pet
-from creatures import by_id
+from creatures import CREATURES, by_id
 
 _APP = "be.fri3d.foxhunt"
 _PLACE = "Fri3d Camp"  # stub: no GPS yet — see fox_radio for the backend seam
@@ -159,9 +160,9 @@ def is_caught(cid):
 
 def add_caught(cid, origin="vangst"):
     """Add a creature. origin records HOW it arrived: "vangst" (found it
-    yourself — hunt, code), "spoor" (a vonk-geluk introduction) or "start"
-    (the startbeest granted at registration). Pure lineage data for the
-    dossier; it gates nothing."""
+    yourself — hunt, code), "spoor" (a vonk-geluk introduction), "pluk" (a
+    wild encounter while foraging) or "start" (the startbeest granted at
+    registration). Pure lineage data for the dossier; it gates nothing."""
     prefs = SharedPreferences(_APP)
     ids = prefs.get_list("caught", [])
     e = prefs.edit()
@@ -415,9 +416,10 @@ def outbox():
 
 
 def enqueue_report(kind, data):
-    """Queue a badge→server report. kind: "snuffel" | "bonded" | "profile"
-    — sync.py maps kinds to routes. Callers enqueue LAST in their write path
-    (the one-instance-one-editor rule: this commits via its own instance)."""
+    """Queue a badge→server report. kind: "snuffel" | "pluk" | "bonded" |
+    "profile" — sync.py maps kinds to routes. Callers enqueue LAST in their
+    write path (the one-instance-one-editor rule: this commits via its own
+    instance)."""
     prefs = SharedPreferences(_APP)
     box = prefs.get_list("outbox", [])
     box.append({"kind": kind, "data": data, "t": _now()})
@@ -531,16 +533,99 @@ def roll_vonk_geluk(peer_roster):
     return None
 
 
-# ── plukken: per-badge spot reloads + the day stat ──────────────────────────
+# ── plukken: hourly food + one creature roll per camp phase ─────────────────
 PLUK_RELOAD_S = 60 * 60  # a spot reloads for THIS badge in about an hour
+
+# Creature chances mirror vonk-geluk after an invisible 40% opportunity gate:
+# base 45%, rare 15%, legendary 2.5%. The effective per-candidate chances are
+# therefore 18%, 6% and 1%. Pluk has many more opportunities than snuffelen;
+# the gate preserves that rarity curve without flooding a diligent walker.
+_PLUK_OPPORTUNITY_PERMILLE = 400
+_PLUK_GELUK_PERMILLE = {"norm": 450, "rare": 150, "leg": 25}
+
+
+def _previous_date(year, month, day):
+    """Calendar day before (year, month, day), without datetime (MicroPython)."""
+    if day > 1:
+        return year, month, day - 1
+    if month == 1:
+        return year - 1, 12, 31
+    month -= 1
+    days = (
+        31,
+        29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    )
+    return year, month, days[month - 1]
+
+
+def _pluk_phase_for(local):
+    """The 15:00-to-15:00 camp day containing a local-time tuple.
+
+    Fri3d runs Thursday 15:00 through Sunday 15:00: shifting the day boundary
+    to 15:00 produces exactly three phases, despite spanning four calendar
+    dates. The generic date label also keeps emulator/dev plukken useful after
+    camp instead of hard-coding a one-weekend kill switch.
+    """
+    year, month, day, hour = local[:4]
+    if hour < 15:
+        year, month, day = _previous_date(year, month, day)
+    return "%04d-%02d-%02d" % (year, month, day)
+
+
+def pluk_phase():
+    return _pluk_phase_for(mpos.time.localtime())
+
+
+def _pluk_hash(text):
+    """Stable FNV-1a — Python's hash is neither stable nor on every badge."""
+    h = 0x811C9DC5
+    for b in text.encode():
+        h ^= b
+        h = (h * 0x01000193) & 0xFFFFFFFF
+    return h
+
+
+def pluk_creature_for(badge_id, bssid, phase, have):
+    """Deterministic wild encounter for one badge/spot/camp phase.
+
+    Returns a creature id or None. Like vonk-geluk, the candidate comes only
+    from creatures the player does not know and then passes a rarity-weighted
+    chance. Badge id is part of the seed: a legendary is a personal discovery,
+    not one globally lucky AP that becomes a queue when somebody talks.
+    """
+    seed = "%s|%s|%s" % (badge_id.strip().lower(), bssid.strip().lower(), phase)
+    if _pluk_hash(seed + "|opportunity") % 1000 >= _PLUK_OPPORTUNITY_PERMILLE:
+        return None
+    known = set(have)
+    cands = [c for c in CREATURES if c["id"] not in known]
+    if not cands:
+        return None
+    c = cands[_pluk_hash(seed + "|candidate") % len(cands)]
+    chance = _PLUK_GELUK_PERMILLE.get(c["rarity"], 0)
+    if _pluk_hash(seed + "|chance") % 1000 < chance:
+        return c["id"]
+    return None
 
 
 def _pluk():
     d = SharedPreferences(_APP).get_dict("pluk", {})
     d.setdefault("spots", {})
-    if d.get("date") != _today():
-        d["date"] = _today()
+    phase = pluk_phase()
+    if d.get("phase") != phase:
+        d["phase"] = phase
         d["count"] = 0
+        d["creature_spots"] = []
+    d.setdefault("creature_spots", [])
     return d
 
 
@@ -576,12 +661,31 @@ def pluk_count_today():
 
 
 def record_pluk(bssid, oogst):
-    """Bank a harvest: start the spot's reload, add the yield, bump the day
-    stat. `oogst` is {food: n}."""
+    """Bank food and, once per spot/camp phase, its wild-creature roll.
+
+    Returns the new creature id or None. The attempt is persisted even when it
+    misses, so an hourly food reload cannot reroll it. A success is queued for
+    the server last, after every local write, so restore can hand it back.
+    """
+    bssid = bssid.lower()
     d = _pluk()
     d["spots"][bssid] = _now()
     d["count"] = d.get("count", 0) + 1
+    geluk = None
+    if bssid not in d["creature_spots"]:
+        d["creature_spots"].append(bssid)
+        p = profile() or {}
+        geluk = pluk_creature_for(
+            p.get("badge_id", ""), bssid, d["phase"], caught_ids()
+        )
     SharedPreferences(_APP).edit().put_dict("pluk", d).commit()
     for food, n in oogst.items():
         if n > 0:
             add_food(food, n)
+    if geluk is not None:
+        add_caught(geluk, origin="pluk")
+        enqueue_report(
+            "pluk",
+            {"bssid": bssid, "phase": d["phase"], "creature_id": geluk},
+        )
+    return geluk

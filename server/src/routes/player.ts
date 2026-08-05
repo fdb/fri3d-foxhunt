@@ -9,6 +9,7 @@ export const playerRoutes = new Hono<{ Bindings: Bindings }>();
 const SPREADABLE = new Set(
   CREATURES.filter((c) => c.rarity !== "leg").map((c) => c.id),
 );
+const KNOWN_CREATURES = new Set(CREATURES.map((c) => c.id));
 
 // POST /api/v1/player/found
 // Sent by the LoRa bridge relay (not the badge), authenticated with the
@@ -157,6 +158,73 @@ playerRoutes.post("/snuffel", async (c) => {
       player_id: player.id,
       peer,
       day,
+      creature_id: creatureId,
+      granted,
+    });
+  }
+
+  return c.json({ ok: true, duplicate, granted });
+});
+
+// POST /api/v1/player/pluk
+// Sent by the badge outbox after a successful wild encounter. Food never
+// leaves the badge; this narrow report only makes the new creature survive an
+// account restore. The badge's roll is deterministic in badge/BSSID/phase and
+// the server deduplicates that physical opportunity. As with snuffel grants,
+// this is generous unauthenticated collection state, not a verified LoRa find
+// and not hunter score. Legendary ids are deliberately valid here.
+playerRoutes.post("/pluk", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid JSON body" }, 400);
+  }
+
+  const badgeId = validateBadgeId(body.badge_id);
+  if (!badgeId) return c.json({ error: "invalid badge_id" }, 400);
+
+  const bssid = validateBadgeId(body.bssid);
+  if (!bssid) return c.json({ error: "invalid bssid" }, 400);
+
+  const phase = typeof body.phase === "string" ? body.phase : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(phase))
+    return c.json({ error: "invalid phase (YYYY-MM-DD)" }, 400);
+
+  const creatureId = body.creature_id;
+  if (
+    typeof creatureId !== "number" ||
+    !Number.isInteger(creatureId) ||
+    !KNOWN_CREATURES.has(creatureId)
+  )
+    return c.json({ error: "invalid creature_id" }, 400);
+
+  const player = await c.env.DB.prepare(
+    "SELECT * FROM players WHERE badge_id = ? AND dt_deleted IS NULL",
+  )
+    .bind(badgeId)
+    .first<Player>();
+  if (!player) return c.json({ error: "unknown badge_id" }, 404);
+
+  const result = await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO pluks (player_id, bssid, phase, creature_id) VALUES (?, ?, ?, ?)",
+  )
+    .bind(player.id, bssid, phase, creatureId)
+    .run();
+  const duplicate = result.meta.changes === 0;
+
+  let granted = false;
+  if (!duplicate) {
+    const grant = await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO players_creatures (player_id, creature_id) VALUES (?, ?)",
+    )
+      .bind(player.id, creatureId)
+      .run();
+    granted = grant.meta.changes > 0;
+    await logEvent(c.env.DB, "pluk_creature_found", {
+      player_id: player.id,
+      bssid,
+      phase,
       creature_id: creatureId,
       granted,
     });

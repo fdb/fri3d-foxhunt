@@ -160,8 +160,8 @@ export const Home = () => (
             </p>
             <p>
               Je loopt ermee het terrein af, draait rond tot het signaal warm
-              wordt, en vindt de vos. Jij brengt de nieuwe beesten het kamp in —
-              en jij deelt ze met de rest.
+              wordt, en vindt de vos. Dat blijft de enige manier om een beest
+              echt <b>zelf gevonden</b> te hebben.
             </p>
           </article>
           <article class="card mode mode-gatherer">
@@ -178,20 +178,20 @@ export const Home = () => (
             </p>
             <p>
               Drie werkwoorden: <b>snuffelen</b> (zoek andere spelers op),{" "}
-              <b>plukken</b> (loop naar plukplekken voor eten) en <b>spelen</b>{" "}
-              (speel spelletjes met je beest). Alles wat je daarvoor nodig hebt
-              zit al op de badge.
+              <b>plukken</b> (loop naar plukplekken voor eten en wilde
+              ontmoetingen) en <b>spelen</b> (speel spelletjes met je beest).
+              Alles wat je daarvoor nodig hebt zit al op de badge.
             </p>
           </article>
         </div>
         <blockquote class="quote">
-          Jagers brengen de beesten binnen. Verzamelaars brengen wat ze nodig
-          hebben.
+          Jagers vinden de vossen. Verzamelaars speuren het terrein af. Samen
+          laten ze de beesten door het kamp zwerven.
         </blockquote>
         <p class="intro">
-          Een jager zonder eten heeft hongerige beesten; een verzamelaar zonder
-          beesten heeft een volle voorraadkast en niemand om te voeren. Je hebt
-          elkaar echt nodig — en dat ruil je uit door elkaar op te zoeken.
+          Je kunt op eigen tempo vooruit, ook zonder iemand aan te spreken.
+          Elkaar opzoeken blijft wel lonen: snuffelen geeft een picknick,
+          vriendenboekje en kans op een onverwachte kennismaking.
         </p>
         <p class="note note-dark">
           Een antenne sluit niets uit, hij <i>voegt</i> de jacht toe. Jagers
@@ -302,8 +302,12 @@ export const Home = () => (
         </h2>
         <p class="intro">
           Geen antenne? Dan is er nog altijd genoeg te doen buiten. De hele
-          kringloop in één zin: <b>plukken geeft eten, eten geeft energie, en
-          met energie kan je spelen</b> — en van spelen groeit je band.
+          kringloop in één zin:{" "}
+          <b>
+            plukken geeft eten en soms een wild beest, eten geeft energie, en
+            met energie kan je spelen
+          </b>{" "}
+          — en van spelen groeit je band.
         </p>
         <Shot
           src="oppad"
@@ -320,7 +324,8 @@ export const Home = () => (
             <p>
               Op het terrein hangen WiFi-hotspots. Je badge luistert ernaar en
               jij loopt erheen: hetzelfde warmer-kouder-gevoel als de jacht,
-              maar zonder antenne — en makkelijk genoeg voor een zevenjarige.
+              maar zonder antenne. Soms laat een onbekend beest zich daar zien;
+              zelfs een legendarisch beest, al is dat bijzonder zeldzaam.
             </p>
           </div>
           <div class="card">
@@ -330,8 +335,9 @@ export const Home = () => (
             <h3>De voorraad</h3>
             <p>
               Elke pluk levert bessen, noten of eikels op. Daarna is die plek
-              voor jou even leeg — dus loop je door naar de volgende. Elke dag
-              geven de plekken iets anders.
+              voor jou even leeg — dus loop je door naar de volgende. Eten
+              herlaadt na een uur; een plek geeft maar een beestenkans per
+              kampdag.
             </p>
           </div>
           <div class="card">
@@ -379,10 +385,10 @@ export const Home = () => (
           />
         </div>
         <p class="note">
-          Een geplukte plek is alleen voor <i>jou</i> even leeg, en elke dag
-          geven de plekken iets anders. Verzamelen blijft dus een verkenning —
-          en ook jagers komen eten tekort, dus die zie je hier net zo goed
-          rondlopen.
+          Een geplukte plek is alleen voor <i>jou</i> even leeg. Om 15:00 begint
+          een nieuwe kampdag en krijgen de plekken een nieuwe beestenkans.
+          Verzamelen blijft dus een verkenning — en ook jagers komen eten
+          tekort, dus die zie je hier net zo goed rondlopen.
         </p>
       </div>
     </section>
@@ -435,12 +441,11 @@ export const Home = () => (
               Snuffelen
             </h3>
             <p>
-              Hou twee badges met hun neuzen tegen elkaar en allebei juichen
-              ze tegelijk. Je hoeft niets te kiezen: elke snuffel is vanzelf
-              een <b>picknick</b> — jullie krijgen allebei eten. En de eerste
-              keer dat twee badges elkaar <i>ooit</i> tegenkomen, schrijven ze
-              elkaar in hun <b>vriendenboekje</b>. Dat boekje raak je nooit
-              kwijt.
+              Hou twee badges met hun neuzen tegen elkaar en allebei juichen ze
+              tegelijk. Je hoeft niets te kiezen: elke snuffel is vanzelf een{" "}
+              <b>picknick</b> — jullie krijgen allebei eten. En de eerste keer
+              dat twee badges elkaar <i>ooit</i> tegenkomen, schrijven ze elkaar
+              in hun <b>vriendenboekje</b>. Dat boekje raak je nooit kwijt.
             </p>
             <p class="fine">
               De technologie hierachter heet ESP-NOW. Ze draagt verder dan een
@@ -465,9 +470,9 @@ export const Home = () => (
             </p>
             <p class="fine">
               Nog eens snuffelen met dezelfde persoon mag altijd (even uit
-              elkaar stappen en opnieuw): je krijgt dan een hapje voor
-              onderweg, maar geen nieuwe vonk. Nieuwe mensen aanspreken loont
-              dus het meest.
+              elkaar stappen en opnieuw): je krijgt dan een hapje voor onderweg,
+              maar geen nieuwe vonk. Nieuwe mensen aanspreken loont dus het
+              meest.
             </p>
           </article>
         </div>

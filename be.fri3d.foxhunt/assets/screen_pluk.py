@@ -14,6 +14,7 @@ import leds
 import sound
 import store
 import pluk_radio
+from creatures import by_id
 from pluk_radio import RADIO
 
 _BG_ZOEK = 0xCFE2AD
@@ -214,16 +215,17 @@ class PlukActivity(Activity):
             sound.play("error")
             return
         bssid = self._target.bssid
-        oogst = pluk_radio.yield_for(bssid, store.today())
-        store.record_pluk(bssid, oogst)
-        sound.play("caught")
+        oogst = pluk_radio.yield_for(bssid, store.pluk_phase())
+        geluk = store.record_pluk(bssid, oogst)
+        c = by_id(geluk) if geluk is not None else None
+        sound.play("legendary" if c and c["rarity"] == "leg" else "caught")
         leds.off()
         self._harvest = oogst
         self.screen.clean()
-        self._build_oogst(oogst)
+        self._build_oogst(oogst, geluk)
 
     # ── phase 2: oogst (payoff) ─────────────────────────────────────────
-    def _build_oogst(self, oogst):
+    def _build_oogst(self, oogst, geluk=None):
         s = self.screen
         s.set_style_bg_color(ui.hexc(_BG_OOGST), 0)
         total = sum(oogst.values())
@@ -233,27 +235,52 @@ class PlukActivity(Activity):
         )
 
         stage = ui.panel(s, 8, 34, 304, 112, ui.SURFACE_TINT)
-        art.icon(stage, "spark", 2).set_pos(14, 12)
-        art.icon(stage, "spark", 1).set_pos(272, 20)
-        ui.label(
-            stage,
-            "Je voorraad groeit",
-            0,
-            12,
-            ui.GREEN_D,
-            ui.font_title(),
-            w=300,
-            center=True,
-        )
-        gained = [(f, n) for f, n in oogst.items() if n > 0]
-        gw = 58
-        xs = 150 - (len(gained) * gw + (len(gained) - 1) * 16) // 2
-        for i, (f, n) in enumerate(gained):
-            x = xs + i * (gw + 16)
-            art.icon(stage, f, 4).set_pos(x + 13, 44)
-            ui.label(
-                stage, "+%d" % n, x, 80, ui.INK, ui.font_title(), w=gw, center=True
+        if geluk is not None:
+            c = by_id(geluk)
+            frame = {"norm": ui.GREEN, "rare": ui.TERRA, "leg": ui.GOLD}.get(
+                c["rarity"], ui.GREEN
             )
+            stage.set_style_border_color(ui.hexc(frame), 0)
+            art.creature_panel(stage, c, 4, animate=True).set_pos(16, 18)
+            art.icon(stage, "spoor", 1).set_pos(278, 10)
+            ui.label(stage, "WILD SPOOR!", 98, 10, frame, ui.font_label())
+            ui.label(stage, c["naam"], 98, 32, ui.INK, ui.font_title(), w=180)
+            rarity = {
+                "norm": "gewoon beest",
+                "rare": "zeldzaam beest",
+                "leg": "legendarisch beest",
+            }.get(c["rarity"], "nieuw beest")
+            ui.label(stage, rarity, 98, 58, ui.TEXT_MUTED, ui.font_small())
+            ui.label(stage, "nieuw in je boek!", 98, 78, ui.GREEN_D, ui.font_label())
+        else:
+            art.icon(stage, "spark", 2).set_pos(14, 12)
+            art.icon(stage, "spark", 1).set_pos(272, 20)
+            ui.label(
+                stage,
+                "Je voorraad groeit",
+                0,
+                12,
+                ui.GREEN_D,
+                ui.font_title(),
+                w=300,
+                center=True,
+            )
+            gained = [(f, n) for f, n in oogst.items() if n > 0]
+            gw = 58
+            xs = 150 - (len(gained) * gw + (len(gained) - 1) * 16) // 2
+            for i, (f, n) in enumerate(gained):
+                x = xs + i * (gw + 16)
+                art.icon(stage, f, 4).set_pos(x + 13, 44)
+                ui.label(
+                    stage,
+                    "+%d" % n,
+                    x,
+                    80,
+                    ui.INK,
+                    ui.font_title(),
+                    w=gw,
+                    center=True,
+                )
 
         v = store.voorraad()
         tiles = ui.row(s, 8, 154, 304, 42, gap=ui.GAP_M)

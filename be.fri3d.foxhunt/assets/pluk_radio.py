@@ -51,11 +51,11 @@ class PlukReading:
         self.ssid = ssid  # display only; differs from SSID in any-wifi debug
 
 
-def yield_for(bssid, date):
-    """What a spot gives today: deterministic in (BSSID, day), so every spot
-    re-deals daily and rescanning can never reroll a harvest. 1-3 hapjes."""
+def yield_for(bssid, phase):
+    """What a spot gives this camp phase: deterministic in (BSSID, phase), so
+    every spot re-deals at 15:00 and rescanning cannot reroll it. 1-3 hapjes."""
     h = 0
-    for ch in bssid + date:
+    for ch in bssid + phase:
         h = (h * 31 + ord(ch)) & 0xFFFF
     foods = ("bes", "noot", "eikel")
     out = {f: 0 for f in foods}
@@ -220,8 +220,8 @@ class FakePlukRadio:
         self._near = min(-42.0, self._near + random.uniform(-1.0, 3.5))
         far = -80 + random.uniform(-4, 4)
         return [
-            PlukReading("fa:ke:00:00:00:01", int(self._near)),
-            PlukReading("fa:ke:00:00:00:02", int(far)),
+            PlukReading("fa:ce:00:00:00:01", int(self._near)),
+            PlukReading("fa:ce:00:00:00:02", int(far)),
         ]
 
 

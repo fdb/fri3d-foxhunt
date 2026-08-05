@@ -84,6 +84,9 @@ authRoutes.post("/register", async (c) => {
     await c.env.DB.prepare("DELETE FROM players_creatures WHERE player_id = ?")
       .bind(existing.id)
       .run();
+    await c.env.DB.prepare("DELETE FROM pluks WHERE player_id = ?")
+      .bind(existing.id)
+      .run();
     player = await c.env.DB.prepare(
       `UPDATE players
           SET name = ?, profile_pic = ?, hunter_id = ?, dt_deleted = NULL,

@@ -51,8 +51,8 @@ class HomeActivity(Activity):
             self.finish()
             return
         # Home is the natural WiFi moment: drain any queued badge→server
-        # reports (snuffel grants, bonded counts). Fire-and-forget — a dead
-        # network just leaves the outbox for the next resume.
+        # reports (snuffel/pluk grants, bonded counts). Fire-and-forget — a
+        # dead network just leaves the outbox for the next resume.
         sync.flush()
         # Refresh caught state in place. Do NOT call setContentView again — it
         # appends a new screen to the stack and leaks the old one (11 canvas

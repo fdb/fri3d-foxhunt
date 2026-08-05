@@ -9,23 +9,23 @@ Deployed at **https://foxhunt.enigmeta.workers.dev/** — the badge points
 
 ## Trust model
 
-**A badge can never report its own finds.** The single writer of
-`players_creatures` is `POST /api/v1/player/found`, and it is held by the LoRa
-bridge behind a pre-shared `BRIDGE_KEY`. That key is the anti-cheat: finding a
-fox means having been within radio range of it, and the bridge is the only
-thing that can vouch for that. A badge-facing write route would let anyone
-`curl` themselves a full dossier.
+**A badge can never report its own LoRa find.** `POST /api/v1/player/found` is
+held by the LoRa bridge behind a pre-shared `BRIDGE_KEY`. That key is the
+anti-cheat: finding a fox means having been within radio range of it, and the
+bridge is the only thing that can vouch for that.
+
+Other acquisition tracks deliberately have narrow badge-facing reports:
+snuffelen reports a meeting; plukken reports a seeded BSSID/camp-phase wild
+encounter. They make permanent collection progress restorable, but never mint
+`zelf gevonden` provenance or hunter score. Forging them is bounded personal
+collection modification, not a forged radio achievement.
 
 So the badge's traffic is asymmetric, on purpose:
 
-- **writes** only what is its own to claim — `name`, `profile_pic`, `hunter_id`
-  — through register and PATCH;
+- **writes** what is its own to claim — profile fields, care summaries,
+  meetings and wild pluk encounters;
 - **reads** its catch list back on restore, because `players_creatures` is the
   only copy that survives a wiped badge.
-
-The accepted cost: a player with no antenna has `hunter_id = NULL`, the bridge
-can't attribute their finds, and a restore hands them back an account with no
-catches.
 
 ## Routes
 
@@ -36,6 +36,8 @@ catches.
 | `/api/v1/auth/user`     | PATCH  | Update account by `badge_id`: `{ name?, hunter_id?, profile_pic? }` |
 | `/api/v1/auth/user`     | DELETE | Wipe the account: `{ badge_id }` — see "Wiping an account"          |
 | `/api/v1/player/found`  | POST   | Bridge relay reports `{ hunter_id, fox_id }` (Bearer `BRIDGE_KEY`)  |
+| `/api/v1/player/snuffel`| POST   | Badge reports a meeting and optional spreadable creature grant     |
+| `/api/v1/player/pluk`   | POST   | Badge reports `{ bssid, phase, creature_id }` wild encounter       |
 | `/`                     | GET    | Public landing page: what the game is, both play tracks             |
 | `/scores`               | GET    | Public dashboard, auto-refreshing scoreboard                        |
 | `/debug/log`            | GET    | Event log — HTML table, or JSON with `Accept: application/json`     |
@@ -117,6 +119,10 @@ matching file from `migrations/` run once:
 ```sh
 wrangler d1 execute foxhunt --local  --file=migrations/001_soft_delete.sql
 wrangler d1 execute foxhunt --remote --file=migrations/001_soft_delete.sql
+wrangler d1 execute foxhunt --local  --file=migrations/2026-08-05-snuffels-and-bonded.sql
+wrangler d1 execute foxhunt --remote --file=migrations/2026-08-05-snuffels-and-bonded.sql
+wrangler d1 execute foxhunt --local  --file=migrations/2026-08-06-pluks.sql
+wrangler d1 execute foxhunt --remote --file=migrations/2026-08-06-pluks.sql
 ```
 
 ## Deployment

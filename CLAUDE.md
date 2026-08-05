@@ -232,17 +232,17 @@ talks to `/api/v1/auth/*` there.
   too); a cloud save alone counts as success, which is the rule the flow
   already applied to an antenna-less badge.
 
-- **Catches never flow badge → server.** That is an auth decision, not an
-  unfinished wire: the only writer of `players_creatures` is
-  `POST /api/v1/player/found`, held by the LoRa bridge behind a `BRIDGE_KEY`
-  nobody else has. A badge that could report its own finds could report all of
-  them. The badge *reads* its catch list back on restore
-  (`GET /api/v1/auth/user` returns `creatures`) and never writes it.
-  Consequence, accepted: a player with no antenna has `hunter_id = NULL`, so the
-  bridge can't attribute their finds and a restore gives them back an account
-  with no catches.
-- The badge writes only what is its own to claim — name, `profile_pic`
-  (companion shortcode), `hunter_id` — via register/PATCH.
+- **LoRa finds never flow badge → server.** That is an auth decision, not an
+  unfinished wire: `POST /api/v1/player/found` is held by the LoRa bridge
+  behind a `BRIDGE_KEY`. A badge that could claim its own fox finds could claim
+  all of them. Badge-originated collection grants are narrower and explicitly
+  not hunts: `/player/snuffel` reports a meeting, and `/player/pluk` reports a
+  seeded BSSID/camp-phase encounter. Both are deduplicated, carry no
+  zelf-gevonden provenance or hunter score, and enter `players_creatures` only
+  so `GET /auth/user` can restore permanent progress.
+- The badge writes what is its own to claim — name, `profile_pic` (companion
+  shortcode), `hunter_id`, care summaries, meetings and pluk encounters. Only
+  the bridge may attest that a fox was physically found.
 - **A second registration on a known badge is a question, not a policy.**
   `badge_id` is the MAC, so a 409 from `/register` means this *hardware* already
   has an account: the same player after a wipe, or a badge that changed hands.

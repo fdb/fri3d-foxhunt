@@ -109,9 +109,10 @@ only raise creatures — they are one.
 ### Snuffelen — meet people
 
 The face-to-face ESP-NOW handshake, described in full under *The exchange*
-below. It is how a collection grows beyond the startbeest (vonk-geluk), the
-source of vonken and vriendenboekje pages, and the way surplus food reaches
-hungry hunters.
+below. It is one way a collection grows beyond the startbeest (vonk-geluk),
+the source of vonken and vriendenboekje pages, and the way surplus food
+reaches hungry hunters. Plukken is the independent terrain-based route into
+the same creature-introduction payoff.
 
 ### Plukken — work the terrain
 
@@ -131,8 +132,8 @@ network `fri3d-badge`. Foraging is **listening** to them:
   *for you* for on the order of an hour. Camping a spot yields once per
   reload; covering ground multiplies. Anti-camping is built into the
   mechanic and needs no server.
-- **Yields come from a formula**, `(BSSID, day) → resource`, so different
-  spots give different food and every spot re-deals daily — a complete
+- **Yields come from a formula**, `(BSSID, camp phase) → resource`, so different
+  spots give different food and every spot re-deals each camp phase — a complete
   pantry requires covering ground, just as a complete roster requires
   finding every fox. Rare finds are a seeded roll on the same inputs, so
   rescanning cannot reroll them.
@@ -141,6 +142,55 @@ network `fri3d-badge`. Foraging is **listening** to them:
   themselves some berries; at a hacker camp that is a feature, not a leak.
   Food is local state, so the cheat stays a single-player mod (see
   *Adversarial risks*).
+
+#### Wild encounters while plukken
+
+A plukplek can also hold a **wild creature encounter**. This is the
+verzamelaar's terrain-discovery track: snuffelen encounters a creature through
+another person, plukken encounters one through a place, and jagen encounters
+one through a LoRa fox. All three end with the creature introducing itself;
+their source and provenance stay distinct.
+
+Creature opportunities follow the vonk-geluk shape:
+
+1. Select one creature the player does not know.
+2. Apply a rarity-weighted chance.
+3. A miss remains invisible; the normal food harvest still pays out.
+4. A hit adds the creature permanently with `pluk` provenance and queues a
+   narrow server report so account restore cannot lose it.
+
+Unlike snuffelen, the candidate pool is the complete roster and
+**legendaries are eligible**. Badge id is part of the seeded roll, so a lucky
+legendary is personal — not one globally lucky AP that becomes a queue as soon
+as somebody talks. Repeating the same scan never rerolls it.
+
+Food and creatures have separate cadences:
+
+- Food reloads per badge after roughly one hour, as before.
+- A BSSID offers at most **one creature roll per badge per camp phase**.
+- The 72-hour camp is three exact phases: Thursday 15:00–Friday 15:00,
+  Friday 15:00–Saturday 15:00, and Saturday 15:00–Sunday 15:00. This avoids a
+  fourth pseudo-day merely because the camp crosses four calendar dates.
+
+With about 70 APs this gives 210 theoretical opportunities, but tuning targets
+real walking routes rather than a full clear. Each opportunity has an invisible
+40% gate, followed by the vonk-like tier chances: base 45%, rare 15%, legendary
+2.5%. Effective per-candidate chances are therefore 18%, 6%, and 1%.
+
+Starting from one base-tier startbeest, the back-of-the-envelope outcomes are:
+
+| Play style | AP-phase rolls | Expected new creatures | Chance of 1+ legendary |
+|---|---:|---:|---:|
+| Casual | 12 | about 1.3 | about 2.3% |
+| Active | 30 | about 3.3 | about 6.0% |
+| Dedicated | 70 | about 7.2 | about 15.2% |
+| Very dedicated | 100 | about 9.7 | about 23.1% |
+| Extreme: all 70 APs in all phases | 210 | about 15.7 | about 56.0% |
+
+For an illustrative 70 WiFi collectors — 40 casual, 22 active and 8 dedicated
+— that is roughly 1,700 rolls, 180 creature introductions, 30 rares and only
+3–4 legendary discoveries across the camp. Legendaries therefore exist for a
+committed verzamelaar without becoming expected or guaranteed.
 
 Camp assignments, movement missions and mini-games stay as alternative food
 sources for players who cannot roam.
@@ -260,10 +310,12 @@ takes a liking to you — a **spontaneous spoor**: the creature introduces
 itself, both players keep it, and lineage is preserved exactly as with a
 deliberate spoor. The roll is weighted by rarity: commons spread eagerly,
 rares reluctantly, legendaries never spread on their own. Meeting people is
-therefore how a gatherer's collection grows — and *who* you meet matters,
+therefore one way a gatherer's collection grows — and *who* you meet matters,
 because the pool is the other player's actual roster, not a lottery from
-nowhere. The startbeest guarantees that pool is never empty: even two
-brand-new verzamelaars have something to spread from their first handshake.
+nowhere. Pluk encounters are the complementary solo route and the only
+verzamelaar route whose pool includes legendaries. The startbeest guarantees
+the snuffel pool is never empty: even two brand-new verzamelaars have something
+to spread from their first handshake.
 
 ### Het vriendenboekje (the permanent layer)
 
@@ -312,14 +364,15 @@ Both players receive a reward for the first successful introduction of a given
 creature between them. Repeating the same exchange does not produce unlimited
 public points (see *De vonk*).
 
-### How creatures spread
+### How creatures spread socially
 
-Only by meeting people: every vonk rolls vonk-geluk against the other
-player's roster. There is no share button — nobody can hand a chosen
-creature over, and nobody can be pestered into one. Distribution is pure
-contagion through the social graph: hunters seed new species by finding
-them, commons race through the camp, rares trickle, the original finder
-stays credited in the lineage, and everyone keeps their creature.
+Every vonk rolls vonk-geluk against the other player's roster. There is no
+share button — nobody can hand a chosen creature over, and nobody can be
+pestered into one. Social distribution is pure contagion through the graph:
+hunters and plukkers seed new species, commons race through the camp, rares
+trickle, the original source stays credited in the lineage, and everyone
+keeps their creature. A player can also grow a roster without entering this
+graph by walking between plukplekken.
 
 This replaces both the bond-gated mentor-invitation model and the earlier
 finder-only deliberate spoor. It costs the deliberate gift moment and the
@@ -337,9 +390,9 @@ The economy's centre of gravity shifts naturally, and that shift *is* the
 pacing:
 
 - **Day 1 — hunters have leverage.** Everyone has a startbeest, but variety
-  is scarce: new species enter the camp only through foxes, so everyone
-  wants to meet a hunter. Food is plentiful because nobody has much to feed
-  yet.
+  is scarce: foxes introduce species quickly while pluk discoveries take a
+  walking route and luck, so meeting a hunter is still attractive. Food is
+  plentiful because nobody has much to feed yet.
 - **Day 2–3 — gatherers have leverage.** Most players have creatures; bond
   progression consumes food, and favourite/rare foods come from forage spots
   hunters haven't had time to cover. Now hunters queue at the gatherers.
@@ -418,15 +471,16 @@ creatures are perpetually sad.
 
 ### Economy and incentive risks
 
-- **Creature saturation.** By day 2 most players may have most creatures, and
-  hunting deflates. Mitigate with staged fox activation and rotating creature
-  IDs per fox — scarcity should come from *time*, not from telling a child
-  "sorry, out of clones". Saturation of commons is acceptable if rares keep
-  trickling; the endgame shifts to bond depth and communal goals, which is by
-  design.
+- **Creature saturation.** By day 2 most players may have many creatures, and
+  hunting deflates. Mitigate with staged fox activation, rotating creature IDs
+  per fox, and the one-roll-per-BSSID-per-phase pluk limit — scarcity should
+  come from *time and effort*, not from telling a child "sorry, out of
+  clones". Saturation of commons is acceptable if rares keep trickling; the
+  endgame shifts to bond depth and communal goals, which is by design.
 - **Introduction spam — resolved by removing deliberate introductions.**
-  Creatures spread only through the vonk-geluk roll, which is bounded by the
-  vonk rules (per-pair cooldown, daily cap); there is no share button to spam.
+  Social spread only happens through the vonk-geluk roll, which is bounded by
+  the vonk rules (per-pair cooldown, daily cap); there is no share button to
+  spam. Pluk encounters have their own BSSID/phase ledger.
 - **Badge speed-dating.** If vonken dominate scoring, optimal play is booping
   every stranger in the food queue. Mitigate with the daily vonk cap, modest
   vonk value, and optionally requiring a 30-second joint payload (mini
@@ -470,6 +524,10 @@ determined ones. Respond by making cheating *boring*, not impossible:
 - A forged snuffel report mints at most a spreadable-tier creature on the
   forger's own profile and no vonk score (score needs the partner's
   matching report): boring.
+- A forged pluk report can mint collection state on the forger's own profile,
+  but cannot claim a LoRa find or hunter score. BSSID/phase deduplication keeps
+  honest retries bounded; generating fake hotspots remains an intentionally
+  boring hacker-camp mod.
 - A home-brew `fri3d-badge` hotspot mints only local food: the same boring,
   single-player mod — and at this camp, a small prize in itself.
 - Lean in: hide an easter-egg creature that can *only* be obtained by
@@ -847,6 +905,11 @@ writer:
   on-badge **outbox** and flush whenever WiFi actually works — woods WiFi
   is spotty, and the outbox is the general mechanism for every
   badge→server report (snuffel events, the bonded count).
+- **Pluk** — a successful wild encounter queues `(BSSID, camp phase,
+  creature)` through the same outbox. The server deduplicates that physical
+  opportunity and adds the creature to the durable roster. Food and failed
+  rolls stay local. A pluk report is explicitly not a bridge-verified fox find
+  and awards no hunter provenance or hunter score.
 
 **Grants are generous; points are verified.** A single-sided snuffel report
 is enough to store the creature — rate-limited, per-pair-per-day enforced,
@@ -854,9 +917,11 @@ and rarity-capped at the spreadable tiers — because a child must never lose
 a beest to a friend's dead battery or a badge that never reconnects. Vonk
 *score*, by contrast, counts only when both sides' reports corroborate and
 the event falls inside the camp window (see *Buiten het kamp*), consistent
-with the rule that public score counts only server-verified unique events. The worst a forged report can mint is a common creature on
-the forger's own profile and no points: the same boring single-player mod
-the adversarial section already accepts.
+with the rule that public score counts only server-verified unique events. A
+forged grant report can alter only the forger's collection — spreadable tiers
+through snuffelen, or the wider pool through a claimed pluk — and awards no
+hunter find or verified event points: the same boring single-player mod the
+adversarial section already accepts.
 
 ## Buiten het kamp (before and after)
 
@@ -899,8 +964,8 @@ Before building a large economy, test a compact experience:
    the registration POST).
 2. Creature spread through vonk-geluk over snuffel, with the snuffel
    report syncing the result to the profile.
-3. Plukken against one real `fri3d-badge` hotspot: warmer/colder screen,
-   BSSID identity, per-badge reload.
+3. Plukken against real `fri3d-badge` hotspots: warmer/colder screen, BSSID
+   identity, per-badge food reload and one wild-creature roll per camp phase.
 4. One motion mini-game, such as a tilt maze.
 5. One touch/button game, such as LED Simon or Flappy.
 6. Berry, nut and acorn inventory with favourite-food bonuses.
@@ -927,11 +992,13 @@ enough delight to carry the social economy?
 - ~~How many mentor invitations may a strong gatherer create?~~
   → Resolved: the mentor model is replaced by vonk-geluk spread; deliberate
   sharing is finder-only.
-- How many `fri3d-badge` hotspots hang on the terrain, and roughly where?
-  (Gates plukken tuning: reload duration and yields per day.)
+- Confirm the estimated roughly 70 `fri3d-badge` BSSIDs on the terrain and
+  map how many are distinct physical walking destinations rather than radios
+  clustered at one place.
 - Tuning numbers that need playtesting: the vonk-geluk odds per rarity tier,
-  the bond weighting inside a tier, the zin bonus size, the plukplek reload
-  duration, and energy cost/restore per play session.
+  the bond weighting inside a tier, the zin bonus size, the plukplek food
+  reload, the 40%/45%/15%/2.5% encounter curve, and energy cost/restore per
+  play session.
 - Which rewards remain local and which contribute to public scoring?
 - How many foxes will be deployed, and can their activation be staged across
   the weekend? How many players will have antennas? (Both numbers gate the
@@ -952,13 +1019,13 @@ Following the one-word-per-thing rule:
 | Code (English) | UI (Dutch) | What it is |
 | --- | --- | --- |
 | **gatherer** | **verzamelaar** | The non-antenna play track: foraging resources for creature care. |
-| **spread** | **vonk-geluk** | The chance, on a vonk, that one of the other player's creatures introduces itself; both keep it. Never "clone" in the UI. The only way creatures spread. |
+| **spread** | **vonk-geluk** | The chance, on a vonk, that one of the other player's creatures introduces itself; both keep it. Never "clone" in the UI. The social spread path; wild pluk encounters are independent. |
 | **boop / socialize** | **snuffelen** | The face-to-face handshake over ESP-NOW, gated at -50 dBm RSSI on both sides — and the home-screen mode named after it. |
 | **spark** | **vonk** | The mutual reward for a snuffel, per pair every ~4 hours, capped per day. |
 | **friend book** | **vriendenboekje** | The permanent collection: one page per first-ever meeting between two badges. |
 | **forage** | **plukken** | Passively scanning for `fri3d-badge` hotspots and harvesting a nearby one. |
-| **forage spot** | **plukplek** | One physical hotspot, identified by its BSSID, that reloads per badge. |
-| **reload** | — | The per-badge cooldown before the same plukplek yields again. |
+| **forage spot** | **plukplek** | One physical hotspot, identified by its BSSID, with hourly food and one creature roll per camp phase. |
+| **reload** | — | The per-badge cooldown before the same plukplek yields food again. It does not reroll its phase creature. |
 | **starter** | **startbeest** | The one base-tier creature every player receives at registration, deterministic per badge; the tutorial creature for both tracks. |
 | **self-found** | **zelf gevonden** | The dossier upgrade when a hunter finds the fox of a creature they already knew. Scores as a discovery and pays a verzorgingspakket; nothing is removed. |
 | **care package** | **verzorgingspakket** | The food bundle a zelf-gevonden creature hands over, weighted toward its favourite. |

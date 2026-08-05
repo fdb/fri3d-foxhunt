@@ -50,3 +50,17 @@ CREATE TABLE IF NOT EXISTS snuffels (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   UNIQUE (player_id, peer, day)
 );
+
+-- Successful wild-creature encounters while plukken. Food remains badge-local;
+-- only the creature needs this durable record so account restore cannot lose it.
+-- One success per physical AP and 15:00-to-15:00 camp phase is sufficient:
+-- failed rolls are deterministic and cannot become a later success by retrying.
+CREATE TABLE IF NOT EXISTS pluks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  bssid TEXT NOT NULL,
+  phase TEXT NOT NULL, -- YYYY-MM-DD label of the phase's 15:00 start day
+  creature_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (player_id, bssid, phase)
+);
