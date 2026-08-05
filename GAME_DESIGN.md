@@ -673,10 +673,25 @@ out four ways:
   passer-by sees. The badge hangs on a chest all camp; the display *is* the
   trophy shelf. This is the personal payoff: identity, worn in public.
 - **De foto (the finish line).** Reaching band 5 stamps the creature's foto
-  into the dossier — the beste-vrienden page, dated. A creature can be
-  *finished*. That is the anti-grind: depth has a destination, and the next
-  creature offers a fresh one. (Animal Crossing's villager photo — the
-  community's canonical proof of friendship — is the model.)
+  into the dossier — the beste-vrienden page, dated — and a star marks its
+  tile on the home grid. A creature can be *finished*. That is the
+  anti-grind: depth has a destination, and the next creature offers a fresh
+  one. (Animal Crossing's villager photo — the community's canonical proof
+  of friendship — is the model.)
+
+  **A finished friend retires from the economy, not from the game.** At
+  band 5 the living stats freeze — permanently content, never hungry or
+  tired again — and play becomes free, forever: "een beste vriend speelt
+  altijd mee." No more feeding, no more refusals; the beest page trades its
+  meters for the star and the foto. The creature stays fully present — it
+  walks with the maatje, plays on request, and remains the player's most
+  eager ambassador at snuffels. Food therefore flows only to relationships
+  under construction, so the pantry pressure follows the player to the next
+  friendship by itself. Two guards: free play yields warmth only — no
+  skills, no communal counters, nothing the economy counts, or the finished
+  friend becomes the infinite farming route; and the stats *freeze* rather
+  than the costs being waived, so the meters never show a hungry creature
+  happily playing.
 - **Ambassadeurschap (the social function).** The vonk-geluk roll weights by
   bond *within a rarity tier*: a well-loved creature introduces itself more
   eagerly. Care converts into spread — bond makes the carer a better node in
@@ -906,7 +921,7 @@ Following the one-word-per-thing rule:
 | **self-found** | **zelf gevonden** | The dossier upgrade when a hunter finds the fox of a creature they already knew. Scores as a discovery and pays a verzorgingspakket; nothing is removed. |
 | **care package** | **verzorgingspakket** | The food bundle a zelf-gevonden creature hands over, weighted toward its favourite. |
 | **snuffel report** | — | The badge→server sync of a snuffel event (pair, day, vonk-geluk outcome). Grants are single-sided and rarity-capped; score needs both sides. |
-| **photo** | **foto** | The band-5 dossier stamp — the beste-vrienden page. The finish line of one relationship; a creature can be *finished*. |
+| **photo** | **foto** | The band-5 dossier stamp — the beste-vrienden page. The finish line of one relationship; a creature can be *finished*. Its stats freeze and play is free forever. |
 | **daily want** | **zin** | A creature's seeded daily craving (`f(creature, badge, day)`) — one food or one game. Fulfilling it pays bonus band; ignoring it costs nothing. |
 | **best friend** | **beste vriend** | The per-creature scoreboard title: every player at band 5 with that creature, the first crowned. |
 
