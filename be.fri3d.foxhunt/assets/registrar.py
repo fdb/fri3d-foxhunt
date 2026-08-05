@@ -25,25 +25,51 @@ BASE_URL = "https://foxhunt.enigmeta.workers.dev"
 CONNECT_TIMEOUT = 10
 
 
+def _env(name):
+    """A desktop-only override, read from the environment.
+
+    The emulator is the unix MicroPython port, which has os.getenv; the badge's
+    ESP32 port does not, so on hardware this is always None and the callers
+    below fall through to the real thing. scripts/run_on_mac.sh sets these.
+    """
+    try:
+        import os
+
+        return os.getenv(name)
+    except Exception:
+        return None
+
+
 def badge_id():
     """The badge's MAC, "A4:CF:..." — machine.unique_id() on the badge, a
-    fixed fake on desktop (no machine module) so the UI stays drivable."""
+    fixed fake on desktop (no machine module) so the UI stays drivable.
+
+    FOXHUNT_BADGE_ID replaces that fake, because badge_id IS the account key:
+    one desktop MAC means one server account for every persona you test, and
+    the second one meets the first as "BADGE AL BEKEND" (run_on_mac.sh --lora).
+    """
     try:
         import machine
 
         return ":".join("%02X" % b for b in machine.unique_id())
     except Exception:
-        return "A4:CF:12:9B:03:7E"
+        return _env("FOXHUNT_BADGE_ID") or "A4:CF:12:9B:03:7E"
 
 
 def has_lora():
-    """True when a LoRa radio is configured (antenna installed)."""
+    """True when a LoRa radio is configured (antenna installed).
+
+    Desktop has no radio to find, so FOXHUNT_FAKE_LORA stands in for one — it
+    is the only way to get past WORD JAGER's antenna check in the emulator.
+    """
     try:
         from mpos import LoRaManager
 
-        return LoRaManager.radioChip is not None
+        if LoRaManager.radioChip is not None:
+            return True
     except Exception:
-        return False
+        pass
+    return bool(_env("FOXHUNT_FAKE_LORA"))
 
 
 def adopt(badge, account, name=None, code=None):

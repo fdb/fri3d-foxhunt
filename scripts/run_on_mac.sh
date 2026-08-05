@@ -14,20 +14,55 @@ cd "$(dirname "$0")/.."
 # makes sure the package is present and the symlink exists, then hands off to
 # the package's own run_desktop.sh.
 #
-# Usage: scripts/run_on_mac.sh [-- <extra run_desktop.sh args>]
+# Usage: scripts/run_on_mac.sh [--lora] [--fresh] [-- <extra run_desktop.sh args>]
+#
+# Options:
+#   --lora    Run as a badge WITH a LoRa antenna. Two things, and both are
+#             needed for the jager half of the game to be reachable at all:
+#             * The antenna. Desktop has no radio, so registrar.has_lora() is
+#               false and instellingen -> WORD JAGER answers "geen antenne
+#               gevonden" — there is no way to mint a hunter_id.
+#             * A second MAC. badge_id is the account key, so sharing the one
+#               desktop MAC would put the jager and the verzamelaar on a single
+#               server account: the second registration meets the first as
+#               "BADGE AL BEKEND" and adopts it instead of starting over.
+#             Both are env overrides read by registrar.py, which the badge's
+#             MicroPython cannot even see (no os.getenv on ESP32).
+#   --fresh   Clear the local save first (scripts/clear_app_data.sh), so
+#             onboarding runs again. Pair it with --lora the first time: the
+#             app routes on "does a profile exist", so an existing profile
+#             never reaches registration and the new MAC registers nothing.
 #
 # Env overrides:
 #   MPOS_DIR        prebuilt MicroPythonOS dir (default: ~/MicroPythonOS)
 #   MPOS_PKG_URL    download URL for the prebuilt macOS package zip
+#   FOXHUNT_BADGE_ID / FOXHUNT_FAKE_LORA
+#                   what --lora sets; set them yourself for a third persona.
 
 PROJECT_DIR="$(pwd)"
 APP_ID="be.fri3d.foxhunt"
+# The desktop's second fake MAC. Must differ from registrar.badge_id's own
+# fallback, and scripts/delete_account.sh --emulator-lora must know it too.
+LORA_BADGE="A4:CF:12:9B:03:7F"
 APP_SRC="$PROJECT_DIR/$APP_ID"
 MPOS_DIR="${MPOS_DIR:-$HOME/MicroPythonOS}"
 MPOS_PKG_URL="${MPOS_PKG_URL:-https://debleser.s3-eu-central-1.amazonaws.com/2026-fri3d-badge/MicroPythonOS-macOS-0.12.0.zip}"
 RUN_DESKTOP="$MPOS_DIR/scripts/run_desktop.sh"
 BINARY="$MPOS_DIR/lvgl_micropython/build/lvgl_micropy_macOS"
 LINK="$MPOS_DIR/internal_filesystem/apps/$APP_ID"
+
+# ── Arguments ─────────────────────────────────────────────────────────
+LORA=0
+FRESH=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --lora)  LORA=1; shift ;;
+        --fresh) FRESH=1; shift ;;
+        -h|--help) sed -n '5,40p' "$0"; exit 0 ;;
+        --) shift; break ;;
+        *) break ;;
+    esac
+done
 
 # ── Sanity check: the app must exist locally ──────────────────────────
 [[ -d "$APP_SRC" ]] || { echo "error: app dir not found: $APP_SRC" >&2; exit 1; }
@@ -66,6 +101,25 @@ if [[ ! -e "$LINK" && ! -L "$LINK" ]]; then
 elif [[ "$(readlink "$LINK" 2>/dev/null)" != "$APP_SRC" ]]; then
     echo "warning: $LINK exists but does not point at $APP_SRC" >&2
     echo "         leaving it as-is; remove it if you want this script to relink." >&2
+fi
+
+# ── Wipe the local save, if asked ─────────────────────────────────────
+# Scoped to the install we are about to run: clear_app_data.sh sweeps every
+# MicroPythonOS checkout on the machine unless MPOS_DIR pins it.
+if [[ "$FRESH" -eq 1 ]]; then
+    MPOS_DIR="$MPOS_DIR" "$PROJECT_DIR/scripts/clear_app_data.sh"
+fi
+
+# ── Persona ──────────────────────────────────────────────────────────
+# registrar.py reads both of these through os.getenv, which exists on the
+# desktop port only. Always say which account this run is, because the server
+# side of a desktop run is real and permanent.
+if [[ "$LORA" -eq 1 ]]; then
+    export FOXHUNT_FAKE_LORA=1
+    export FOXHUNT_BADGE_ID="$LORA_BADGE"
+    echo "Persona: jager (faked LoRa antenna), badge $LORA_BADGE"
+else
+    echo "Persona: verzamelaar (no antenna), the default desktop badge"
 fi
 
 # ── Launch the emulator ──────────────────────────────────────────────

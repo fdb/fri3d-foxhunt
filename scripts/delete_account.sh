@@ -23,6 +23,7 @@
 #   scripts/delete_account.sh BOBBY               # by name (case-insensitive)
 #   scripts/delete_account.sh a4:cf:12:9b:03:7e   # by badge id
 #   scripts/delete_account.sh --emulator          # the desktop badge's fake MAC
+#   scripts/delete_account.sh --emulator-lora     # the same for run_on_mac.sh --lora
 #   scripts/delete_account.sh BOBBY --yes         # skip the confirmation
 #   scripts/delete_account.sh BOBBY --local       # against wrangler dev
 #
@@ -38,6 +39,9 @@ cd "$(dirname "$0")/.."
 BASE="${FOXHUNT_SERVER:-https://foxhunt.enigmeta.workers.dev}"
 # Must match registrar.badge_id's desktop fallback.
 EMULATOR_BADGE="a4:cf:12:9b:03:7e"
+# ...and the second desktop persona: run_on_mac.sh --lora sets this one through
+# FOXHUNT_BADGE_ID, so it is a separate, equally permanent account.
+EMULATOR_LORA_BADGE="a4:cf:12:9b:03:7f"
 TARGET=""
 ASSUME_YES=0
 
@@ -46,6 +50,7 @@ while [[ $# -gt 0 ]]; do
         --server) BASE="${2:-}"; shift 2 ;;
         --local) BASE="http://localhost:8787"; shift ;;
         --emulator) TARGET="$EMULATOR_BADGE"; shift ;;
+        --emulator-lora) TARGET="$EMULATOR_LORA_BADGE"; shift ;;
         -y|--yes) ASSUME_YES=1; shift ;;
         -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
         -*) echo "error: unknown option '$1'" >&2; exit 2 ;;

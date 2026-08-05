@@ -29,6 +29,20 @@ board layer handles the hardware differences.
   the local config does not touch it: the next onboarding meets its own account
   as "BADGE AL BEKEND", correctly, forever. Clear the server side too —
   `scripts/delete_account.sh --emulator`.
+- **The jager half of the game needs a faked antenna.** Desktop has no radio,
+  so `registrar.has_lora()` is false and instellingen -> WORD JAGER answers
+  "geen antenne gevonden" — a `hunter_id` can never be minted.
+  `scripts/run_on_mac.sh --lora` fakes one, through `FOXHUNT_FAKE_LORA` (the
+  emulator is the unix MicroPython port, which has `os.getenv`; the badge's
+  ESP32 port does not, so these overrides cannot exist on hardware).
+  It also swaps in a SECOND fake MAC via `FOXHUNT_BADGE_ID`, because `badge_id`
+  is the account key: on one MAC the jager and the verzamelaar would be one
+  account, and the second registration would meet the first as "BADGE AL
+  BEKEND". That second account is exactly as real and permanent as the first —
+  `scripts/delete_account.sh --emulator-lora` clears it.
+  Add `--fresh` to reach registration at all: the app routes on "does a profile
+  exist", so an existing local profile skips onboarding and the new MAC
+  registers nothing.
 
 ## Deploying to the badge
 `scripts/deploy_to_badge.sh [--start]` pushes the app over USB — ~8s when
