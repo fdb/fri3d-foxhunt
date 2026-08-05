@@ -192,6 +192,15 @@ talks to `/api/v1/auth/*` there.
   `import sys; sys.modules["registrar"].BASE_URL = "http://localhost:8787"`.
   The transport is drivable straight from the REPL, no UI needed —
   `sys.modules["registrar"].REGISTRAR.restore(badge, print)`.
+- **`wrangler deploy` ships code, never schema.** `schema.sql` is all `CREATE
+  TABLE IF NOT EXISTS`, so it cannot add a column to a database that already
+  holds players — that is what `server/migrations/` is for, and each one is a
+  separate `wrangler d1 execute foxhunt --remote --file=...`. Deploying code
+  that reads a column prod lacks does not fail at deploy time: every query
+  touching it throws at request time, so `/scores` and every `/auth` route
+  return 500 while `/debug/players` still looks fine. The badge reads that as
+  "geen antwoord" and blames the network. Ship the migration FIRST — it is
+  additive, so it is safe against the old code — then deploy.
 - Only the **cloud** leg of `register()` is real. The bridge/hunter legs report
   `"skip"` because no LoRa bridge protocol exists yet (`fox_radio.py` is a stub
   too); a cloud save alone counts as success, which is the rule the flow

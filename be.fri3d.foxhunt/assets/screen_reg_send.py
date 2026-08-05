@@ -78,12 +78,21 @@ class RegSendActivity(Activity):
         self._bar_timer = None
         self._starter = None  # startbeest id once the server grants one
         self._exists = None  # the account payload, when the badge has one
+        self._settled = False  # ...and whether the player answered the fork
         self.setContentView(self.screen)
         self._start_sending()
 
     def onDestroy(self, screen):
         super().onDestroy(screen)
         self._stop_bar()
+        # The profile was written before the send (screen_companion._register),
+        # which is right for a server that is merely down — the player keeps
+        # their maatje and retries. It is wrong once the server has said the
+        # badge already has an account: that is a question, and leaving without
+        # answering it registers nobody. Only adopt/overwrite settle it, so
+        # anything else that gets us here takes the half-built profile with it.
+        if self._exists is not None and not self._settled:
+            store.clear_profile()
 
     def _stop_bar(self):
         if self._bar_timer is not None:
@@ -351,6 +360,7 @@ class RegSendActivity(Activity):
     def _adopt_existing(self):
         sound.play("caught")
         registrar.adopt(self.p.get("badge_id", ""), self._exists)
+        self._settled = True
         self.p = store.profile() or self.p
         self._finish_registered()
 
@@ -414,6 +424,7 @@ class RegSendActivity(Activity):
             name=self.p["name"],
             code=companion.encode(self.p["head"], self.p["accs"], self.p["bg"]),
         )
+        self._settled = True
         self.p = store.profile() or self.p
         sound.play("caught")
         self._build_done({"hunter_id": self._exists.get("hunter_id"), "bridge": "skip"})

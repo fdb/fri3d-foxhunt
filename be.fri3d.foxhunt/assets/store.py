@@ -55,6 +55,25 @@ def save_profile(p):
     SharedPreferences(_APP).edit().put_dict("profile", p).commit()
 
 
+def clear_profile():
+    """Forget the profile the badge was in the middle of building.
+
+    Registration saves locally BEFORE the server round trip, on purpose: a
+    server that never answers must not cost the player the maatje they just
+    built ("je profiel is bewaard - probeer straks opnieuw"). That trade only
+    holds while the badge is the sole claimant. When the server answers "this
+    badge already has an account", the flow stops being a save and becomes a
+    question (screen_reg_send._build_exists), and walking away is not one of
+    its two answers. Leaving the half-built profile behind would open the badge
+    on the home screen as a jager the server never heard of — and point ALLES
+    WISSEN at an account belonging to whoever really registered.
+
+    Editor has no remove(key), and profile() reads empty as None, so the way to
+    forget a key here is to write it empty.
+    """
+    SharedPreferences(_APP).edit().put_dict("profile", {}).commit()
+
+
 def update_profile(**kv):
     """Merge fields into the stored profile (e.g. the minted hunter_id)."""
     prefs = SharedPreferences(_APP)
