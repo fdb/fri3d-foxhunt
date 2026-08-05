@@ -156,8 +156,12 @@ class StarterActivity(Activity):
                 row, 0, 0, fw, 38, ui.CARD, border=(ui.GOLD if fav else ui.BORDER_REST)
             )
             art.icon(p, food, 2).set_pos(8, 10)
-            ui.label(p, "%s x%d" % (lab, v.get(food, 0)), 32, 12, ui.INK, ui.font_small())
-            ui.focusable(p, on_click=lambda f=food: self._first_feed(f), focus_border=True)
+            ui.label(
+                p, "%s x%d" % (lab, v.get(food, 0)), 32, 12, ui.INK, ui.font_small()
+            )
+            ui.focusable(
+                p, on_click=lambda f=food: self._first_feed(f), focus_border=True
+            )
 
     def _first_feed(self, food):
         st, ok, msg, is_fav = store.do_feed(self.fox_id, food)
