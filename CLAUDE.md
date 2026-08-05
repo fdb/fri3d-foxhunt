@@ -34,6 +34,10 @@ not obvious, each because copying the files is not enough:
   testing the other one. Every install stamps `#src <dir> <commit> <dirty>`
   into the manifest; a deploy from a different directory than the badge's
   stamp refuses without `--force`, and every run prints both identities.
+  A dirty working tree also refuses without `--force`: the settings screen
+  shows `version @ commit` from that stamp (`screen_settings._build_info`),
+  and a dirty deploy would make that sha a lie ('dev' when running from
+  source, `*` after the sha when force-deployed dirty).
 - **It ships `.mpy` bytecode, not source.** The badge spends ~2s of every
   cold start compiling 5k lines of Python; the in-tree mpy-cross (same
   checkout as the firmware, so the bytecode versions match) does it once at
@@ -61,6 +65,12 @@ not obvious, each because copying the files is not enough:
   covered by that check or by placement: a truncated install (size differs),
   a lingering orphan (path extra), a store install (`rmtree` takes the
   manifest with it). Wrong → one slow hash pass, then it self-heals.
+  The install itself is verified the same way, on-badge, before success is
+  reported: path set + size against the just-pushed manifest, plus a full
+  SHA-256 of exactly the files this run copied — because `fs cp` exiting 0
+  is a transport claim, not proof the flash holds the bytes (a torn write
+  once left a 0-byte `.mpy` behind a clean exit and a count-only "verify").
+  On mismatch the badge drops its own manifest and the deploy fails loudly.
 - **It copies only what differs, and deletes only what the source dropped.**
   `mpremote fs cp -r` merges, so a delta tree updates exactly the changed
   files; orphans are deleted explicitly (nothing on this path ever deletes
