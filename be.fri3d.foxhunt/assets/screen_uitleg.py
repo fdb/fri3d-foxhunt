@@ -14,16 +14,18 @@ import art
 import sound
 import store
 
+# (icon, scale, kop, tekst) — icon grids differ (pluk/snuf 16px, ball/ant
+# 8px), so the scale normalises every icon to exactly 32px
 _VERZAMELAAR = (
-    ("pluk", "PLUKKEN", "loop naar een wifi-plek en pluk het eten"),
-    ("snuf", "SNUFFELEN", "badge tegen badge - deel een picknick"),
-    ("ball", "SPELEN", "voer je beest en speel - zo groeit de band"),
+    ("pluk", 2, "PLUKKEN", "loop naar een wifi-plek en pluk het eten"),
+    ("snuf", 2, "SNUFFELEN", "badge tegen badge - deel een picknick"),
+    ("ball", 4, "SPELEN", "voer je beest en speel - zo groeit de band"),
 )
 _VERZAMELAAR_VOET = "jagers brengen nieuwe beesten het kamp binnen"
 _JAGER = (
-    ("ant", "JAGEN", "volg het signaal naar de vos - vang het beest"),
-    ("pluk", "VERZAMELEN", "pluk eten en snuffel met andere spelers"),
-    ("ball", "SPELEN", "voer je beest en speel - zo groeit de band"),
+    ("ant", 4, "JAGEN", "volg het signaal naar de vos - vang het beest"),
+    ("pluk", 2, "VERZAMELEN", "pluk eten en snuffel met andere spelers"),
+    ("ball", 4, "SPELEN", "voer je beest en speel - zo groeit de band"),
 )
 _JAGER_VOET = "verzamelaars hebben het eten dat jouw beesten zoeken"
 
@@ -36,11 +38,11 @@ class UitlegActivity(Activity):
         ui.banner(s, "HOE SPEEL JE?", ui.GREEN)
 
         rows = _JAGER if jager else _VERZAMELAAR
-        for i, (icon, kop, tekst) in enumerate(rows):
+        for i, (icon, sc, kop, tekst) in enumerate(rows):
             row = ui.panel(s, 8, 32 + i * 44, 304, 40, ui.CARD)
-            art.icon(row, icon, 2).set_pos(10, 11)
-            ui.label(row, kop, 40, 4, ui.INK, ui.font_label())
-            ui.label(row, tekst, 40, 21, ui.TEXT_MUTED, ui.font_small(), w=258)
+            art.icon(row, icon, sc).align(lv.ALIGN.LEFT_MID, 6, 0)
+            ui.label(row, kop, 46, 4, ui.INK, ui.font_label())
+            ui.label(row, tekst, 46, 21, ui.TEXT_MUTED, ui.font_small(), w=252)
 
         voet = ui.panel(s, 8, 166, 304, 24, ui.CREAM)
         ui.label(
