@@ -6,6 +6,17 @@
 
 import lvgl as lv
 
+# The beste-vriend star: gold 'g' at the call site (ui.GOLD), like HEART's
+# palette-at-call-site convention below.
+STAR = [
+    "....g....",
+    "...ggg...",
+    "ggggggggg",
+    ".ggggggg.",
+    "..ggggg..",
+    ".ggg.ggg.",
+    "gg.....gg",
+]
 HEART = [
     ".kk...kk.",
     "krrkkkrrk",

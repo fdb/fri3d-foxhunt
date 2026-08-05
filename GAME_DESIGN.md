@@ -33,7 +33,7 @@ from where players spend their time, not from a locked role choice.
 
 ## Positive care philosophy
 
-Creatures have temporary needs such as hunger, mood and energy. These may rise
+Creatures have temporary needs such as hunger and energy. These may rise
 or fall over time and give players a reason to interact. A hungry creature is an
 invitation to feed it, not a punishment for staying away.
 
@@ -74,7 +74,7 @@ The current app already contains much of the presentation needed for the care
 game:
 
 - Bond, levels and hearts.
-- Hunger, mood and energy.
+- Hunger and energy.
 - Feeding, petting and playing.
 - Berry, nut and acorn food, with creature-specific favourites.
 - A dossier containing habitat, species, rarity and facts.
@@ -155,8 +155,8 @@ Mini-games close the economy. The chain is:
 - A play session costs the creature energy. A tired creature playfully
   refuses — "Everzwaan is moe — eerst een hapje?" — so the refusal *is* the
   rate limit, in fiction, exactly as the care philosophy asks.
-- Feeding restores energy; a favourite food restores more and adds a mood
-  bonus. Feeding itself grants little bond.
+- Feeding restores energy; a favourite food restores more. Feeding itself
+  grants little bond.
 - **Bond comes from playing, not from feeding.** Feeding is the enabler,
   playing is the earner. One mechanism kills both economy bugs named above:
   food-dumping (50 berries is a very full creature, not max bond) and
@@ -172,11 +172,11 @@ extra band. DOOLHOF (tilt maze) waits on the IMU spike.
 The companion stars in exactly one game moment: the tutorial, before the
 player owns any creature. After that the active creature stars, because
 playing is how bond grows and bond belongs to creatures. Petting and basic
-affection stay free and unlimited — they give warmth and mood, not
-progression.
+affection stay free and unlimited — they give warmth and nothing else: no
+stats, no progression, so bond can never be tapped into existence.
 
 Permanent progression consists of bond, skills, memories, decorations and
-friendships. Hunger, energy and mood provide temporary context.
+friendships. Hunger and energy provide temporary context.
 
 ## The exchange: snuffelen en vonken
 
@@ -628,7 +628,7 @@ The existing foods provide a natural first resource system:
 - **Eikel**
 
 Foraging and assignments award these directly. Feeding a favourite food grants
-a larger bond or mood bonus. Other possible resources include toys, habitat
+a larger energy bonus. Other possible resources include toys, habitat
 materials, stickers and story fragments.
 
 Basic affection should never require a scarce resource. Petting, comforting and
@@ -775,7 +775,7 @@ and exchange. Weekend-wide goals encourage cooperation, for example:
 The creature lineage trees ("who introduced whom") make a lovely communal
 visualisation for the scoreboard screen.
 
-Current hunger, mood and energy should not affect public score. Neither should
+Current hunger and energy should not affect public score. Neither should
 raw taps or unlimited step totals.
 
 ## Roles and navigation

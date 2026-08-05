@@ -186,6 +186,14 @@ def _raw_state(prefs, cid):
     return raw
 
 
+def finished_ids():
+    """Ids of beste vrienden (bond maxed). Raw read, no decay pass: bond
+    never decays, so the stored value is already the truth — and the home
+    grid asks per tile, where a decay-persist would cost a flash write each."""
+    beasts = SharedPreferences(_APP).get_dict("beast", {})
+    return {int(k) for k, v in beasts.items() if pet.finished(v)}
+
+
 def beast_state(cid):
     """Pet stats with time-decay applied and persisted. None if uncaught."""
     prefs = SharedPreferences(_APP)
@@ -234,7 +242,7 @@ def play_cost(cost):
     Three places gate on energy (the school's tiles, the game's NOG EEN KEER,
     do_play itself) and they all ask here, so the switch can never leave one
     of them refusing while another lets you in. It suspends the *price*, not
-    the reward: a free session still earns its normal band and humeur, and
+    the reward: a free session still earns its normal band, and
     like every debug path it never leaves the badge."""
     return 0 if settings().get("nooit_moe") else cost
 

@@ -111,6 +111,7 @@ class HomeActivity(Activity):
         # keys scramble the roster order the book is supposed to keep
         boek = [c for c in CREATURES if c["id"] in caught]
         boek += [c for c in CREATURES if c["id"] not in caught]
+        beste = store.finished_ids()
         for c in boek:
             cid = c["id"]
             is_caught = cid in caught
@@ -133,6 +134,11 @@ class HomeActivity(Activity):
             sp.align(lv.ALIGN.TOP_MID, 0, 1)
             if is_caught and c["rarity"] == "leg":
                 art.icon(cell, "spark", 1).set_pos(2, 2)
+            if cid in beste:
+                # beste-vriend star, top-right so it never collides with spark
+                art.draw_sprite(cell, art.STAR, {"g": ui.GOLD}, 1).align(
+                    lv.ALIGN.TOP_RIGHT, -2, 2
+                )
             if is_caught:
                 ui.box(cell, 0, 35, _CELL_W - 4, 13, 0xF0E8D4)
             ui.label(

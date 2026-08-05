@@ -7,27 +7,12 @@
 # Living stats, in display order: (key, dutch label).
 STATS = (
     ("bond", "binding"),
-    ("mood", "humeur"),
     ("energy", "energie"),
     ("hunger", "honger"),
 )
 
 # Decay per hour away (applied on each visit). binding never decays — loyalty.
-_DECAY = {"hunger": +6, "energy": -4, "mood": -3}
-
-# Action effects: deltas applied when the creature accepts.
-#
-# The economy chain (GAME_DESIGN.md, The three verbs): plukken yields food ->
-# voederen restores ENERGY -> spelen spends energy and builds BOND. So feeding
-# and petting grant only token bond; play() below is where bond is earned.
-_ACTIONS = {
-    "voeden": {"hunger": -35, "energy": +20, "bond": +1, "mood": +4},
-    "aaien": {"mood": +12, "bond": +2, "energy": +2},
-    "spelen": {"mood": +18, "bond": +8, "energy": -18, "hunger": +12},
-}
-
-# One energy segment (the 5-cell meter) in 0..100 stat points.
-SEG = 20
+_DECAY = {"hunger": +6, "energy": -4}
 
 
 def _clamp(v):
@@ -42,7 +27,6 @@ def default_state(date, place, now):
         "sightings": 1,  # waarnemingen
         "bijnaam": "",  # nickname (falls back to the creature name)
         "bond": 10,
-        "mood": 65,
         "energy": 75,
         "hunger": 25,
         "last": now,  # epoch seconds of last update
@@ -50,6 +34,9 @@ def default_state(date, place, now):
 
 
 # ── presentation helpers (derive the screens' segments / hearts / level) ────
+# 25 bond points per level, so level 5 == bond 100 == finished. Bond comes
+# from play (+6, favourite game +10) with a token from feeding (+1/+2), so
+# the road from 10 to 100 is a solid day of care — never one pat.
 LEVEL_MAX = 5
 
 
@@ -59,8 +46,8 @@ def segments(value, total=5):
 
 
 def level(bond):
-    """1..5, every 20 bond points is a level."""
-    return min(LEVEL_MAX, 1 + bond // 20)
+    """1..5, every 25 bond points is a level; 5 only at max bond."""
+    return min(LEVEL_MAX, 1 + bond // 25)
 
 
 def hearts(bond):
@@ -72,7 +59,7 @@ def level_pct(bond):
     """Percent toward the next level (100 once maxed)."""
     if level(bond) >= LEVEL_MAX:
         return 100
-    return (bond % 20) * 5
+    return (bond % 25) * 4
 
 
 def fullness(hunger):
@@ -80,10 +67,29 @@ def fullness(hunger):
     return 100 - hunger
 
 
+def finished(state):
+    """Beste vriend: bond maxed. The creature retires from the economy —
+    stats frozen, play free forever — but not from the game."""
+    return state.get("bond", 0) >= 100
+
+
+def _finish(s):
+    """The moment bond reaches 100: permanently content. Snap the living
+    stats to rest so no screen ever shows a hungry or tired beste vriend."""
+    if s["bond"] >= 100:
+        s["energy"] = 100
+        s["hunger"] = 0
+    return s
+
+
 def decay(state, now):
     """Age the living stats by the real time elapsed since state['last'].
-    Returns a new dict; clamps to 0..100 so long absences can't overflow."""
+    Returns a new dict; clamps to 0..100 so long absences can't overflow.
+    A finished friend does not age — permanently content."""
     s = dict(state)
+    if finished(s):
+        s["last"] = now
+        return s
     hours = max(0, (now - s.get("last", now))) / 3600
     if hours > 0:
         for key, rate in _DECAY.items():
@@ -93,34 +99,15 @@ def decay(state, now):
 
 
 def act(state, action, now):
-    """Apply an action. Returns (new_state, ok, message).
+    """Apply a free inline action. Returns (new_state, ok, message).
 
-    Some actions are refused for personality — a full creature won't eat, a
-    tired one won't play — so stats actually constrain what you can do."""
+    Only 'aaien' remains: pure affection, no stats — warmth is free and
+    unlimited, progression is not (feed() and play() are the economy)."""
     s = dict(state)
-    if action == "voeden" and s.get("hunger", 0) <= 8:
-        s["mood"] = _clamp(s.get("mood", 0) - 2)
-        s["last"] = now
-        return s, False, "zit vol!"
-    if action == "spelen" and s.get("energy", 0) < 20:
-        s["mood"] = _clamp(s.get("mood", 0) - 1)
-        s["last"] = now
-        return s, False, "te moe om te spelen"
-
-    deltas = _ACTIONS.get(action)
-    if not deltas:
+    if action != "aaien":
         return s, False, ""
-    for key, d in deltas.items():
-        s[key] = _clamp(s.get(key, 0) + d)
     s["last"] = now
-    return s, True, _OK_MSG[action]
-
-
-_OK_MSG = {
-    "voeden": "smikkelt!",
-    "aaien": "spint van plezier",
-    "spelen": "wat een lol!",
-}
+    return s, True, "spint van plezier"
 
 
 def feed(state, food, favoriet, now):
@@ -128,49 +115,47 @@ def feed(state, food, favoriet, now):
     Food is the energy leg of the chain: the favourite grants extra ENERGY
     ('favoriet = meer energie'); bond stays token — band komt van spelen."""
     s = dict(state)
+    if finished(s):
+        s["last"] = now
+        return s, False, "hoeft niet meer te eten", False
     if s.get("hunger", 0) <= 8:
-        s["mood"] = _clamp(s.get("mood", 0) - 2)
         s["last"] = now
         return s, False, "zit vol!", False
     is_fav = food == favoriet
     s["hunger"] = _clamp(s.get("hunger", 0) - 35)
     s["energy"] = _clamp(s.get("energy", 0) + (35 if is_fav else 20))
-    s["mood"] = _clamp(s.get("mood", 0) + (8 if is_fav else 4))
     s["bond"] = _clamp(s.get("bond", 0) + (2 if is_fav else 1))
     s["last"] = now
-    return s, True, ("favoriet! extra energie" if is_fav else "mmm!"), is_fav
+    return _finish(s), True, ("favoriet! extra energie" if is_fav else "mmm!"), is_fav
+
+
+# One energy segment (the 5-cell meter) in 0..100 stat points.
+SEG = 20
 
 
 def play(state, cost, favourite, now):
     """A beestenschool session: spend `cost` energy segments, earn bond.
     Returns (new_state, ok, message). The playful refusal when energy is
     short IS the rate limit on bond — never a punishment, just 'eerst een
-    hapje'. A favourite game earns extra bond."""
+    hapje'. A favourite game earns extra bond. A finished friend plays free,
+    forever, and earns nothing — warmth only, or free play becomes the
+    infinite farming route."""
     s = dict(state)
+    if finished(s):
+        s["last"] = now
+        return s, True, "wat een lol!"
     if s.get("energy", 0) < cost * SEG:
-        s["mood"] = _clamp(s.get("mood", 0) - 1)
         s["last"] = now
         return s, False, "te moe om te spelen"
     s["energy"] = _clamp(s.get("energy", 0) - cost * SEG)
     s["bond"] = _clamp(s.get("bond", 0) + (10 if favourite else 6))
-    s["mood"] = _clamp(s.get("mood", 0) + 12)
     s["hunger"] = _clamp(s.get("hunger", 0) + 10)
     s["last"] = now
-    return s, True, ("favoriet spel! ++band" if favourite else "wat een lol! +band")
-
-
-def face(state):
-    """Derive an ASCII mood face + word from the stats (font is ASCII-only).
-    Order matters: urgent needs (honger, moe) win over general mood."""
-    if state.get("hunger", 0) >= 75:
-        return ">_<", "honger!"
-    if state.get("energy", 0) <= 20:
-        return "-_-", "moe"
-    if state.get("mood", 0) >= 70:
-        return "^_^", "blij"
-    if state.get("mood", 0) <= 30:
-        return "T_T", "sip"
-    return "o_o", "oke"
+    return (
+        _finish(s),
+        True,
+        ("favoriet spel! ++band" if favourite else "wat een lol! +band"),
+    )
 
 
 if __name__ == "__main__":
@@ -180,22 +165,17 @@ if __name__ == "__main__":
     aged = decay(st, 1000 + 24 * 3600)  # +24h
     assert aged["hunger"] == 100, aged  # 25 + 6*24, clamped
     assert aged["energy"] == 0, aged  # 75 - 4*24, clamped
-    fed, ok, msg = act(aged, "voeden", aged["last"])
-    assert ok and fed["hunger"] == 65, (fed, msg)
-    tired, ok, msg = act(aged, "spelen", aged["last"])
-    assert not ok and msg == "te moe om te spelen", (ok, msg)
-    full = dict(st)
-    full["hunger"] = 5
-    _, ok, msg = act(full, "voeden", st["last"])
-    assert not ok and msg == "zit vol!", (ok, msg)
-    assert face({"hunger": 80})[1] == "honger!"
-    assert face({"hunger": 10, "energy": 10})[1] == "moe"
-    assert face({"hunger": 10, "energy": 90, "mood": 80})[1] == "blij"
-    # presentation helpers
+    # aaien: pure affection — ok, message, zero stat change
+    pet_, ok, msg = act(aged, "aaien", aged["last"])
+    assert ok and msg == "spint van plezier"
+    assert all(pet_[k] == aged[k] for k, _ in STATS), pet_
+    _, ok, _ = act(aged, "voeden", aged["last"])
+    assert not ok  # feed()/play() are the economy; act() is aaien only
+    # presentation helpers: 25-point levels, 5 only at max
     assert segments(0) == 0 and segments(100) == 5 and segments(50) == 3, segments(50)
-    assert level(0) == 1 and level(50) == 3 and level(100) == 5, level(50)
-    assert hearts(50) == 3
-    assert level_pct(50) == 50 and level_pct(100) == 100, level_pct(50)
+    assert level(0) == 1 and level(50) == 3 and level(99) == 4, level(99)
+    assert level(100) == 5 and hearts(100) == 5
+    assert level_pct(30) == 20 and level_pct(100) == 100, level_pct(30)
     assert fullness(25) == 75
     # favourite food grants more ENERGY than a plain hapje (band comes from play)
     base = dict(st)
@@ -206,6 +186,10 @@ if __name__ == "__main__":
     assert plain["bond"] == base["bond"] + 1, plain
     favd, ok, _, fav = feed(base, "bes", "bes", st["last"])
     assert ok and fav and favd["energy"] == 75, favd
+    full = dict(st)
+    full["hunger"] = 5
+    _, ok, msg, _ = feed(full, "bes", "bes", st["last"])
+    assert not ok and msg == "zit vol!", (ok, msg)
     # a beestenschool session: costs energy segments, earns real bond
     played, ok, msg = play(base, 2, False, st["last"])
     assert ok and played["energy"] == 0 and played["bond"] == base["bond"] + 6, played
@@ -215,4 +199,20 @@ if __name__ == "__main__":
     low["energy"] = 19
     _, ok, msg = play(low, 1, False, st["last"])
     assert not ok and msg == "te moe om te spelen", (ok, msg)
+    # the finish: crossing 100 snaps to permanently content...
+    near = dict(st)
+    near["bond"] = 95
+    near["energy"] = 40
+    near["hunger"] = 60
+    done, ok, _ = play(near, 1, True, st["last"])
+    assert ok and done["bond"] == 100 and finished(done), done
+    assert done["energy"] == 100 and done["hunger"] == 0, done
+    # ...then never decays, never eats, and plays free forever
+    later = decay(done, st["last"] + 48 * 3600)
+    assert later["energy"] == 100 and later["hunger"] == 0, later
+    _, ok, msg, _ = feed(done, "bes", "bes", st["last"])
+    assert not ok and msg == "hoeft niet meer te eten", (ok, msg)
+    freeplay, ok, msg = play(done, 2, True, st["last"])
+    assert ok and msg == "wat een lol!", (ok, msg)
+    assert freeplay["energy"] == 100 and freeplay["bond"] == 100, freeplay
     print("pet.py self-test OK")

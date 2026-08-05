@@ -1,9 +1,10 @@
 # screen_beast.py — BEEST-PAGINA: the hub for a caught creature.
 #
-# Portrait card with nickname on the left; Band hearts + Humeur/Energie/Honger
+# Portrait card with nickname on the left; Band hearts + Energie/Honger
 # segment meters + found facts on the right; a 4-button action bar (VOER / AAI /
-# SPEEL / DOSSIER). VOER and DOSSIER open dedicated screens; AAI and SPEEL are
-# inline care actions. Layout follows the design (detail.jsx PxDetail).
+# SPEEL / DOSSIER). A finished friend (bond maxed) trades its meters for the
+# beste-vriend star and refuses food gently — play stays, free forever.
+# Layout follows the design (detail.jsx PxDetail).
 
 import lvgl as lv
 from mpos import Activity, Intent
@@ -25,7 +26,6 @@ _ACTS = (
     ("book", "DOSSIER", "dossier"),
 )
 _SEG = (
-    ("mood", "Humeur", ui.GOLD),
     ("energy", "Energie", ui.GREEN),
     ("hunger", "Honger", ui.TERRA),
 )
@@ -94,13 +94,19 @@ class BeastActivity(Activity):
         g = self.stats
         ui.label(g, "Band", 0, 0, ui.INK, ui.font_small())
         ui.heart_row(g, 0, 16, pet.hearts(st["bond"]), scale=2)
-        for i, (k, lab, col) in enumerate(_SEG):
-            ui.seg_bar(g, 0, 44 + i * 22, lab, pet.segments(st[k]), col)
+        if pet.finished(st):
+            # a beste vriend has no needs — the meters make way for the star
+            art.draw_sprite(g, art.STAR, {"g": ui.GOLD}, 2).set_pos(0, 46)
+            ui.label(g, "Beste vriend!", 24, 48, ui.GOLD_D, ui.font_label())
+            ui.label(g, "speelt altijd mee", 24, 64, ui.TEXT_MUTED, ui.font_small())
+        else:
+            for i, (k, lab, col) in enumerate(_SEG):
+                ui.seg_bar(g, 0, 44 + i * 22, lab, pet.segments(st[k]), col)
         ui.label(
             g,
             "gevonden " + st.get("date", "?"),
             0,
-            112,
+            96,
             ui.TEXT_MUTED,
             ui.font_small(),
             w=164,
@@ -109,7 +115,7 @@ class BeastActivity(Activity):
             g,
             "%s . %dx gezien" % (st.get("place", "?"), st.get("sightings", 1)),
             0,
-            128,
+            112,
             ui.TEXT_MUTED,
             ui.font_small(),
             w=164,
@@ -117,6 +123,12 @@ class BeastActivity(Activity):
 
     def _press(self, kind):
         if kind == "feed":
+            st = store.beast_state(self.fox_id)
+            if st and pet.finished(st):
+                # no refusal screen for a beste vriend — just the fact
+                sound.play("tap")
+                self._flash("hoeft niet meer te eten")
+                return
             sound.play("tap")
             self.startActivity(
                 Intent(activity_class=FeedActivity, extras={"fox_id": self.fox_id})

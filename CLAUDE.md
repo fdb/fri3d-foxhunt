@@ -117,7 +117,7 @@ and two different "companions" happened.
 | **fox** | **vos** | A physical LoRa transmitter hidden in the field. The creature is what you *get*; the fox is what you *find*. |
 | **hunter** | **jager** | The player, when playing with a LoRa antenna: has a minted `hunter_id` (1-9999), shown as "JGR-0042". |
 | **collector** | **verzamelaar** | The player, when playing WiFi-only (no antenna): `hunter_id` is None. The UI shows the mode word where a jager would see their id. |
-| **pet state** | — | The per-creature care stats — bond, hunger, mood (`pet.py`, `store.beast_state`). Belongs to a creature, never to the companion. |
+| **pet state** | — | The per-creature care stats — bond, energy, hunger (`pet.py`, `store.beast_state`). Belongs to a creature, never to the companion. |
 | **shortcode** | — | The companion serialized for the wire: `H1A003C1` (`companion.encode` / `.decode`). |
 
 Retired words: **mascot** (say companion), **mascotte** (say maatje) — except
