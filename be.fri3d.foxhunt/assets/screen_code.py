@@ -150,6 +150,19 @@ class CodeActivity(Activity):
             return
         self.waiting = False
         if result == "ok":
+            if store.is_caught(self.fox_id):
+                # zelf gevonden: re-finding a known creature is an upgrade,
+                # not a dud (GAME_DESIGN.md) — sightings, stamp and pakket
+                # instead of a re-add that would change nothing
+                pakket = store.zelf_gevonden(self.fox_id)
+                sound.play("caught")
+                self.startActivity(
+                    Intent(
+                        activity_class=WinActivity,
+                        extras={"fox_id": self.fox_id, "pakket": pakket},
+                    )
+                )
+                return
             store.add_caught(self.fox_id)
             # Legendary catches get their fanfare from the win screen itself
             # (celebrate.Fireworks), so it loops in sync with the visuals.

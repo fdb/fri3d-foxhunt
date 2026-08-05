@@ -202,7 +202,8 @@ class HomeActivity(Activity):
                 heat = max(1, min(3, (r.level * 3 + 4) // 5))
                 nearby.append((c, heat))
         # still-huntable first (the row is a hunt shortcut), warmest leading;
-        # already-caught ones trail as "she's out there" sightings
+        # already-caught ones trail — and stay huntable: re-finding a known
+        # creature is zelf vinden (GAME_DESIGN.md), an upgrade, never a dud
         nearby.sort(key=lambda ch: (ch[0]["id"] in caught, -ch[1]))
         if nearby:
             cards = ui.row(s, 6, 68, 308, 52, gap=5)
@@ -220,10 +221,9 @@ class HomeActivity(Activity):
                     )
                     seg.set_style_border_width(ui.BORDER_THIN, 0)
                     seg.set_style_border_color(ui.hexc(ui.INK), 0)
-                on_click = self._open if is_caught else self._hunt
                 ui.focusable(
                     cell,
-                    on_click=lambda cc=c["id"], fn=on_click: fn(cc),
+                    on_click=lambda cc=c["id"]: self._hunt(cc),
                     focus_border=True,
                 )
         else:

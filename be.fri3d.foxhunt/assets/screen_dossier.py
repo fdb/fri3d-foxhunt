@@ -40,6 +40,10 @@ class DossierActivity(Activity):
             w=210,
         )
         ui.heart_row(s, 82, 76, pet.hearts(bond), scale=2)
+        if self.fox_id in store.zelf_ids():
+            # the zelf-gevonden stamp: the hunter visited this one at home
+            art.draw_sprite(s, art.STAR, {"g": ui.GOLD}, 1).set_pos(206, 76)
+            ui.label(s, "zelf gevonden", 220, 77, ui.GOLD_D, ui.font_small())
 
         # ── facts grid ───────────────────────────────────────────────────
         facts = (

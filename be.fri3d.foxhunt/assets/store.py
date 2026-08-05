@@ -6,6 +6,7 @@
 #   "origins"  : dict {str(id): "vangst"|"spoor"|"start"} — how a creature
 #                arrived (own find / vonk-geluk / startbeest); feeds the
 #                dossier lineage
+#   "zelf"     : list of ids stamped zelf gevonden (re-found at the fox)
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
 #   "vonk"     : snuffel log — {date, count (daily reset), pairs: {mac:
@@ -213,6 +214,40 @@ def _raw_state(prefs, cid):
         raw = pet.default_state(_today(), _PLACE, _now())
         prefs.edit().put_dict_item("beast", str(cid), raw).commit()
     return raw
+
+
+def zelf_ids():
+    """Ids stamped zelf gevonden — the dossier's reader."""
+    return SharedPreferences(_APP).get_list("zelf", [])
+
+
+def zelf_gevonden(cid):
+    """A jager found the fox of a creature already in the boek (screen_code).
+    Not a dud but an upgrade (GAME_DESIGN.md, Zelf vinden): bump sightings,
+    stamp the dossier, and pay the verzorgingspakket — hapjes weighted toward
+    the creature's favourite. Nothing is removed or reset; bond and pet state
+    carry straight through. Returns the pakket {food: n}.
+    One instance, one editor (CLAUDE.md, Conventions)."""
+    v = voorraad()  # may seed the starter — must run BEFORE prefs snapshots
+    prefs = SharedPreferences(_APP)
+    e = prefs.edit()
+    raw = prefs.get_dict("beast", {}).get(str(cid))
+    if raw is not None:
+        raw = dict(raw)
+        raw["sightings"] = int(raw.get("sightings", 1)) + 1
+        e.put_dict_item("beast", str(cid), raw)
+    zelf = prefs.get_list("zelf", [])
+    if cid not in zelf:
+        zelf.append(cid)
+        e.put_list("zelf", zelf)
+    c = by_id(cid)
+    fav = (c.get("favoriet") if c else None) or FOODS[0]
+    pakket = {fav: 2, random.choice([f for f in FOODS if f != fav]): 1}
+    for f, n in pakket.items():
+        v[f] = v.get(f, 0) + n
+    e.put_dict("voorraad", v)
+    e.commit()
+    return pakket
 
 
 def finished_ids():
