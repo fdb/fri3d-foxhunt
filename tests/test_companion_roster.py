@@ -10,26 +10,29 @@ sys.modules.setdefault("lvgl", MagicMock())
 sys.modules.setdefault("mpos", MagicMock())
 
 import companion  # noqa: E402
+import atlas  # noqa: E402
 
 
 class CompanionRosterTest(unittest.TestCase):
-    """The roster's art contract: id == aseprite layer == <id>.png.
+    """The roster's art contract: id == aseprite layer == atlas key.
 
-    Nothing at runtime notices a missing PNG — LVGL just draws nothing, and a
+    Nothing at runtime notices a missing sprite — LVGL just draws nothing, and a
     hoed that silently stopped existing is exactly the kind of thing you find
     on the badge at the festival instead of here."""
 
     def test_every_head_and_accessory_has_baked_art(self):
         for part in companion.HEADS + companion.ACCS:
-            png = ASSETS / "companions" / (part["id"] + ".png")
-            self.assertTrue(png.is_file(), "missing art for %s" % part["id"])
+            key = companion.src(part["id"])
+            self.assertIn(key, atlas.SPRITES, "missing art for %s" % part["id"])
 
     def test_no_stray_companion_art(self):
-        # The other direction: a PNG nothing references is either a typo in an
-        # id or a layer that never made it into the roster.
+        # The other direction: an atlas entry nothing references is either a
+        # typo in an id or a layer that never made it into the roster.
         ids = {p["id"] for p in companion.HEADS + companion.ACCS}
         stray = {
-            f.stem for f in (ASSETS / "companions").glob("*.png") if f.stem not in ids
+            Path(key).stem
+            for key in atlas.SPRITES
+            if key.startswith("companions/") and Path(key).stem not in ids
         }
         self.assertEqual(stray, set())
 
