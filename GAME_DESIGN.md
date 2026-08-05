@@ -509,14 +509,20 @@ reward.
 
 ## Onboarding: the antenna question and the startbeest
 
-Setup asks one game question: **"Heb je een antenne?"** A yes adds the Jagen
-mode; a no makes a verzamelaar. The framing is additive, never a class
-choice — the answer stays a settings toggle forever after, in both
-directions, because the passive antenna is invisible to software and
-circumstances change (an antenna bought on Saturday, one that breaks, one
-that was borrowed). Nothing verifies the answer and nothing needs to: a
-jager without an antenna just has a quiet hunt screen, and their hunter_id
-scores nothing the LoRa bridge never attributes.
+Setup answers its one game question by itself: **is the LoRa kit
+installed?** The kit's radio — a Seeed Wio-SX1262-N module — solders onto
+the badge's SPI bus, so the app can probe for it: read a register with a
+known reset value, and a missing module answers with bus noise (0x00/0xFF).
+Detected → Jagen is on, and setup says so ("Antenne gevonden!"). Not
+detected → verzamelaar, and no question is asked. A settings toggle remains
+as the override in both directions, because the probe sees the radio
+module, not the antenna: the spiral antenna solders on separately and is
+invisible to software, so a player mid-assembly may want Jagen off, and a
+false negative must never lock anyone out. Probing is receive-only and
+safe; the module must simply never transmit without its antenna (a
+hardware warning, and another reason the badge only listens). A wrongly
+enabled Jagen is harmless either way: a quiet hunt screen, and a hunter_id
+the LoRa bridge never attributes anything to.
 
 **Upgrading is purely additive.** A verzamelaar who installs an antenna
 gains the Hunt track and loses nothing — not creatures, not bond, not food.
@@ -527,8 +533,10 @@ hooked without an antenna and then went and got one. What keeps hunting
 meaningful for an upgrader is already in the design — rares and legendaries
 never arrive by vonk-geluk, staged fox activation keeps new species
 entering all weekend, and *zelf vinden* (below) makes re-finding a known
-creature a scored, celebrated event. The toggle mints a hunter_id (via the
-existing profile PATCH); switching back simply leaves it dormant.
+creature a scored, celebrated event. The kit is soldered, so the upgrade
+moment is a boot: the first launch that detects the module celebrates it —
+"Antenne gevonden!" — and mints a hunter_id (via the existing profile
+PATCH). Toggling Jagen off later simply leaves the id dormant.
 
 ### The startbeest
 
@@ -686,8 +694,9 @@ identities:
 - Players with an antenna can additionally enable Hunt.
 - Players may add an antenna or change their preference later.
 
-The passive antenna cannot be detected reliably by software, so the Hunt track
-should be enabled explicitly during setup or in settings.
+The LoRa kit's radio module sits on the badge's SPI bus and is probed at
+startup, so the Hunt track enables itself; a settings toggle covers the
+edge cases the probe cannot see (see *Onboarding*).
 
 The home experience's top level is the triad plus the collection —
 Snuffelen, Plukken, Spelen, Beesten — with Jagen added for players with an
