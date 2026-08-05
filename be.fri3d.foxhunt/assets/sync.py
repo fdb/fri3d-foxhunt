@@ -15,6 +15,7 @@ from mpos import TaskManager
 _ROUTES = {
     "snuffel": ("POST", "/api/v1/player/snuffel"),
     "bonded": ("PATCH", "/api/v1/auth/user"),
+    "profile": ("PATCH", "/api/v1/auth/user"),
 }
 _busy = False
 

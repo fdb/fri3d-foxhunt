@@ -415,9 +415,9 @@ def outbox():
 
 
 def enqueue_report(kind, data):
-    """Queue a badge→server report. kind: "snuffel" | "bonded" — sync.py
-    maps kinds to routes. Callers enqueue LAST in their write path (the
-    one-instance-one-editor rule: this commits via its own instance)."""
+    """Queue a badge→server report. kind: "snuffel" | "bonded" | "profile"
+    — sync.py maps kinds to routes. Callers enqueue LAST in their write path
+    (the one-instance-one-editor rule: this commits via its own instance)."""
     prefs = SharedPreferences(_APP)
     box = prefs.get_list("outbox", [])
     box.append({"kind": kind, "data": data, "t": _now()})

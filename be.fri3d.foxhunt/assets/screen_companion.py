@@ -290,7 +290,13 @@ class CompanionActivity(Activity):
     def _register(self):
         sound.play("tap")
         if self.edit:
+            code = companion.encode(self.head, self.accs, self.bg)
             store.update_profile(head=self.head, accs=self.accs, bg=self.bg)
+            # Local first: the edit should stick even when the woods have no
+            # WiFi. The outbox PATCHes the server from the next home resume.
+            # Enqueue last because it writes through its own preferences
+            # instance (store's one-instance-one-editor rule).
+            store.enqueue_report("profile", {"profile_pic": code})
             self.finish()
             return
         # Save first: whatever the network does, the profile is on the badge.
