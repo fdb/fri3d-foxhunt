@@ -791,9 +791,8 @@ identities:
 
 The Hunt track enables through the WORD JAGER button in instellingen,
 which probes the badge's SPI bus for the LoRa radio (see *Onboarding*).
-Verzamelaars never enter the hunt: an awake creature's grid tile shows a
-teaser ("vraag een jager"), not the hunt screen — a mode you cannot play
-must not open.
+Verzamelaars never enter the hunt: for them an awake creature's grid tile
+stays as inert as a sleeping one — a mode you cannot play must not open.
 
 One **uitleg** screen states the core loop in the player's own mode, in
 three short lines — jager: "jij vindt de beesten; verzamelaars hebben het

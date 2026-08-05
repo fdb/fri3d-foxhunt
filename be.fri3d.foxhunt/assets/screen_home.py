@@ -122,7 +122,9 @@ class HomeActivity(Activity):
         for c in boek:
             cid = c["id"]
             is_caught = cid in caught
-            huntable = (cid in awake) and not is_caught
+            # the hunt is jager-only: a verzamelaar's awake tile stays as
+            # inert as a sleeping one — a mode you cannot play must not open
+            huntable = jager and (cid in awake) and not is_caught
 
             cell = ui.box(
                 grid,
