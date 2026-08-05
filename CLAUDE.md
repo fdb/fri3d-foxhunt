@@ -263,7 +263,9 @@ tags) only — it is unreadable at paragraph length.
 ## Server debug routes
 `server/` (Hono on Cloudflare Workers + D1) exposes read-only inspection pages
 under `/debug/*` — `/debug/log` for the event log, `/debug/players` for the
-roster. Conventions for adding another one:
+player list, `/debug/players/:id` for one player (maatje, account fields, catch
+list with names, and the events that wrote them). Conventions for adding
+another one:
 - **One handler, two representations.** Query D1 once, then
   `if (c.req.header("Accept")?.includes("application/json")) return c.json(...)`
   before falling through to the HTML render. Curl gets JSON, the browser gets a
@@ -277,6 +279,29 @@ roster. Conventions for adding another one:
   `HH:MM`. Never dump the raw ISO string in HTML; JSON keeps it verbatim.
 - Debug pages are unauthenticated and unpolled — no HTMX refresh unless the page
   is meant to be left open (the scoreboard is the only one that is).
+- **Roster names live in the worker, never in `static/`.** `lib/creatures.ts`
+  carries id → naam → tier so a debug page can say "Eend" instead of "7"; it is
+  a port of `creatures.py`, names and tiers only. The spoiler rule above is
+  about what the *public* site hands out, and a debug route nobody links is not
+  that — but the art stays out of `static/` either way.
+- **The maatje renders from the shortcode**, through `lib/companion.ts` (a port
+  of `companion.py`: HEADS, ACCS, BGS and `decode`) and `<Companion>`, which
+  stacks one `<img>` per layer exactly as `companion.draw()` stacks LVGL
+  layers. Three things must stay in sync with the badge or the same shortcode
+  draws two different maatjes: head order, ACCS order (it is both the bit
+  positions *and* the draw order, append-only), and the BGS palette.
+  The layer PNGs are inlined as data URIs by `scripts/bake_server_art.sh` into
+  `lib/companion-art.ts` — not copied into `static/`, because a `konijn.png` in
+  view-source leaks a roster name, and because an avatar is up to eleven layers
+  and a list draws one per row. All fifteen are 2.7 KB. Re-run the script after
+  changing `artwork/companions/`; `--check` reports drift. It is in
+  `.prettierignore`: prettier would wrap the data URIs and the script owns the
+  file's shape.
+- **Sprite sizes must stay integer multiples of 16.** `image-rendering:
+  pixelated` only keeps pixels square at whole scale factors, so `.maatje` is
+  `box-sizing: content-box` against the global `border-box` — otherwise the 2px
+  frame comes out of the art and a 96px avatar scales 5.75x. Same rule as the
+  badge's "never let LVGL scale a sprite", same reason.
 
 ## Layout source of truth
 `layout/foxhunt-layout.html` is the pixel-exact 320×240 spec — it owns

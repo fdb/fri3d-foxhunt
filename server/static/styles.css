@@ -181,6 +181,94 @@ td.muted {
   padding: 1.5rem 0;
 }
 
+/* The maatje: the backdrop colour, then one absolutely-positioned layer per
+   sprite, stacked in ACCS order — the same composition companion.draw() does
+   with LVGL layers on the badge. The source art is 16x16, so every size is an
+   integer multiple and `pixelated` keeps the pixels square. */
+.maatje {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  /* content-box against the global border-box: the inline width is the ART,
+     and the frame is drawn outside it. Under border-box a 96px maatje would
+     scale 16px of source into 92px — 5.75x, and `pixelated` only keeps pixels
+     square at whole factors. Same rule as the badge's, for the same reason. */
+  box-sizing: content-box;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.maatje img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* Player detail: portrait left, account fields right, wrapping on narrow
+   screens. <dl> rather than a table — these are one player's fields, not rows. */
+main section.profile {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 1rem;
+}
+
+.profile dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  flex: 1 1 16rem;
+}
+
+.profile dt {
+  font-family: var(--font-pixel);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  align-self: center;
+}
+
+.profile dd {
+  margin: 0;
+  font-family: var(--font-pixel);
+  word-break: break-all;
+}
+
+.profile dd.muted,
+.profile dd code,
+.profile dd .muted {
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+/* Section headings between the panels of a detail page */
+main h2 {
+  font-family: var(--font-pixel);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 1.5rem 0 0.6rem;
+}
+
+main a {
+  color: var(--green-d);
+}
+
+/* The one creature the server granted itself, called out in the catch list */
+td .tag-starter {
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-pixel);
+}
+
 @media (max-width: 480px) {
   body {
     font-size: 15px;
