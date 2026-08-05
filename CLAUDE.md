@@ -260,6 +260,12 @@ Never copy `artwork/animals/` into `server/static/` again. Body copy is Nunito;
 Pixelify Sans is for headings and the badge-mirroring UI (tables, buttons,
 tags) only — it is unreadable at paragraph length.
 
+**The scoreboard says HOW MANY, never WHICH.** `/scores` is public, so it shows
+each player's maatje, their catch count and when they last scored — and no
+creature name, id or picture. `fetchScores` is written so it cannot leak one:
+it counts `players_creatures` and never selects a `creature_id`. The names
+belong to the badge that earned them and to `/debug/players/:id`.
+
 ## Server debug routes
 `server/` (Hono on Cloudflare Workers + D1) exposes read-only inspection pages
 under `/debug/*` — `/debug/log` for the event log, `/debug/players` for the
@@ -298,10 +304,12 @@ another one:
   `.prettierignore`: prettier would wrap the data URIs and the script owns the
   file's shape.
 - **Sprite sizes must stay integer multiples of 16.** `image-rendering:
-  pixelated` only keeps pixels square at whole scale factors, so `.maatje` is
-  `box-sizing: content-box` against the global `border-box` — otherwise the 2px
-  frame comes out of the art and a 96px avatar scales 5.75x. Same rule as the
-  badge's "never let LVGL scale a sprite", same reason.
+  pixelated` only keeps pixels square at whole scale factors. `.maatje` carries
+  no border or padding — the backdrop is its own edge — and anything added
+  later must sit OUTSIDE the box (`box-sizing: content-box`), because the
+  global `border-box` takes it out of the art instead: a 2px frame turns a 96px
+  avatar into a 5.75x scale. Same rule as the badge's "never let LVGL scale a
+  sprite", same reason.
 
 ## Layout source of truth
 `layout/foxhunt-layout.html` is the pixel-exact 320×240 spec — it owns

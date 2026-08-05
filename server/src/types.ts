@@ -24,6 +24,9 @@ export interface ScoreRow {
   id: number;
   name: string;
   hunter_id: number | null;
+  profile_pic: string;
+  // A count, never a list: the scoreboard is public and which beesten a player
+  // holds is a spoiler. See fetchScores.
   foxes_found: number;
   last_found: string | null;
 }

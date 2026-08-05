@@ -175,6 +175,12 @@ td.muted {
   background: var(--green);
 }
 
+/* The bar is one row of FOX_COUNT or it is not a bar — the catch-name column
+   next to it will take any width the table can spare, so say so here. */
+td.foxes {
+  white-space: nowrap;
+}
+
 .empty {
   color: var(--mystery);
   text-align: center;
@@ -184,19 +190,17 @@ td.muted {
 /* The maatje: the backdrop colour, then one absolutely-positioned layer per
    sprite, stacked in ACCS order — the same composition companion.draw() does
    with LVGL layers on the badge. The source art is 16x16, so every size is an
-   integer multiple and `pixelated` keeps the pixels square. */
+   integer multiple and `pixelated` keeps the pixels square.
+
+   No frame around it: the backdrop colour is the maatje's own, and an ink
+   border reads as a second, competing edge. Anything added here — border,
+   padding — must go OUTSIDE the box (box-sizing: content-box), because the
+   global border-box would take it out of the art instead and scale 16px of
+   source by a fraction. */
 .maatje {
   position: relative;
   display: inline-block;
   flex: none;
-  /* content-box against the global border-box: the inline width is the ART,
-     and the frame is drawn outside it. Under border-box a 96px maatje would
-     scale 16px of source into 92px — 5.75x, and `pixelated` only keeps pixels
-     square at whole factors. Same rule as the badge's, for the same reason. */
-  box-sizing: content-box;
-  border: 2px solid var(--ink);
-  border-radius: 3px;
-  overflow: hidden;
   vertical-align: middle;
 }
 
@@ -258,8 +262,15 @@ main h2 {
   margin: 1.5rem 0 0.6rem;
 }
 
+/* Links inside a table are the row's own name, not prose — the green already
+   says they are clickable, and a rule under every row reads as clutter. */
 main a {
   color: var(--green-d);
+  text-decoration: none;
+}
+
+main a:hover {
+  text-decoration: underline;
 }
 
 /* The one creature the server granted itself, called out in the catch list */

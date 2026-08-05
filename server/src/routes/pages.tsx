@@ -11,10 +11,14 @@ export const pageRoutes = new Hono<{ Bindings: Bindings }>();
 
 const FOX_COUNT = 4;
 
+// HOW MANY, never WHICH. The scoreboard is public and the roster is the
+// player's to discover (CLAUDE.md, "Server pages"), so this query counts
+// players_creatures and never reads a creature_id. profile_pic rides along
+// because the maatje is the player's face on the board.
 async function fetchScores(db: D1Database): Promise<ScoreRow[]> {
   const { results } = await db
     .prepare(
-      `SELECT p.id, p.name, p.hunter_id,
+      `SELECT p.id, p.name, p.hunter_id, p.profile_pic,
               COUNT(pc.creature_id) AS foxes_found,
               MAX(pc.dt_found) AS last_found
        FROM players p
@@ -63,9 +67,11 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
       <thead>
         <tr>
           <th>#</th>
+          <th>Maatje</th>
           <th>Speler</th>
           <th>Hunter</th>
           <th>Vossen</th>
+          <th>Beesten</th>
           <th>Laatst</th>
         </tr>
       </thead>
@@ -73,19 +79,23 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
         {scores.map((s, i) => (
           <tr>
             <td class="rank">{i + 1}</td>
+            <td>
+              <Companion code={s.profile_pic} size={32} />
+            </td>
             <td>{s.name}</td>
             <td class="muted">{s.hunter_id ?? "—"}</td>
-            <td>
+            <td class="foxes">
               {Array.from({ length: FOX_COUNT }, (_, n) => (
                 <span class={n < s.foxes_found ? "seg seg-on" : "seg"} />
               ))}
             </td>
+            <td class="muted">{s.foxes_found}</td>
             <td class="muted">{shortTime(s.last_found)}</td>
           </tr>
         ))}
         {scores.length === 0 && (
           <tr>
-            <td class="empty" colspan={5}>
+            <td class="empty" colspan={7}>
               Nog geen spelers geregistreerd.
             </td>
           </tr>
