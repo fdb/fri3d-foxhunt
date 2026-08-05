@@ -21,11 +21,11 @@ export const ACCS = [
   "bril",
   "strik",
   "hoed",
-  "snor",
+  "bloem",
   "sjaal",
   "pet",
   "koptelefoon",
-  "bloem",
+  "snor",
   "kroon",
   "sterren",
 ];

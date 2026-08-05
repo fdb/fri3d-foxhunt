@@ -29,21 +29,21 @@ HEADS = [
 # .aseprite. That is why kroon sits over bril and sterren over everything.
 #
 # unlock: creatures caught before it opens up. The three freebies are what you
-# build your first maatje from; the other seven arrive one per four catches
-# (4, 8, ... 28), so the avatar keeps growing for the whole hunt and sterren is
-# the thing you only wear if you caught them all.
+# build your first maatje from; the other seven arrive one per two catches
+# (2, 4, ... 14), so completing the accessory roster is achievable in a
+# weekend while still rewarding steady progress.
 ACCS = [
     {"id": "bril", "naam": "Bril", "unlock": 0},
     {"id": "strik", "naam": "Strik", "unlock": 0},
     {"id": "hoed", "naam": "Hoed", "unlock": 0},
-    {"id": "snor", "naam": "Snor", "unlock": 4},
-    {"id": "sjaal", "naam": "Sjaal", "unlock": 8},
-    {"id": "pet", "naam": "Pet", "unlock": 12},
-    {"id": "koptelefoon", "naam": "Koptel.", "unlock": 16},
-    {"id": "bloem", "naam": "Bloem", "unlock": 20},
-    {"id": "kroon", "naam": "Kroon", "unlock": 24},
+    {"id": "bloem", "naam": "Bloem", "unlock": 2},
+    {"id": "sjaal", "naam": "Sjaal", "unlock": 4},
+    {"id": "pet", "naam": "Pet", "unlock": 6},
+    {"id": "koptelefoon", "naam": "Koptel.", "unlock": 8},
+    {"id": "snor", "naam": "Snor", "unlock": 10},
+    {"id": "kroon", "naam": "Kroon", "unlock": 12},
     # "Ster", not "Sterren": a tile label is 38px wide and the plural clips.
-    {"id": "sterren", "naam": "Ster", "unlock": 28},
+    {"id": "sterren", "naam": "Ster", "unlock": 14},
 ]
 
 # backdrop swatches; the last one is the single dark option.

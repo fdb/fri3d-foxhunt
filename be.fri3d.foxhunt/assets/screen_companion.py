@@ -2,8 +2,8 @@
 #
 # Live preview on the left, three tabs on the right (KOP / EXTRA / KLEUR) over
 # one shared tile grid (design: mascotte.jsx). Most accessories are locked
-# until enough creatures are caught — at registration that is all of them
-# except bril + snor, which is the point: the avatar grows with the hunt.
+# until enough creatures are caught — at registration only bril, strik and
+# hoed are available, so the avatar grows with the hunt.
 # REGISTREER saves the profile locally and hands off to the send screen.
 
 import lvgl as lv

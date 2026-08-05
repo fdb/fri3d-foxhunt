@@ -41,6 +41,23 @@ class CompanionRosterTest(unittest.TestCase):
         self.assertEqual(unlocks[0], 0)  # something to build a maatje from
         self.assertEqual(companion.ACCS[-1]["id"], "sterren")  # the top prize
 
+    def test_unlock_ladder_rewards_every_two_catches(self):
+        self.assertEqual(
+            [(a["id"], a["unlock"]) for a in companion.ACCS],
+            [
+                ("bril", 0),
+                ("strik", 0),
+                ("hoed", 0),
+                ("bloem", 2),
+                ("sjaal", 4),
+                ("pet", 6),
+                ("koptelefoon", 8),
+                ("snor", 10),
+                ("kroon", 12),
+                ("sterren", 14),
+            ],
+        )
+
     def test_is_unlocked_opens_exactly_on_the_threshold(self):
         sterren = companion.ACCS[-1]
         self.assertFalse(companion.is_unlocked(sterren, sterren["unlock"] - 1))
