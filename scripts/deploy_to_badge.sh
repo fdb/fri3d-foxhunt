@@ -359,16 +359,24 @@ fi
 # ── Prune, verify, refresh, evict the old modules, and launch ────────
 # All of it in one round trip. Orphans are deleted here, after the install,
 # so the freshly pushed manifest already describes the pruned tree.
-# The badge does the count check itself so it can refuse to launch a short
-# install without a second trip back to ask; the count skips .deploy.sha,
-# which is deploy bookkeeping, not part of the app.
+# The badge verifies its OWN copy against the manifest it just received, so
+# it can refuse to launch a bad install without a second trip back to ask:
+# path set + size for every file (a stat walk, ~free), plus a full SHA-256
+# of exactly the files this run copied (~0.28s each; a typical deploy copies
+# a handful). The hash is not paranoia: `fs cp` reporting success is a
+# statement about the transport, not about the flash — a badge-side hiccup
+# mid-write can leave a truncated (or, torn mid-overwrite, a stale
+# same-size) file behind a clean exit code, and that is exactly the 0-byte
+# .mpy that once shipped behind a "Verified 44/44" that only counted files.
+# On any mismatch the badge deletes the manifest itself — a manifest that
+# vouches for bad bytes must not survive to be trusted — and the app is not
+# started; the next run's hash walk repairs everything.
 # refresh_apps makes AppManager re-read the manifests (what the controller's
 # installapp did as a separate call).
 # The eviction is the actual restart fix — AppManager.execute_script only drops
 # the *entrypoint* from sys.modules, so a relaunch re-imports the new foxhunt.py
 # while its `import screen_hunt` still hits the previous run's cached module.
 # Match on __file__ to catch exactly ours, whatever they are named.
-expected=$(cd "$STAGE" && find . -type f | wc -l | tr -d ' ')
 if [[ "$orphan_count" -gt 0 ]]; then
     phase "Pruning $orphan_count stale file(s), verifying + evicting..."
     sed 's/^/  - /' "$STAGE_ROOT/orphans.lst"
@@ -376,10 +384,13 @@ else
     phase "Install done; verifying + evicting..."
 fi
 {
-    echo "import gc, os, sys"
+    echo "import binascii, gc, hashlib, os, sys"
     echo "root = \"$APP_DIR\""
     echo "orphans = ["
     sed 's|.*|    "&",|' "$STAGE_ROOT/orphans.lst"
+    echo "]"
+    echo "copied = ["
+    sed 's|.*|    "&",|' "$STAGE_ROOT/changed.lst"
     echo "]"
     cat <<PY
 for p in orphans:
@@ -405,17 +416,63 @@ if orphans:
             os.rmdir(d)
         except OSError:
             pass
-n = 0
+man = {}
+try:
+    with open(root + "/.deploy.sha") as fh:
+        for line in fh:
+            if line.startswith("#src "):
+                continue
+            parts = line.split()
+            if len(parts) == 3:
+                man[parts[2]] = (parts[0], int(parts[1]))
+except OSError:
+    pass
+disk = {}
 stack = [root]
 while stack:
     p = stack.pop()
     for x in os.listdir(p):
         f = p + "/" + x
-        if os.stat(f)[0] & 0x4000:
+        st = os.stat(f)
+        if st[0] & 0x4000:
             stack.append(f)
         elif f != root + "/.deploy.sha":
-            n += 1
-print("COUNT", n)
+            disk[f[len(root) + 1:]] = st[6]
+bad = []
+if not man:
+    bad.append("manifest missing or unreadable")
+for r in man:
+    if r not in disk:
+        bad.append("missing: " + r)
+    elif man[r][1] != disk[r]:
+        bad.append("size: %s is %d bytes, manifest says %d" % (r, disk[r], man[r][1]))
+for r in disk:
+    if r not in man:
+        bad.append("extra: " + r)
+buf = bytearray(1024)
+mv = memoryview(buf)
+for r in copied:
+    if r not in man or man[r][1] != disk.get(r, -1):
+        continue  # already flagged above; hashing it would double-report
+    h = hashlib.sha256()
+    with open(root + "/" + r, "rb") as fh:
+        while True:
+            k = fh.readinto(buf)
+            if not k:
+                break
+            h.update(mv[:k])
+    if binascii.hexlify(h.digest()).decode()[:16] != man[r][0]:
+        bad.append("hash: " + r)
+if bad:
+    try:
+        os.remove(root + "/.deploy.sha")
+    except OSError:
+        pass
+    for b in bad:
+        print("BAD", b)
+    print("VERIFY failed")
+else:
+    print("VERIFY ok %d %d" % (len(disk), len(copied)))
 from mpos import AppManager
 if $need_install:
     # only after a real install: re-reads every app's manifest, ~10s
@@ -426,20 +483,22 @@ for k in stale:
     del sys.modules[k]
 gc.collect()
 print("EVICTED", len(stale), ",".join(sorted(stale)))
-if $START and n == $expected:
+if $START and not bad:
     AppManager.start_app("$APP_ID")
     print("STARTED")
 PY
 } > "$STAGE_ROOT/exec2.py"
 "${MP[@]}" run "$STAGE_ROOT/exec2.py" > "$STAGE_ROOT/verify.txt"
 tr -d '\r' < "$STAGE_ROOT/verify.txt" > "$STAGE_ROOT/verify.lst"
-actual=$(sed -n 's/^COUNT //p' "$STAGE_ROOT/verify.lst" | tail -1)
-if [[ "$actual" != "$expected" ]]; then
-    echo "error: badge has ${actual:-?} files, source has $expected. The install was" >&2
-    echo "       short — re-run this script to repair it." >&2
+if ! grep -q '^VERIFY ok' "$STAGE_ROOT/verify.lst"; then
+    echo "error: post-install verification FAILED — the badge's copy does not match" >&2
+    echo "       what this run staged:" >&2
+    sed -n 's/^BAD /         /p' "$STAGE_ROOT/verify.lst" >&2
+    echo "       The badge dropped its manifest; re-run this script to repair." >&2
     exit 1
 fi
-phase "Verified $actual/$expected files on badge."
+read -r v_files v_hashed <<< "$(sed -n 's/^VERIFY ok //p' "$STAGE_ROOT/verify.lst" | tail -1)"
+phase "Verified $v_files files against the manifest ($v_hashed copied file(s) hash-checked)."
 sed -n 's/^EVICTED /Evicted cached modules: /p' "$STAGE_ROOT/verify.lst"
 if [[ "$START" -eq 1 ]]; then
     grep -q '^STARTED' "$STAGE_ROOT/verify.lst" \
