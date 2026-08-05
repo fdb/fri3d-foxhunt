@@ -446,18 +446,22 @@ class HttpRegistrar(Registrar):
         TaskManager.create_task(self._delete_account(badge, on_update))
 
     async def _delete_account(self, badge, on_update):
-        status = 0
+        status, data = 0, None
         try:
-            status, _ = await _json_request(
+            status, data = await _json_request(
                 "DELETE", "/api/v1/auth/user", {"badge_id": badge}
             )
         except Exception as e:
             print("registrar: delete failed:", e)
-        # 404 counts. The badge is asking for the account to be gone, and a
-        # server that never had one has already granted that — an antenna-less
-        # badge whose registration failed halfway is the ordinary way to get
-        # here, and it must still be able to wipe itself clean.
-        ok = status in (200, 404)
+        # 404 counts, but only from the ROUTE. The badge is asking for the
+        # account to be gone, and a server that never had one has already
+        # granted that — an antenna-less badge whose registration failed
+        # halfway is the ordinary way to get here, and it must still be able to
+        # wipe itself clean. A server too old to have the route answers the
+        # same 404 with no JSON at all, and that one is not a grant: it once
+        # let a badge wipe itself while the account it asked about lived on,
+        # so the next registration met its own row and said "badge al bekend".
+        ok = status == 200 or (status == 404 and data is not None)
         if not ok:
             print("registrar: delete rejected, HTTP", status)
         on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})

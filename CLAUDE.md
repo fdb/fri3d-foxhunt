@@ -220,7 +220,12 @@ talks to `/api/v1/auth/*` there.
     `store.reset_all`, because the local wipe is the step nobody can undo. A
     server that doesn't answer must leave the badge untouched and say so — that
     is also why the screen has no separate wifi check, and why a 404 counts as
-    success (the badge asked for the account to be gone).
+    success (the badge asked for the account to be gone) **only when it carries
+    a JSON body**. A worker deployed before this route existed answers the same
+    404 with Hono's plain-text not-found, and that is not a grant: it once let a
+    badge wipe itself while the account it asked about lived on, so the next
+    registration met its own row and showed "badge al bekend" instead of
+    starting over. Deploy the server before trusting a wipe.
   - **`DELETE /api/v1/auth/user` is a soft delete** — `dt_deleted` stamped, row
     kept. Every player-facing read filters it out (restore, PATCH, `/found`,
     `/scores`); `/debug/players` keeps it tagged GEWIST so an organiser can undo
