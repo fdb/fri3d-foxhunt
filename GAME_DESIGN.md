@@ -846,11 +846,40 @@ writer:
 is enough to store the creature — rate-limited, per-pair-per-day enforced,
 and rarity-capped at the spreadable tiers — because a child must never lose
 a beest to a friend's dead battery or a badge that never reconnects. Vonk
-*score*, by contrast, counts only when both sides' reports corroborate,
-consistent with the rule that public score counts only server-verified
-unique events. The worst a forged report can mint is a common creature on
+*score*, by contrast, counts only when both sides' reports corroborate and
+the event falls inside the camp window (see *Buiten het kamp*), consistent
+with the rule that public score counts only server-verified unique events. The worst a forged report can mint is a common creature on
 the forger's own profile and no points: the same boring single-player mod
 the adversarial section already accepts.
+
+## Buiten het kamp (before and after)
+
+The game must not die at the terrain fence. Care, spelen and snuffelen
+already work anywhere — only plukken is camp-bound, because it keys on the
+`fri3d-badge` SSID. Decided:
+
+- **No public thuismodus setting.** The any-SSID switch ("pluk overal")
+  stays in the hidden debug screen, where it already exists for pre-camp
+  testing. During camp, finding it takes the same effort-and-knowledge
+  barrier as the home-brew hotspot the adversarial section already accepts,
+  and the payout is the same local food: boring. A visible settings toggle
+  would remove that barrier and spread one tap at a time through a tent row.
+- **After the camp, the secret is the souvenir.** The closing announcement
+  tells everyone how to open the debug screen (tap the badge id five times
+  in instellingen) and flip "pluk overal": the neighbourhood becomes the
+  terrain and the badge keeps living as a huisdier. Known cost, accepted
+  deliberately: the same screen holds the roster unlocks, so the reveal also
+  hands out the skip-the-game buttons. After teardown the stakes are zero —
+  your badge, your rules is the point at this camp.
+- **The server fences score to the camp window.** Scored events — vonken,
+  and any future bond-milestone reports — count only when they fall inside
+  the camp dates; outside the window the server still accepts grants
+  (creature spread, restores) but writes no score. This is a server rule,
+  never a badge rule: client toggles cannot guard score, because the
+  protocol is public by Saturday. Pre-camp play therefore costs the
+  scoreboard nothing — a kid who arrives with a full pantry and a loved
+  startbeest arrives *readier*, not richer: tutorial done at home, day-1
+  infodesk queue shorter.
 
 ## Recommended first playable slice
 
