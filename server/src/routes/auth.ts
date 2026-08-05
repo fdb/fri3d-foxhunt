@@ -313,6 +313,22 @@ authRoutes.patch("/user", async (c) => {
     values.push(profilePic);
     changes.profile_pic = profilePic;
   }
+  if (body.bonded !== undefined) {
+    // The badge's bonded count (band-5 creatures), via the report outbox.
+    // Self-claimed and display-only — never a ranking key — so a plain
+    // bounds check is all the trust it needs.
+    const bonded = body.bonded;
+    if (
+      typeof bonded !== "number" ||
+      !Number.isInteger(bonded) ||
+      bonded < 0 ||
+      bonded > 64
+    )
+      return c.json({ error: "invalid bonded (integer 0-64)" }, 400);
+    fields.push("bonded = ?");
+    values.push(bonded);
+    changes.bonded = bonded;
+  }
   if (fields.length === 0) return c.json({ error: "nothing to update" }, 400);
 
   fields.push("dt_updated = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')");

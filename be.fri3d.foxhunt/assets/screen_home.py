@@ -20,6 +20,7 @@ from screen_settings import SettingsActivity
 from screen_snuffel import SnuffelActivity
 from screen_pluk import PlukActivity
 from screen_uitleg import UitlegActivity
+import sync
 
 _CELL_W, _CELL_H, _GAP = 74, 52, 4  # boek tiles
 _HAIR = 0xDCCFA9  # section hairline on paper
@@ -49,6 +50,10 @@ class HomeActivity(Activity):
         if store.profile() is None:
             self.finish()
             return
+        # Home is the natural WiFi moment: drain any queued badge→server
+        # reports (snuffel grants, bonded counts). Fire-and-forget — a dead
+        # network just leaves the outbox for the next resume.
+        sync.flush()
         # Refresh caught state in place. Do NOT call setContentView again — it
         # appends a new screen to the stack and leaks the old one (11 canvas
         # buffers!). clean() frees the previous cells before repopulating.

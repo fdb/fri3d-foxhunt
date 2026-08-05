@@ -182,6 +182,15 @@ class SnuffelActivity(Activity):
         geluk = store.roll_vonk_geluk(peer.roster) if result["vonk"] else None
         if geluk is not None:
             store.add_caught(geluk, origin="spoor")
+        if result["vonk"]:
+            # the meeting goes to the server through the outbox — grants a
+            # vonk-geluk creature to the durable record so a restore hands
+            # it back. Queued only: this mode is OFF camp WiFi by design;
+            # sync.flush drains it once the radio is back home.
+            store.enqueue_report(
+                "snuffel",
+                {"peer": peer.mac, "day": result["dag"], "creature_id": geluk},
+            )
         sound.play("legendary" if geluk is not None else "caught")
         self._handoff = True
         self.startActivity(

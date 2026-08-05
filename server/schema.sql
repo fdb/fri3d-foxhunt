@@ -22,7 +22,11 @@ CREATE TABLE IF NOT EXISTS players (
   -- can undo a regretted wipe, and so badge_id keeps its UNIQUE slot; a
   -- re-registration on this badge revives THIS row rather than adding a second.
   -- NULL = live. Every player-facing read filters on it.
-  dt_deleted TEXT
+  dt_deleted TEXT,
+  -- How many creatures this player has fully bonded (band 5). Self-reported
+  -- by the badge through the report outbox — display-only on the scoreboard,
+  -- never the ranking key (GAME_DESIGN.md, "What bond buys").
+  bonded INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS players_creatures (
@@ -30,4 +34,19 @@ CREATE TABLE IF NOT EXISTS players_creatures (
   creature_id INTEGER NOT NULL,
   dt_found TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   PRIMARY KEY (player_id, creature_id)
+);
+
+-- Snuffel reports: the badge reports a MEETING, never a catch
+-- (GAME_DESIGN.md, "How a creature reaches the profile"). One row per
+-- (player, peer, day) is the server-side rate limit on grants; vonk SCORE,
+-- when it is built, will be computed by corroborating the pair's two rows —
+-- and only inside the camp window (GAME_DESIGN.md, "Buiten het kamp").
+CREATE TABLE IF NOT EXISTS snuffels (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  peer TEXT NOT NULL, -- the other badge's MAC, as the report names it
+  day TEXT NOT NULL, -- YYYY-MM-DD, the badge's snuffel day
+  creature_id INTEGER, -- vonk-geluk outcome, NULL when none rolled
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (player_id, peer, day)
 );

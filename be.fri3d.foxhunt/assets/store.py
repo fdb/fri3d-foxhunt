@@ -12,6 +12,7 @@
 #   "vonk"     : snuffel log — {date, count (daily reset), pairs: {mac:
 #                {vonk: epoch, food: epoch}}} — pair cooldown timestamps
 #   "pluk"     : {spots: {bssid: epoch}, date, count} — reloads + day stat
+#   "outbox"   : list of queued badge→server reports (sync.py drains it)
 #
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
 
@@ -305,6 +306,8 @@ def do_feed(cid, food):
         v[food] -= 1
         e.put_dict("voorraad", v)
     e.put_dict_item("beast", str(cid), state).commit()
+    if ok and pet.finished(state) and not pet.finished(raw):
+        _report_bonded()
     return state, ok, msg, is_fav
 
 
@@ -330,7 +333,15 @@ def do_play(cid, cost, favourite):
         pet.decay(raw, _now()), play_cost(cost), favourite, _now()
     )
     prefs.edit().put_dict_item("beast", str(cid), state).commit()
+    if ok and pet.finished(state) and not pet.finished(raw):
+        _report_bonded()
     return state, ok, msg
+
+
+def _report_bonded():
+    """The moment a beste vriend is born: queue the new bonded count for the
+    server (scoreboard display only — GAME_DESIGN.md, What bond buys)."""
+    enqueue_report("bonded", {"bonded": len(finished_ids())})
 
 
 # ── voorraad: the finite pantry ─────────────────────────────────────────────
@@ -372,6 +383,34 @@ def take_food(food):
     v[food] -= 1
     SharedPreferences(_APP).edit().put_dict("voorraad", v).commit()
     return True
+
+
+# ── outbox: badge→server reports, queued until WiFi actually works ──────────
+# Woods WiFi is spotty, so nothing badge→server ever blocks a screen: writers
+# enqueue, sync.flush() drains from natural moments (home resume). Survives
+# reboots; ALLES WISSEN wipes it with everything else player-owned.
+
+
+def outbox():
+    return SharedPreferences(_APP).get_list("outbox", [])
+
+
+def enqueue_report(kind, data):
+    """Queue a badge→server report. kind: "snuffel" | "bonded" — sync.py
+    maps kinds to routes. Callers enqueue LAST in their write path (the
+    one-instance-one-editor rule: this commits via its own instance)."""
+    prefs = SharedPreferences(_APP)
+    box = prefs.get_list("outbox", [])
+    box.append({"kind": kind, "data": data, "t": _now()})
+    prefs.edit().put_list("outbox", box).commit()
+
+
+def outbox_pop():
+    """Drop the head report (delivered, or refused forever)."""
+    prefs = SharedPreferences(_APP)
+    box = prefs.get_list("outbox", [])
+    if box:
+        prefs.edit().put_list("outbox", box[1:]).commit()
 
 
 # ── snuffelen: vrienden (permanent) + vonken (cooldown-gated) ───────────────
