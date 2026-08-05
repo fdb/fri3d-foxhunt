@@ -137,9 +137,29 @@ class SettingsActivity(Activity):
         self._id_taps = 0
         strip.add_flag(lv.obj.FLAG.CLICKABLE)
         strip.add_event_cb(lambda e: self._id_tap(), lv.EVENT.CLICKED, None)
-        strip = ui.box(s, 6, 212, _ROW_W, 22, None)
-        ui.label(strip, "JAGER ID", 6, 3, ui.MYSTERY, ui.font_small())
-        ui.label(strip, p.get("hunter_id") or "-", 72, 3, ui.INK, ui.font_small())
+        if p.get("hunter_id"):
+            strip = ui.box(s, 6, 212, _ROW_W, 22, None)
+            ui.label(strip, "JAGER ID", 6, 3, ui.MYSTERY, ui.font_small())
+            ui.label(strip, p.get("hunter_id"), 72, 3, ui.INK, ui.font_small())
+        else:
+            # WORD JAGER takes the jager-id slot: the upgrade moment lives
+            # here (GAME_DESIGN.md, Onboarding) — probe the antenna, then ask
+            # the server to mint the id. Jager mode everywhere derives from
+            # hunter_id, so the mint IS the enable.
+            self._wj_busy = False
+            row = ui.panel(s, 6, 210, _ROW_W, ROW_H, bg=ui.CARD)
+            ui.label(row, "Word jager", 8, 5, ui.GREEN_D, ui.font_small())
+            self._wj = ui.label(
+                row,
+                "check de antenne",
+                104,
+                5,
+                ui.TEXT_MUTED,
+                ui.font_small(),
+                w=196,
+                center=True,
+            )
+            ui.focusable(row, on_click=self._word_jager)
 
         self.setContentView(s)
 
@@ -164,6 +184,29 @@ class SettingsActivity(Activity):
     def _uitleg(self):
         sound.play("tap")
         self.startActivity(Intent(activity_class=UitlegActivity))
+
+    def _word_jager(self):
+        if self._wj_busy:
+            return
+        if not registrar.has_lora():
+            # the probe sees the radio module; a friendly no, nothing changes
+            sound.play("error")
+            self._wj.set_text("geen antenne gevonden")
+            return
+        sound.play("tap")
+        self._wj_busy = True
+        self._wj.set_text("antenne gevonden!...")
+        registrar.REGISTRAR.word_jager(registrar.badge_id(), self._wj_done)
+
+    def _wj_done(self, st):
+        self._wj_busy = False
+        if st.get("ok") and st.get("hunter_id"):
+            store.update_profile(hunter_id=st["hunter_id"])
+            sound.play("caught")
+            self._wj.set_text(st["hunter_id"] + " - veel jachtplezier!")
+        else:
+            sound.play("error")
+            self._wj.set_text("geen verbinding - probeer later")
 
     def _id_tap(self):
         self._id_taps += 1

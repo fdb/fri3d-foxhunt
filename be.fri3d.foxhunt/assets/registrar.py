@@ -149,6 +149,21 @@ class Registrar:
         """
         raise NotImplementedError
 
+    def word_jager(self, badge, on_update):
+        """Ask the server to mint (or repeat) this badge's hunter id — the
+        WORD JAGER button in instellingen, pressed after the LoRa probe
+        succeeded (server/: POST /api/v1/auth/hunter). Idempotent on the
+        server, so a retry after a lost reply returns the same id.
+
+        ASYNCHRONOUS BY CONTRACT, like register(). status:
+
+            "done"     : True on the terminal update
+            "ok"       : the server answered with an id
+            "hunter_id": the label ("JGR-0042") with ok, else None
+            "error"    : "E-01" when the server didn't answer or refused
+        """
+        raise NotImplementedError
+
     def restore(self, badge, on_update):
         """Ask the cloud server whether this badge is already registered
         (server/: GET /api/v1/auth/user?badge_id=...).
@@ -182,6 +197,7 @@ class FakeRegistrar(Registrar):
     REGISTER_EXISTS = False  # flip to walk the "badge is al bekend" fork
     OVERWRITE_FAIL = False  # flip to walk the E-01 path out of that fork
     DELETE_FAIL = False  # flip to walk the "server antwoordt niet" wipe path
+    MINT_FAIL = False  # flip to walk word_jager's E-01 path
     RESTORE_FOUND = True  # flip to walk the "onbekende badge" restore path
     RESTORE_FAIL = False  # flip to walk the E-01 restore path
     # A recovered companion that is deliberately NOT the default (uil + hoed +
@@ -279,6 +295,23 @@ class FakeRegistrar(Registrar):
         t = lv.timer_create(
             lambda _t: on_update(
                 {"done": True, "ok": ok, "error": None if ok else "E-01"}
+            ),
+            self.STEP_MS,
+            None,
+        )
+        t.set_repeat_count(1)
+
+    def word_jager(self, badge, on_update):
+        ok = not self.MINT_FAIL
+        hid = "JGR-%04d" % random.randrange(1, 10000) if ok else None
+        t = lv.timer_create(
+            lambda _t: on_update(
+                {
+                    "done": True,
+                    "ok": ok,
+                    "hunter_id": hid,
+                    "error": None if ok else "E-01",
+                }
             ),
             self.STEP_MS,
             None,
@@ -465,6 +498,29 @@ class HttpRegistrar(Registrar):
         if not ok:
             print("registrar: delete rejected, HTTP", status)
         on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})
+
+    def word_jager(self, badge, on_update):
+        TaskManager.create_task(self._word_jager(badge, on_update))
+
+    async def _word_jager(self, badge, on_update):
+        status, data = 0, None
+        try:
+            status, data = await _json_request(
+                "POST", "/api/v1/auth/hunter", {"badge_id": badge}
+            )
+        except Exception as e:
+            print("registrar: word_jager failed:", e)
+        ok = status == 200 and bool(data and data.get("ok"))
+        if not ok and status:
+            print("registrar: word_jager rejected, HTTP", status)
+        on_update(
+            {
+                "done": True,
+                "ok": ok,
+                "hunter_id": _hunter_label(data.get("hunter_id")) if ok else None,
+                "error": None if ok else "E-01",
+            }
+        )
 
     def restore(self, badge, on_update):
         TaskManager.create_task(self._restore(badge, on_update))

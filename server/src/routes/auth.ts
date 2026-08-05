@@ -189,6 +189,57 @@ authRoutes.post("/starter", async (c) => {
   return c.json({ ok: true, starter: starterId, duplicate: false });
 });
 
+// POST /api/v1/auth/hunter
+// Body: { badge_id }. The WORD JAGER mint: the server is the allocator
+// (CLAUDE.md, hunter_id — draw from 1-9999, never 0), so the badge asks and
+// the id comes back. Idempotent: an account that already has one gets the
+// same id again — pressing the button twice, or losing the response, must
+// neither strand nor reroll. Unauthenticated like the other badge routes:
+// the worst a stranger can do is hand an account the id it would have been
+// given anyway.
+authRoutes.post("/hunter", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid JSON body" }, 400);
+  }
+
+  const badgeId = validateBadgeId(body.badge_id);
+  if (!badgeId) return c.json({ error: "invalid badge_id" }, 400);
+
+  const player = await livePlayer(c.env.DB, badgeId);
+  if (!player) return c.json({ error: "unknown badge_id" }, 404);
+  if (player.hunter_id)
+    return c.json({ ok: true, hunter_id: player.hunter_id, minted: false });
+
+  // A random draw with retry, not max+1: a race between two badges simply
+  // collides with the UNIQUE constraint and draws again, and camp-size
+  // player counts (~hundreds) never crowd four digits (~16x headroom).
+  for (let i = 0; i < 25; i++) {
+    const hid = 1 + Math.floor(Math.random() * 9999);
+    try {
+      await c.env.DB.prepare(
+        `UPDATE players
+            SET hunter_id = ?, dt_updated = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          WHERE id = ?`,
+      )
+        .bind(hid, player.id)
+        .run();
+    } catch (err) {
+      if (uniqueConflict(err) === "hunter_id") continue;
+      throw err;
+    }
+    await logEvent(c.env.DB, "hunter_minted", {
+      player_id: player.id,
+      badge_id: badgeId,
+      hunter_id: hid,
+    });
+    return c.json({ ok: true, hunter_id: hid, minted: true });
+  }
+  return c.json({ error: "no hunter_id available" }, 503);
+});
+
 // GET /api/v1/auth/user?badge_id=...
 // The badge's "restore" route: a badge that lost its filesystem still knows
 // its own MAC, so that is the key it recovers an account with. 404 means the
