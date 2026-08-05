@@ -69,11 +69,14 @@ class DebugActivity(Activity):
             lambda: self._toggle_setting("nooit_moe", self.moe_toggle, self.moe_label),
         )
 
+        # Uitschrijven is not a debug tool: it is ALLES WISSEN in instellingen,
+        # where a player can find it. This only says where, so nobody builds a
+        # second one down here.
         account = ui.panel(body, 0, 0, 308, 25, ui.DORMANT, border=ui.BORDER_REST)
         ui.label(account, "ACCOUNT", 8, 7, ui.MYSTERY, ui.font_small())
         ui.label(
             account,
-            "registreren / uitschrijven: binnenkort",
+            "uitschrijven: instellingen",
             82,
             7,
             ui.TEXT_MUTED,

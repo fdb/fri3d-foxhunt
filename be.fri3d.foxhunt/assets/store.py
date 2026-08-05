@@ -62,6 +62,34 @@ def update_profile(**kv):
     return p
 
 
+# What survives ALLES WISSEN. Everything at the top of this file is the player;
+# these two are the badge — how loud it is and how bright it is have nothing to
+# do with whose badge it is, and re-deafening yourself after a wipe is not part
+# of starting over.
+_KEEP_ON_RESET = ("settings",)
+
+
+def reset_all():
+    """Erase every trace of the player from this badge (screen_wipe).
+
+    An ALLOWLIST, and deliberately so: Editor has no remove(key), only
+    remove_all(), so the natural shape here is "wipe, then write back what
+    stays". That is also the safe default — a store key added next month is
+    wiped by a reset nobody remembered to update, instead of quietly surviving
+    it and haunting the next player.
+
+    One commit, so a reset cannot half-happen. When nothing is kept,
+    save_config removes the file (and the app's prefs dir) outright.
+    """
+    prefs = SharedPreferences(_APP)
+    keep = {k: prefs.get_dict(k, {}) for k in _KEEP_ON_RESET}
+    e = prefs.edit().remove_all()
+    for k, v in keep.items():
+        if v:
+            e.put_dict(k, v)
+    e.commit()
+
+
 # App settings (the instellingen screen).
 # led is the NeoPixel duty in percent; full brightness is blinding on the
 # badge, so the default sits low. The settings screen steps it on a roughly

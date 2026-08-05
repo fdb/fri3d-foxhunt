@@ -36,6 +36,13 @@ class HomeActivity(Activity):
 
     def onResume(self, screen):
         super().onResume(screen)
+        # The profile can vanish under us: instellingen -> ALLES WISSEN erases
+        # it. Leave before repopulating — _populate reads the profile as a dict
+        # and would fail on None — and the router below (foxhunt.py) opens the
+        # welcome screen. Same rule it routes on: the profile IS the verdict.
+        if store.profile() is None:
+            self.finish()
+            return
         # Refresh caught state in place. Do NOT call setContentView again — it
         # appends a new screen to the stack and leaks the old one (11 canvas
         # buffers!). clean() frees the previous cells before repopulating.

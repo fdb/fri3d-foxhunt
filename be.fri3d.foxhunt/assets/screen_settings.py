@@ -14,6 +14,7 @@ import sound
 import leds
 import registrar
 from screen_debug import DebugActivity
+from screen_wipe import WipeActivity
 
 TRACK_OFF = 0xE0D4B4  # switch track when off
 ROW_H, ROW_GAP = 26, 4
@@ -93,6 +94,24 @@ class SettingsActivity(Activity):
         )
         ui.focusable(row, on_click=self._cycle_led)
 
+        # The way out of the game: hand the badge on, or take your name off the
+        # scoreboard. Terra, not green — it is the only row here that destroys
+        # anything — and it opens a screen that makes you type the word, so this
+        # row itself is safe to sit among the toggles.
+        row = ui.panel(s, 6, 32 + 2 * (ROW_H + ROW_GAP), _ROW_W, ROW_H, bg=ui.CARD)
+        ui.label(row, "Alles wissen", 8, 5, ui.TERRA_D, ui.font_small())
+        ui.label(
+            row,
+            "badge + server",
+            160,
+            5,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=140,
+            center=True,
+        )
+        ui.focusable(row, on_click=self._wipe)
+
         # ids, labels only: the badge id anchors recovery, the jager id is
         # minted over LoRa during registration ("-" until that happened)
         p = store.profile() or {}
@@ -116,10 +135,23 @@ class SettingsActivity(Activity):
 
         self.setContentView(s)
 
+    def onResume(self, screen):
+        super().onResume(screen)
+        # Back from the wipe screen with no profile left: this screen is showing
+        # a badge id and a jager id that belong to nobody. Leave, and let the
+        # screens below do the same until the router reaches the welcome screen.
+        # The profile IS the verdict — the same rule foxhunt.py routes on.
+        if store.profile() is None:
+            self.finish()
+
     def onPause(self, screen):
         super().onPause(screen)
         self._id_taps = 0  # a half-finished unlock doesn't survive leaving
         leds.off()  # don't leave the preview burning after leaving the screen
+
+    def _wipe(self):
+        sound.play("tap")
+        self.startActivity(Intent(activity_class=WipeActivity))
 
     def _id_tap(self):
         self._id_taps += 1

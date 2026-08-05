@@ -127,6 +127,28 @@ class Registrar:
         """
         raise NotImplementedError
 
+    def delete_account(self, badge, on_update):
+        """Wipe this badge's account off the cloud server (server/:
+        DELETE /api/v1/auth/user).
+
+        The server leg of ALLES WISSEN, and it goes FIRST — the local wipe is
+        the step the player cannot undo, so it may only happen once the server
+        has confirmed. A badge that wiped itself while the account lived on
+        would re-register straight into the "deze badge is al bekend" fork and
+        get every catch handed back, which is the exact thing the wipe is for.
+
+        That ordering is also why there is no separate "is there wifi" check:
+        the question is whether the SERVER answered, and this asks it.
+
+        ASYNCHRONOUS BY CONTRACT, like register(). status:
+
+            "done" : True on the terminal update
+            "ok"   : the account is gone (or was already gone — the route is
+                     idempotent, so a retry after a lost reply still succeeds)
+            "error": "E-01" when the server didn't answer or refused
+        """
+        raise NotImplementedError
+
     def restore(self, badge, on_update):
         """Ask the cloud server whether this badge is already registered
         (server/: GET /api/v1/auth/user?badge_id=...).
@@ -159,6 +181,7 @@ class FakeRegistrar(Registrar):
     FAIL_BRIDGE = False  # flip to walk the E-02 error path
     REGISTER_EXISTS = False  # flip to walk the "badge is al bekend" fork
     OVERWRITE_FAIL = False  # flip to walk the E-01 path out of that fork
+    DELETE_FAIL = False  # flip to walk the "server antwoordt niet" wipe path
     RESTORE_FOUND = True  # flip to walk the "onbekende badge" restore path
     RESTORE_FAIL = False  # flip to walk the E-01 restore path
     # A recovered companion that is deliberately NOT the default (uil + hoed +
@@ -242,6 +265,17 @@ class FakeRegistrar(Registrar):
 
     def overwrite(self, name, badge, companion, on_update):
         ok = not self.OVERWRITE_FAIL
+        t = lv.timer_create(
+            lambda _t: on_update(
+                {"done": True, "ok": ok, "error": None if ok else "E-01"}
+            ),
+            self.STEP_MS,
+            None,
+        )
+        t.set_repeat_count(1)
+
+    def delete_account(self, badge, on_update):
+        ok = not self.DELETE_FAIL
         t = lv.timer_create(
             lambda _t: on_update(
                 {"done": True, "ok": ok, "error": None if ok else "E-01"}
@@ -406,6 +440,26 @@ class HttpRegistrar(Registrar):
         ok = status == 200
         if not ok:
             print("registrar: overwrite rejected, HTTP", status)
+        on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})
+
+    def delete_account(self, badge, on_update):
+        TaskManager.create_task(self._delete_account(badge, on_update))
+
+    async def _delete_account(self, badge, on_update):
+        status = 0
+        try:
+            status, _ = await _json_request(
+                "DELETE", "/api/v1/auth/user", {"badge_id": badge}
+            )
+        except Exception as e:
+            print("registrar: delete failed:", e)
+        # 404 counts. The badge is asking for the account to be gone, and a
+        # server that never had one has already granted that — an antenna-less
+        # badge whose registration failed halfway is the ordinary way to get
+        # here, and it must still be able to wipe itself clean.
+        ok = status in (200, 404)
+        if not ok:
+            print("registrar: delete rejected, HTTP", status)
         on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})
 
     def restore(self, badge, on_update):

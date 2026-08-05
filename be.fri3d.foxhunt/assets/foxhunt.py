@@ -43,6 +43,14 @@ class FoxhuntActivity(Activity):
         # screen above closes. The route is read from stored state each time,
         # never from a result code: both onboarding routes save the profile
         # before they report success, so the profile IS the verdict.
+        #
+        # Each latch means "I just sent them there and they came straight back",
+        # which is the only case that should quit the app — so ENTERING either
+        # screen clears the other one. Registration and ALLES WISSEN both flip
+        # the verdict mid-run, and without the clears the second flip reads as
+        # a bounce: wiping from instellingen would quit to the launcher instead
+        # of offering to register again, and registering afterwards would quit
+        # instead of opening the boek.
         if store.profile() is None:
             if self._onboarded:
                 # Back here still unregistered: the hunter walked out of the
@@ -50,9 +58,11 @@ class FoxhuntActivity(Activity):
                 self.finish()
                 return
             self._onboarded = True
+            self._booked = False
             self.startActivity(Intent(activity_class=WelcomeActivity))
         elif not self._booked:
             self._booked = True
+            self._onboarded = False
             self.startActivity(Intent(activity_class=HomeActivity))
         else:
             self.finish()  # back out of the boek -> back to the launcher
