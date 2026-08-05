@@ -128,10 +128,13 @@ store install is a clean replace and needs none of the above.
   `json.tool` via `uv`) — both Astral-runner-based, nothing installed into the
   project. `scripts/format.sh --check` reports unformatted files and exits 1 (CI).
 
-## Glossary — one word per thing
-The UI is Dutch, the code is English. Each concept has exactly one word on each
-side; using the other side's word in the wrong place is how `mascot`/`maatje`
-and two different "companions" happened.
+## Glossary — terminology
+The UI is Dutch and the code is English. The player modes have several accepted,
+interchangeable names in discussion: **LoRa mode**, **LoRa players**, **hunters**,
+and **jagers** all refer to players using a LoRa antenna; **WiFi mode**, **WiFi
+players**, **collectors**, **gatherers**, and **verzamelaars** all refer to players
+without LoRa. In code and UI, prefer the canonical terms in the table below so
+identifiers and player-facing copy remain consistent.
 
 | Code (English) | UI (Dutch) | What it is |
 | --- | --- | --- |
