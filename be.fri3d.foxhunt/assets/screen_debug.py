@@ -20,9 +20,27 @@ class DebugActivity(Activity):
         s = ui.make_screen(ui.PAPER)
         ui.banner(s, "DEBUG", ui.TERRA, right=DEBUG_CODE)
 
+        # The whole page scrolls, not a clipped list inside it. An inner
+        # scroller only ever had the pixels the fixed panels left over (45px,
+        # one row), and every section below it needed a hard-coded y. One flex
+        # column under the banner: sections stack, the roster is simply the
+        # last and longest of them, and the page grows to fit.
+        body = ui.box(s, 0, 26, 320, 214)
+        body.add_flag(lv.obj.FLAG.SCROLLABLE)
+        # LVGL resolves a scroll from the object the press HIT, and a hit needs
+        # CLICKABLE — which ui.box strips. The grids elsewhere get away with it
+        # because their cells are focusable and tile the whole area; here most
+        # of the page is inert panel, so without this a drag anywhere but on a
+        # toggle finds nothing and the page refuses to move.
+        body.add_flag(lv.obj.FLAG.CLICKABLE)
+        body.set_scroll_dir(lv.DIR.VER)
+        body.set_flex_flow(lv.FLEX_FLOW.COLUMN)
+        body.set_style_pad_hor(6, 0)
+        body.set_style_pad_ver(8, 0)
+        body.set_style_pad_row(ui.GAP_M, 0)
+
         self.code_toggle, self.code_label = self._switch(
-            s,
-            34,
+            body,
             "TESTCODE 1111",
             "voor elk beest",
             debug_code_enabled(),
@@ -33,8 +51,7 @@ class DebugActivity(Activity):
         # camp: no fri3d-badge hotspots exist yet, every AP becomes a
         # plukplek (identity stays the BSSID, reloads and yields included)
         self.pluk_toggle, self.pluk_label = self._switch(
-            s,
-            72,
+            body,
             "PLUK OP ELKE WIFI",
             "thuis-testen",
             bool(store.settings().get("pluk_any")),
@@ -45,26 +62,30 @@ class DebugActivity(Activity):
         # right, but it makes testing a game a round of feeding first. This
         # zeroes the price (store.play_cost); the reward is untouched.
         self.moe_toggle, self.moe_label = self._switch(
-            s,
-            110,
+            body,
             "ONVERMOEIBAAR",
             "spelen kost geen energie",
             bool(store.settings().get("nooit_moe")),
             lambda: self._toggle_setting("nooit_moe", self.moe_toggle, self.moe_label),
         )
 
-        ui.label(s, "BEESTENBOEK", 8, 145, ui.GREEN_D, ui.font_small())
-        self.roster = ui.panel(s, 6, 160, 308, 45, ui.SURFACE_SOFT)
-        self.roster.add_flag(lv.obj.FLAG.SCROLLABLE)
-        self.roster.set_scroll_dir(lv.DIR.VER)
-        self.roster.set_flex_flow(lv.FLEX_FLOW.COLUMN)
-        self.roster.set_style_pad_all(4, 0)
-        self.roster.set_style_pad_row(ui.GAP_S, 0)
+        account = ui.panel(body, 0, 0, 308, 25, ui.DORMANT, border=ui.BORDER_REST)
+        ui.label(account, "ACCOUNT", 8, 7, ui.MYSTERY, ui.font_small())
+        ui.label(
+            account,
+            "registreren / uitschrijven: binnenkort",
+            82,
+            7,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+        )
+
+        ui.label(body, "BEESTENBOEK", 0, 0, ui.GREEN_D, ui.font_small())
 
         caught = set(store.caught_ids())
         for creature in CREATURES:
             cid = creature["id"]
-            row = ui.box(self.roster, 0, 0, 294, 42, ui.CARD, radius=ui.RADIUS)
+            row = ui.box(body, 0, 0, 308, 42, ui.CARD, radius=ui.RADIUS)
             row.set_style_border_width(ui.BORDER_THIN, 0)
             row.set_style_border_color(ui.hexc(ui.BORDER_REST), 0)
 
@@ -93,24 +114,14 @@ class DebugActivity(Activity):
                 focus_border=True,
             )
 
-        account = ui.panel(s, 6, 207, 308, 25, ui.DORMANT, border=ui.BORDER_REST)
-        ui.label(account, "ACCOUNT", 8, 7, ui.MYSTERY, ui.font_small())
-        ui.label(
-            account,
-            "registreren / uitschrijven: binnenkort",
-            82,
-            7,
-            ui.TEXT_MUTED,
-            ui.font_small(),
-        )
-
         self.setContentView(s)
 
-    def _switch(self, s, y, kop, uitleg, enabled, on_click):
+    def _switch(self, parent, kop, uitleg, enabled, on_click):
         """One debug switch: a 34px titled panel with an ACTIEF / NIET ACTIEF
-        toggle on the right. Returns (button, label) so the click handler can
-        repaint it — LVGL widgets have no __dict__ to hang state on."""
-        panel = ui.panel(s, 6, y, 308, 34, ui.CARD)
+        toggle on the right. Placed by the body's flex column, so it carries no
+        y of its own. Returns (button, label) so the click handler can repaint
+        it — LVGL widgets have no __dict__ to hang state on."""
+        panel = ui.panel(parent, 0, 0, 308, 34, ui.CARD)
         ui.label(panel, kop, 8, 3, ui.TERRA_D, ui.font_small())
         ui.label(panel, uitleg, 8, 17, ui.INK, ui.font_small())
         button = ui.box(panel, 178, 2, 110, 26, ui.DORMANT, radius=ui.RADIUS)

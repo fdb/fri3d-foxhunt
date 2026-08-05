@@ -406,23 +406,32 @@
     s.style.background='var(--paper)';
     banner(s,'DEBUG',{right:'1111',color:'var(--terra)',dark:'var(--terra-d)'});
 
-    const code=box(6,34,308,54,panelStyle('var(--card)'));
-    code.appendChild(text('TESTCODE 1111',8,8,160,13,
-      {size:10,color:'var(--terra-d)'}));
-    code.appendChild(text('voor elk beest',8,28,160,13,
-      {size:10,color:'var(--ink)'}));
-    const codeState=box(178,12,110,28,panelStyle('#d8c9a4','#cdb67d'));
-    codeState.appendChild(text('NIET ACTIEF',0,0,110,28,
-      {size:10,weight:600,align:'center',color:'var(--ink)'}));
-    code.appendChild(codeState);
-    s.appendChild(code);
+    // The whole page below the banner scrolls (no inner list frame), so this
+    // stage shows it at scroll 0: the sections stack from y=34 and the
+    // beestenboek runs off the bottom edge.
+    [['TESTCODE 1111','voor elk beest'],
+     ['PLUK OP ELKE WIFI','thuis-testen'],
+     ['ONVERMOEIBAAR','spelen kost geen energie']].forEach(([kop,uitleg],i)=>{
+      const p=box(6,34+i*40,308,34,panelStyle('var(--card)'));
+      p.appendChild(text(kop,8,3,160,13,{size:10,color:'var(--terra-d)'}));
+      p.appendChild(text(uitleg,8,17,160,13,{size:10,color:'var(--ink)'}));
+      const state=box(178,2,110,28,panelStyle('#d8c9a4','#cdb67d'));
+      state.appendChild(text('NIET ACTIEF',0,0,110,28,
+        {size:10,weight:600,align:'center',color:'var(--ink)'}));
+      p.appendChild(state); s.appendChild(p);
+    });
 
-    s.appendChild(text('BEESTENBOEK',8,96,200,13,
+    const account=box(6,154,308,25,panelStyle('#d8c9a4','#cdb67d'));
+    account.appendChild(text('ACCOUNT',8,7,70,13,{size:10,color:'#8a7d5e'}));
+    account.appendChild(text('registreren / uitschrijven: binnenkort',82,7,218,13,
+      {size:10,color:'#5e6b44'}));
+    s.appendChild(account);
+
+    s.appendChild(text('BEESTENBOEK',6,185,200,13,
       {size:10,color:'var(--green-d)'}));
-    const roster=box(6,110,308,89,panelStyle('#e9f1cf'));
     ROSTER.slice(0,3).forEach((c,i)=>{
-      const caught=i===0, y=4+i*45;
-      const row=box(4,y,294,42,panelStyle('var(--card)','#cdb67d'));
+      const caught=i===0;
+      const row=box(6,204+i*48,308,42,panelStyle('var(--card)','#cdb67d'));
       const icon=creature(c,2,false);
       icon.style.position='absolute'; icon.style.left=px(6)+'px'; icon.style.top=px(5)+'px';
       row.appendChild(icon);
@@ -431,15 +440,8 @@
         caught?'var(--green-d)':'#cdb67d'));
       state.appendChild(text(caught?'GEVANGEN':'NIET GEV.',0,0,110,28,
         {size:10,weight:600,align:'center',color:caught?'#fff7e6':'var(--ink)'}));
-      row.appendChild(state); roster.appendChild(row);
+      row.appendChild(state); s.appendChild(row);
     });
-    s.appendChild(roster);
-
-    const account=box(6,207,308,25,panelStyle('#d8c9a4','#cdb67d'));
-    account.appendChild(text('ACCOUNT',8,7,70,13,{size:10,color:'#8a7d5e'}));
-    account.appendChild(text('registreren / uitschrijven: binnenkort',82,7,218,13,
-      {size:10,color:'#5e6b44'}));
-    s.appendChild(account);
     return s;
   }
 
