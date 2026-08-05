@@ -27,6 +27,6 @@ export interface ScoreRow {
   profile_pic: string;
   // A count, never a list: the scoreboard is public and which beesten a player
   // holds is a spoiler. See fetchScores.
-  foxes_found: number;
+  creatures_found: number;
   last_found: string | null;
 }

@@ -266,6 +266,15 @@ creature name, id or picture. `fetchScores` is written so it cannot leak one:
 it counts `players_creatures` and never selects a `creature_id`. The names
 belong to the badge that earned them and to `/debug/players/:id`.
 
+One column carries the score, headed **Beesten**, holding a bar and `6/22`. It
+used to be two — a "Vossen" bar beside a "Beesten" number — which read as two
+different scores for one thing. The denominator is `CREATURES.length`, not a
+constant, and the bar is continuous rather than segmented like the badge's
+stat rows: 22 segments is more than an eye can count, so the bar carries the
+feeling and the fraction carries the number. In code that count is
+`creatures_found` — a **fox** is the transmitter you find, a **creature** is
+what you get, and this counts the latter (Glossary).
+
 ## Server debug routes
 `server/` (Hono on Cloudflare Workers + D1) exposes read-only inspection pages
 under `/debug/*` — `/debug/log` for the event log, `/debug/players` for the

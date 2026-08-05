@@ -159,26 +159,37 @@ td.muted {
   white-space: nowrap;
 }
 
-/* Fox progress: segmented bar like the Humeur/Energie stat rows */
-.seg {
+/* Catch progress against the whole roster. One column, not two: a bar and a
+   count of the same thing under two headings read as two different scores.
+   Continuous rather than segmented like the Humeur/Energie stat rows — at 22
+   beesten the segments are too many to count at a glance, so the fraction
+   next to the bar carries the exact number and the bar carries the feeling. */
+td.beesten {
+  white-space: nowrap;
+}
+
+.meter {
   display: inline-block;
-  width: 24px;
+  vertical-align: middle;
+  width: 110px;
   height: 14px;
-  margin-right: 5px;
   background: var(--dormant);
   border: 2px solid var(--ink);
   border-radius: 3px;
-  vertical-align: middle;
+  overflow: hidden;
 }
 
-.seg-on {
+.meter-fill {
+  display: block;
+  height: 100%;
   background: var(--green);
 }
 
-/* The bar is one row of FOX_COUNT or it is not a bar — the catch-name column
-   next to it will take any width the table can spare, so say so here. */
-td.foxes {
-  white-space: nowrap;
+.meter-count {
+  margin-left: 0.6rem;
+  vertical-align: middle;
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
 .empty {
@@ -291,10 +302,12 @@ td .tag-starter {
   td {
     padding: 0.35rem 0.4rem;
   }
-  .seg {
-    width: 16px;
+  .meter {
+    width: 64px;
     height: 11px;
-    margin-right: 3px;
+  }
+  .meter-count {
+    margin-left: 0.35rem;
   }
 }
 

@@ -4,12 +4,15 @@ import { Layout } from "../components/Layout";
 import { Home } from "../components/Home";
 import { Companion } from "../components/Companion";
 import { decodeCompanion } from "../lib/companion";
-import { RARITY_LABEL, creatureById } from "../lib/creatures";
+import { CREATURES, RARITY_LABEL, creatureById } from "../lib/creatures";
 import { starterFor } from "../lib/starter";
 
 export const pageRoutes = new Hono<{ Bindings: Bindings }>();
 
-const FOX_COUNT = 4;
+// The whole roster is the denominator — catching all of them is the game. The
+// count comes from the roster itself so adding a beest moves the goalposts
+// once, here, and not in a constant somebody forgets.
+const ROSTER_SIZE = CREATURES.length;
 
 // HOW MANY, never WHICH. The scoreboard is public and the roster is the
 // player's to discover (CLAUDE.md, "Server pages"), so this query counts
@@ -19,12 +22,12 @@ async function fetchScores(db: D1Database): Promise<ScoreRow[]> {
   const { results } = await db
     .prepare(
       `SELECT p.id, p.name, p.hunter_id, p.profile_pic,
-              COUNT(pc.creature_id) AS foxes_found,
+              COUNT(pc.creature_id) AS creatures_found,
               MAX(pc.dt_found) AS last_found
        FROM players p
        LEFT JOIN players_creatures pc ON pc.player_id = p.id
        GROUP BY p.id
-       ORDER BY foxes_found DESC, last_found ASC, p.name ASC`,
+       ORDER BY creatures_found DESC, last_found ASC, p.name ASC`,
     )
     .all<ScoreRow>();
   return results;
@@ -70,7 +73,6 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
           <th>Maatje</th>
           <th>Speler</th>
           <th>Hunter</th>
-          <th>Vossen</th>
           <th>Beesten</th>
           <th>Laatst</th>
         </tr>
@@ -84,18 +86,23 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
             </td>
             <td>{s.name}</td>
             <td class="muted">{s.hunter_id ?? "—"}</td>
-            <td class="foxes">
-              {Array.from({ length: FOX_COUNT }, (_, n) => (
-                <span class={n < s.foxes_found ? "seg seg-on" : "seg"} />
-              ))}
+            <td class="beesten">
+              <span class="meter">
+                <span
+                  class="meter-fill"
+                  style={`width:${Math.min(100, (s.creatures_found / ROSTER_SIZE) * 100)}%`}
+                />
+              </span>
+              <span class="meter-count">
+                {s.creatures_found}/{ROSTER_SIZE}
+              </span>
             </td>
-            <td class="muted">{s.foxes_found}</td>
             <td class="muted">{shortTime(s.last_found)}</td>
           </tr>
         ))}
         {scores.length === 0 && (
           <tr>
-            <td class="empty" colspan={7}>
+            <td class="empty" colspan={6}>
               Nog geen spelers geregistreerd.
             </td>
           </tr>
