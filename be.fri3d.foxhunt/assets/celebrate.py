@@ -43,7 +43,11 @@ _STAR = [
 
 _CX, _CY = 160, 104  # creature centre — the halo radiates from here
 
-_CONFETTI = 22
+# Keep the effect busy without monopolising the interpreter: every animated
+# object below becomes several LVGL calls per tick, while the fanfare's audio
+# thread needs regular turns to advance its notes on the badge.
+_RINGS = 4
+_CONFETTI = 11
 _TICK_MS = 80
 # The fanfare RTTTL runs ~4.3s (sound._TUNES["legendary"], b=200); re-trigger
 # just AFTER it ends — a hair of silence beats preempting the held final note,
@@ -80,8 +84,8 @@ class Fireworks:
 
         # 1. concentric rainbow halo (the radiating "rays" / bullseye).
         self.rings = []
-        for i in range(7):
-            size = 204 - i * 22
+        for i in range(_RINGS):
+            size = 204 - i * 30
             ring = ui.box(
                 s,
                 _CX - size // 2,
@@ -142,7 +146,7 @@ class Fireworks:
 
         # 6. sparkles around the disc — twinkle on/off out of phase.
         self.sparks = []
-        for sx, sy in ((96, 52), (224, 56), (84, 150), (236, 146), (152, 28)):
+        for sx, sy in ((96, 52), (224, 56), (84, 150)):
             star = art.draw_sprite(self.layer, _STAR, {"w": 0xFFFFFF}, 3)
             star.set_pos(sx, sy)
             self.sparks.append(star)
