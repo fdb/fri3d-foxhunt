@@ -27,8 +27,9 @@ cd "$(dirname "$0")/.."
 # Usage: scripts/deploy_to_badge.sh [--start] [--force] [--port /dev/cu.usbmodemXXX]
 #
 #   --start          launch the app on the badge after installing
-#   --force          replace a build that was deployed from a DIFFERENT
-#                    source checkout (see the provenance guard below)
+#   --force          override the two provenance guards: replace a build
+#                    deployed from a DIFFERENT source checkout, and/or
+#                    deploy a DIRTY working tree (stamped as such)
 #   --port PORT      serial port (default: auto-detect /dev/cu.usbmodem*)
 #
 # Env overrides:
@@ -70,6 +71,18 @@ else
     git_state="clean"
 fi
 SRC_ID="$PROJECT_DIR $git_head $git_state"
+
+# ── Refuse to deploy uncommitted work ────────────────────────────────
+# The settings screen shows the deployed commit (from the #src stamp); a
+# dirty deploy makes that sha a lie — the badge would run code no commit
+# names. --force deploys anyway, and the stamp stays marked dirty, which
+# the settings screen renders as a '*' after the sha.
+if [[ "$git_state" == "dirty" && "$FORCE" -ne 1 ]]; then
+    echo "error: working tree is dirty — the badge would carry code that no commit" >&2
+    echo "       names, and the sha shown in Instellingen would lie. Commit first," >&2
+    echo "       or re-run with --force to deploy anyway (stamped dirty)." >&2
+    exit 1
+fi
 
 # ── Sanity checks ────────────────────────────────────────────────────
 [[ -d "$APP_SRC" ]] || { echo "error: app dir not found: $APP_SRC" >&2; exit 1; }

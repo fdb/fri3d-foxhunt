@@ -4,6 +4,8 @@
 # Geluid mutes the app's buzzer sounds. Companion/name editing lives on the
 # profile screen, and LoRa is not optional, so neither appears here.
 
+import json
+
 import lvgl as lv
 from mpos import Activity, Intent
 import ui
@@ -20,6 +22,27 @@ _ROW_W = 308
 # Not linear: perceived brightness is roughly a power law, so each rung about
 # doubles the duty — that puts the resolution at the dim end, where it shows.
 _LED_STEPS = (0, 5, 15, 30, 60, 100)
+
+
+def _build_info():
+    """'0.1.0 @ 66326d8' — version from META-INF, commit from the #src line
+    of the deploy stamp. Running from source (the emulator's symlink has no
+    .deploy.sha) shows 'dev'; a --force'd dirty deploy carries a '*'."""
+    base = __file__.rsplit("/", 2)[0]
+    try:
+        with open(base + "/META-INF/MANIFEST.JSON") as fh:
+            version = json.load(fh).get("version", "?")
+    except (OSError, ValueError):
+        version = "?"
+    commit = "dev"
+    try:
+        with open(base + "/.deploy.sha") as fh:
+            parts = fh.readline().split()
+        if parts[:1] == ["#src"] and len(parts) >= 4:
+            commit = parts[2] + ("*" if parts[3] == "dirty" else "")
+    except OSError:
+        pass
+    return version + " @ " + commit
 
 
 def _led_step(pct):
@@ -75,6 +98,9 @@ class SettingsActivity(Activity):
         p = store.profile() or {}
         # No card behind these: subtle text straight on the paper. The boxes
         # stay (transparent) because the badge-id one is also the tap target.
+        strip = ui.box(s, 6, 164, _ROW_W, 22, None)
+        ui.label(strip, "VERSIE", 6, 3, ui.MYSTERY, ui.font_small())
+        ui.label(strip, _build_info(), 72, 3, ui.INK, ui.font_small())
         strip = ui.box(s, 6, 188, _ROW_W, 22, None)
         ui.label(strip, "BADGE ID", 6, 3, ui.MYSTERY, ui.font_small())
         ui.label(strip, registrar.badge_id(), 72, 3, ui.INK, ui.font_small())
