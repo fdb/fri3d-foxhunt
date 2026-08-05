@@ -16,6 +16,7 @@ import registrar
 from screen_debug import DebugActivity
 from screen_wipe import WipeActivity
 from screen_uitleg import UitlegActivity
+from screen_reg_send import RegSendActivity
 
 TRACK_OFF = 0xE0D4B4  # switch track when off
 ROW_H, ROW_GAP = 26, 4
@@ -120,9 +121,7 @@ class SettingsActivity(Activity):
         )
         ui.focusable(row, on_click=self._wipe)
 
-        # ids, labels only: the badge id anchors recovery, the jager id is
-        # minted over LoRa during registration ("-" until that happened)
-        p = store.profile() or {}
+        # ids, labels only: the badge id anchors recovery.
         # No card behind these: subtle text straight on the paper. The boxes
         # stay (transparent) because the badge-id one is also the tap target.
         strip = ui.box(s, 6, 164, _ROW_W, 22, None)
@@ -137,17 +136,60 @@ class SettingsActivity(Activity):
         self._id_taps = 0
         strip.add_flag(lv.obj.FLAG.CLICKABLE)
         strip.add_event_cb(lambda e: self._id_tap(), lv.EVENT.CLICKED, None)
+        self._s = s
+        self._slot = None
+        self._slot_kind = None
+        self._build_slot()
+
+        self.setContentView(s)
+
+    # The bottom slot: one place, three states that cannot coexist. Order
+    # matters. An unconfirmed account outranks WORD JAGER because that button
+    # cannot work — /auth/hunter looks the badge up and 404s on an account the
+    # server never received — so offering it first would fail for a reason it
+    # could not explain. A minted jager id implies both of the others are done.
+    def _build_slot(self):
+        p = store.profile() or {}
         if p.get("hunter_id"):
-            strip = ui.box(s, 6, 212, _ROW_W, 22, None)
+            kind = "jager"
+        elif not p.get("synced"):
+            kind = "cloud"
+        else:
+            kind = "word"
+        self._slot_kind = kind
+
+        if kind == "jager":
+            strip = ui.box(self._s, 6, 212, _ROW_W, 22, None)
             ui.label(strip, "JAGER ID", 6, 3, ui.MYSTERY, ui.font_small())
             ui.label(strip, p.get("hunter_id"), 72, 3, ui.INK, ui.font_small())
+            self._slot = strip
+        elif kind == "cloud":
+            # The profile lives on the badge and nowhere else: registration
+            # saved it locally, then the server never confirmed. Say so, and
+            # make it fixable — the badge retries once per launch on its own
+            # (registrar.resync), but a player staring at an empty scoreboard
+            # needs to see why, and to be able to ask again on the spot.
+            row = ui.panel(self._s, 6, 210, _ROW_W, ROW_H, bg=ui.CARD)
+            ui.label(row, "Cloud", 8, 5, ui.TERRA_D, ui.font_small())
+            ui.label(
+                row,
+                "niet bewaard - opnieuw",
+                104,
+                5,
+                ui.TEXT_MUTED,
+                ui.font_small(),
+                w=196,
+                center=True,
+            )
+            ui.focusable(row, on_click=self._open_resync)
+            self._slot = row
         else:
             # WORD JAGER takes the jager-id slot: the upgrade moment lives
             # here (GAME_DESIGN.md, Onboarding) — probe the antenna, then ask
             # the server to mint the id. Jager mode everywhere derives from
             # hunter_id, so the mint IS the enable.
             self._wj_busy = False
-            row = ui.panel(s, 6, 210, _ROW_W, ROW_H, bg=ui.CARD)
+            row = ui.panel(self._s, 6, 210, _ROW_W, ROW_H, bg=ui.CARD)
             ui.label(row, "Word jager", 8, 5, ui.GREEN_D, ui.font_small())
             self._wj = ui.label(
                 row,
@@ -160,8 +202,7 @@ class SettingsActivity(Activity):
                 center=True,
             )
             ui.focusable(row, on_click=self._word_jager)
-
-        self.setContentView(s)
+            self._slot = row
 
     def onResume(self, screen):
         super().onResume(screen)
@@ -171,6 +212,19 @@ class SettingsActivity(Activity):
         # The profile IS the verdict — the same rule foxhunt.py routes on.
         if store.profile() is None:
             self.finish()
+            return
+        # A resync that landed changes which of the three the slot should be —
+        # the row that sent them there is now a lie. Rebuild only on a real
+        # change, so the ordinary resume does not churn widgets.
+        p = store.profile() or {}
+        kind = (
+            "jager"
+            if p.get("hunter_id")
+            else ("cloud" if not p.get("synced") else "word")
+        )
+        if kind != self._slot_kind and self._slot is not None:
+            self._slot.delete()
+            self._build_slot()
 
     def onPause(self, screen):
         super().onPause(screen)
@@ -184,6 +238,16 @@ class SettingsActivity(Activity):
     def _uitleg(self):
         sound.play("tap")
         self.startActivity(Intent(activity_class=UitlegActivity))
+
+    def _open_resync(self):
+        # The send screen, not a bare retry: the server may answer that this
+        # badge already has an account, and that fork is a question with two
+        # answers only the player can pick between. Everything that can be
+        # said about a registration attempt is already said there.
+        sound.play("tap")
+        self.startActivity(
+            Intent(activity_class=RegSendActivity, extras={"resync": True})
+        )
 
     def _word_jager(self):
         if self._wj_busy:

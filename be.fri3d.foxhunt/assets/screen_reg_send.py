@@ -79,6 +79,12 @@ class RegSendActivity(Activity):
         self._starter = None  # startbeest id once the server grants one
         self._exists = None  # the account payload, when the badge has one
         self._settled = False  # ...and whether the player answered the fork
+        # Opened from instellingen to finish a registration the cloud server
+        # never confirmed, instead of from the maatje builder. Same three
+        # states and the same fork — the only difference is that the profile
+        # here is the player's real one, already lived in, so backing out of
+        # the fork must leave it alone.
+        self._resync = bool(self.getIntent().extras.get("resync"))
         self.setContentView(self.screen)
         self._start_sending()
 
@@ -91,7 +97,7 @@ class RegSendActivity(Activity):
         # badge already has an account: that is a question, and leaving without
         # answering it registers nobody. Only adopt/overwrite settle it, so
         # anything else that gets us here takes the half-built profile with it.
-        if self._exists is not None and not self._settled:
+        if self._exists is not None and not self._settled and not self._resync:
             store.clear_profile()
 
     def _stop_bar(self):

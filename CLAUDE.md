@@ -236,6 +236,28 @@ talks to `/api/v1/auth/*` there.
   a stranger's account without asking, and because nothing read the existing row
   back it left the badge with `hunter_id = None` and an empty roster while the
   server still held both, under a screen that said "je bent ingeschreven".
+- **`profile["synced"]` is a promise, and something must keep it.** Registration
+  saves the profile locally BEFORE the send, so a server that is down cannot
+  cost the player the maatje they just built — the error screen says "probeer
+  straks opnieuw" and means it. But `REGISTRAR.register` has one call site,
+  inside onboarding, and `foxhunt.py` routes on `store.profile() is None`
+  alone: once a profile exists, synced or not, onboarding is unreachable
+  forever. An unconfirmed badge then looks completely normal while the game has
+  never heard of it — off the scoreboard, no startbeest, WORD JAGER answering
+  404 (`/auth/hunter` looks the badge up), nothing to restore.
+  Two things keep the promise, and both must stay:
+  - `registrar.resync()`, fired once per launch from `FoxhuntActivity.onCreate`.
+    It settles only the answer that needs no human: 201 syncs and banks the
+    startbeest, a dead server does nothing and retries next launch, and **409
+    also does nothing** — that is the exists fork, a question with two answers,
+    and answering it needs the screen.
+  - The instellingen bottom slot, which shows `Cloud / niet bewaard - opnieuw`
+    and opens `RegSendActivity` with `extras={"resync": True}`. That slot holds
+    three mutually exclusive states and the order matters: an unconfirmed
+    account outranks WORD JAGER, because WORD JAGER cannot work until the
+    account exists. In resync mode the screen must NOT clear the profile when
+    the player walks out of the fork — that rule is for onboarding, where
+    walking away registers nobody; here the profile is real and already lived in.
 - **ALLES WISSEN is the only real way to start over, and it is soft.** The 409
   fork above is why: a badge that wiped only itself re-registers straight into
   it and gets every catch handed back, so instellingen -> ALLES WISSEN

@@ -17,6 +17,7 @@ from mpos import Activity, Intent
 import ui
 import art
 import store
+import registrar
 import telemetry
 from creatures import by_id
 from screen_home import HomeActivity
@@ -36,6 +37,10 @@ class FoxhuntActivity(Activity):
         )
         self.setContentView(s)
         telemetry.boot()
+        # Not a routing decision — the route below reads the profile, and this
+        # never creates or removes one. It only settles a profile the server
+        # never confirmed, which onboarding cannot come back to fix.
+        registrar.resync()
 
     def onResume(self, screen):
         super().onResume(screen)

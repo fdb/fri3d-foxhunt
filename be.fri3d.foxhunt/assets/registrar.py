@@ -82,6 +82,58 @@ def adopt(badge, account, name=None, code=None):
     return len(store.restore_caught(account.get("creatures") or []))
 
 
+def resync():
+    """Re-send a profile the cloud server never confirmed. Fire and forget.
+
+    Registration saves locally before the send, so a server that was down at
+    that moment leaves a badge that looks completely registered and is unknown
+    to the game: off the scoreboard, no startbeest, WORD JAGER answering 404,
+    and nothing to restore if the badge is lost. `synced` records exactly that
+    state, and until now nothing read it — the error screen's "probeer straks
+    opnieuw" had no "straks", because REGISTRAR.register has one call site and
+    it sits inside onboarding, which a registered badge can never reach again.
+
+    So the retry happens here, once per launch, silently:
+
+      * confirmed -> the profile is synced and the startbeest banked, exactly
+        as the onboarding screen would have done it.
+      * still down -> nothing. `synced` stays False and the next launch tries
+        again; instellingen shows the state meanwhile.
+      * the server already has an account for this badge -> ALSO nothing. That
+        is register()'s "exists" fork, and it is a question only the player can
+        answer (adopt or overwrite). Answering it needs the screen, so this
+        leaves it for the instellingen row to open.
+    """
+    import store
+
+    p = store.profile()
+    if not p or p.get("synced"):
+        return
+    import companion
+
+    REGISTRAR.register(
+        p.get("name") or "Jager",
+        p.get("badge_id") or badge_id(),
+        companion.encode(p["head"], p["accs"], p["bg"]),
+        _on_resync,
+    )
+
+
+def _on_resync(st):
+    if not st.get("done") or st.get("exists") or not st.get("ok"):
+        return
+    import store
+    from creatures import by_id
+
+    store.update_profile(hunter_id=st.get("hunter_id"), synced=True)
+    # The startbeest rides the registration, so a retried one grants it too.
+    # Bank it silently: the reveal is theatre, and the player is somewhere
+    # else entirely by now.
+    starter = st.get("starter")
+    if starter is not None and by_id(starter) is not None:
+        store.add_caught(starter, origin="start")
+
+
 class Registrar:
     def register(self, name, badge, companion, on_update):
         """Send the profile to the cloud server and the LoRa bridge.
