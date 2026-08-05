@@ -52,6 +52,16 @@ Creatures may playfully refuse an unsuitable action—a full creature need not
 eat and a tired creature may not want to play—but an unsuccessful choice should
 not subtract permanent progress.
 
+**Hunger is pull, not push — that is why a big roster is never a chore.** A
+hungry creature loses nothing: bond never decays, and hunger's only teeth are
+that a tired creature will not play. So the player feeds the one creature they
+are about to play with, at the moment they want to play; the other twenty wait
+patiently, unharmed. Food demand scales with how many creatures you *play*
+with, not how many you *own*. Guard this structurally: no roster-wide hunger
+indicators (red badges on the home grid, "5 beesten hebben honger!"
+notifications) and no need-stats in public score — either would turn the
+collection into a feeding shift.
+
 The same philosophy extends to the exchange economy: there is no exchange UI
 at all. A snuffel *is* the exchange — both badges automatically share a
 picknick, and sometimes a creature tags along (vonk-geluk). Nothing to
@@ -71,10 +81,10 @@ game:
 - Stored nickname and sightings fields that can be developed further.
 - A customisable companion (maatje) created during onboarding.
 
-What is missing is a game economy around these screens. Food is currently
-unlimited, while petting and playing are repeatable actions, so bond can be
-maximised through tapping alone. The three verbs below, tied together by the
-energy chain, are the economy that gives those actions meaning.
+The economy around these screens is the three verbs below, tied together by
+the energy chain. It is implemented: food is a finite pantry (voorraad) that
+feeding drains and plukken refills, play costs energy, and bond comes from
+play — so neither food-dumping nor tap-farming can maximise bond.
 
 ## The three verbs: snuffelen, plukken, spelen
 
