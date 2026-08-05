@@ -60,14 +60,12 @@ def update_profile(**kv):
     return p
 
 
-# App settings (the instellingen screen). trillen is stored but drives
-# nothing yet (no vibration hardware API) — it gates that when it lands.
+# App settings (the instellingen screen).
 # led is the NeoPixel duty in percent; full brightness is blinding on the
 # badge, so the default sits low. The settings screen steps it on a roughly
 # doubling ladder (see _LED_STEPS) because the eye is power-law, not linear.
 _DEFAULT_SETTINGS = {
     "geluid": True,
-    "trillen": False,
     "led": 30,
     "pluk_any": False,
     "nooit_moe": False,

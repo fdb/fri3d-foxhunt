@@ -1,9 +1,8 @@
-# screen_settings.py — instellingen: geluid, trillen + LED sterkte, and the
+# screen_settings.py — instellingen: geluid + LED sterkte, and the
 # badge/jager ids as plain labels at the bottom.
 #
-# Geluid mutes the app's buzzer sounds; Trillen is a stored switch waiting
-# for a vibration API. Companion/name editing lives on the profile screen, and
-# LoRa is not optional, so neither appears here.
+# Geluid mutes the app's buzzer sounds. Companion/name editing lives on the
+# profile screen, and LoRa is not optional, so neither appears here.
 
 import lvgl as lv
 from mpos import Activity, Intent
@@ -55,21 +54,17 @@ class SettingsActivity(Activity):
         cfg = store.settings()
         ui.banner(s, "INSTELLINGEN", ui.GREEN)
 
-        self._toggles = {}
-        for i, (key, title) in enumerate(
-            (("geluid", "Geluid"), ("trillen", "Trillen"))
-        ):
-            row = ui.panel(s, 6, 32 + i * (ROW_H + ROW_GAP), _ROW_W, ROW_H, bg=ui.CARD)
-            ui.label(row, title, 8, 5, ui.INK, ui.font_small())
-            self._toggles[key] = _Toggle(row, 262, 3, cfg[key])
-            ui.focusable(row, on_click=lambda k=key: self._flip(k))
+        row = ui.panel(s, 6, 32, _ROW_W, ROW_H, bg=ui.CARD)
+        ui.label(row, "Geluid", 8, 5, ui.INK, ui.font_small())
+        self._geluid = _Toggle(row, 262, 3, cfg["geluid"])
+        ui.focusable(row, on_click=self._flip_geluid)
 
         # LED sterkte: full power is blinding on the badge, so it's adjustable.
         # A 5-cell bar (the hunt's 5-LED look) beats a slider on a touch screen
         # this small; tapping the row steps through _LED_STEPS and lights the
         # strip at the new level so you can actually judge it.
         self._led = cfg["led"]
-        row = ui.panel(s, 6, 32 + 2 * (ROW_H + ROW_GAP), _ROW_W, ROW_H, bg=ui.CARD)
+        row = ui.panel(s, 6, 32 + ROW_H + ROW_GAP, _ROW_W, ROW_H, bg=ui.CARD)
         self._led_cells = ui.seg_bar(
             row, 8, 5, "LED sterkte", _led_step(self._led), ui.TERRA, label_w=196
         )
@@ -106,12 +101,12 @@ class SettingsActivity(Activity):
             self._id_taps = 0
             self.startActivity(Intent(activity_class=DebugActivity))
 
-    def _flip(self, key):
-        value = not store.settings()[key]
-        store.set_setting(key, value)
+    def _flip_geluid(self):
+        value = not store.settings()["geluid"]
+        store.set_setting("geluid", value)
         # play after the write, so flipping geluid ON is audible immediately
         sound.play("tap")
-        self._toggles[key].set(value)
+        self._geluid.set(value)
 
     def _cycle_led(self):
         i = (_led_step(self._led) + 1) % len(_LED_STEPS)
