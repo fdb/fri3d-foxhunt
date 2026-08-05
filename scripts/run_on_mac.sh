@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."
 # makes sure the package is present and the symlink exists, then hands off to
 # the package's own run_desktop.sh.
 #
-# Usage: scripts/run_on_mac.sh [--lora] [--fresh] [-- <extra run_desktop.sh args>]
+# Usage: scripts/run_on_mac.sh [--lora] [-- <extra run_desktop.sh args>]
 #
 # Options:
 #   --lora    Run as a badge WITH a LoRa antenna. Two things, and both are
@@ -28,10 +28,13 @@ cd "$(dirname "$0")/.."
 #               "BADGE AL BEKEND" and adopts it instead of starting over.
 #             Both are env overrides read by registrar.py, which the badge's
 #             MicroPython cannot even see (no os.getenv on ESP32).
-#   --fresh   Clear the local save first (scripts/clear_app_data.sh), so
-#             onboarding runs again. Pair it with --lora the first time: the
-#             app routes on "does a profile exist", so an existing profile
-#             never reaches registration and the new MAC registers nothing.
+#
+# Each persona keeps its OWN save. The app reads one fixed path
+# (data/be.fri3d.foxhunt/), so this script makes that path a symlink and
+# points it at a per-persona slot (be.fri3d.foxhunt.default / .lora) before
+# every launch. Switching persona never touches the other one's save, and a
+# persona whose slot is empty simply onboards itself — which is exactly what
+# the jager's first run must do, since its MAC has no account yet.
 #
 # Env overrides:
 #   MPOS_DIR        prebuilt MicroPythonOS dir (default: ~/MicroPythonOS)
@@ -53,12 +56,10 @@ LINK="$MPOS_DIR/internal_filesystem/apps/$APP_ID"
 
 # ── Arguments ─────────────────────────────────────────────────────────
 LORA=0
-FRESH=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --lora)  LORA=1; shift ;;
-        --fresh) FRESH=1; shift ;;
-        -h|--help) sed -n '5,40p' "$0"; exit 0 ;;
+        -h|--help) sed -n '5,43p' "$0"; exit 0 ;;
         --) shift; break ;;
         *) break ;;
     esac
@@ -103,24 +104,41 @@ elif [[ "$(readlink "$LINK" 2>/dev/null)" != "$APP_SRC" ]]; then
     echo "         leaving it as-is; remove it if you want this script to relink." >&2
 fi
 
-# ── Wipe the local save, if asked ─────────────────────────────────────
-# Scoped to the install we are about to run: clear_app_data.sh sweeps every
-# MicroPythonOS checkout on the machine unless MPOS_DIR pins it.
-if [[ "$FRESH" -eq 1 ]]; then
-    MPOS_DIR="$MPOS_DIR" "$PROJECT_DIR/scripts/clear_app_data.sh"
-fi
-
 # ── Persona ──────────────────────────────────────────────────────────
 # registrar.py reads both of these through os.getenv, which exists on the
 # desktop port only. Always say which account this run is, because the server
 # side of a desktop run is real and permanent.
+PERSONA="default"
 if [[ "$LORA" -eq 1 ]]; then
+    PERSONA="lora"
     export FOXHUNT_FAKE_LORA=1
     export FOXHUNT_BADGE_ID="$LORA_BADGE"
     echo "Persona: jager (faked LoRa antenna), badge $LORA_BADGE"
 else
     echo "Persona: verzamelaar (no antenna), the default desktop badge"
 fi
+
+# ── Point the save path at this persona's slot ────────────────────────
+# SharedPreferences resolves data/$APP_ID/config.json relative to
+# internal_filesystem/ (older builds used prefs/, so both parents are
+# handled). Making $APP_ID a symlink into a per-persona slot gives every
+# persona its own save without the app knowing: switching never touches the
+# other slot, and an empty slot replays onboarding by itself.
+for parent in data prefs; do
+    pdir="$MPOS_DIR/internal_filesystem/$parent"
+    live="$pdir/$APP_ID"
+    slot="$pdir/$APP_ID.$PERSONA"
+    # Migration, once: a real directory predates the slot scheme and is the
+    # default persona's save. Rename, never delete.
+    if [[ -d "$live" && ! -L "$live" ]]; then
+        echo "Moving existing save to its slot: $parent/$APP_ID.default"
+        mv "$live" "$pdir/$APP_ID.default"
+    fi
+    # The slot must exist before the app runs: SharedPreferences mkdirs the
+    # literal path, and a dangling symlink makes that mkdir fail as EEXIST.
+    mkdir -p "$slot"
+    ln -sfn "$slot" "$live"
+done
 
 # ── Launch the emulator ──────────────────────────────────────────────
 echo "Running $APP_ID on the macOS emulator..."

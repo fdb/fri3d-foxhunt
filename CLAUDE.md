@@ -40,9 +40,12 @@ board layer handles the hardware differences.
   account, and the second registration would meet the first as "BADGE AL
   BEKEND". That second account is exactly as real and permanent as the first —
   `scripts/delete_account.sh --emulator-lora` clears it.
-  Add `--fresh` to reach registration at all: the app routes on "does a profile
-  exist", so an existing local profile skips onboarding and the new MAC
-  registers nothing.
+  Each persona also keeps its own LOCAL save: `run_on_mac.sh` makes the app's
+  data dir a symlink into a per-persona slot (`be.fri3d.foxhunt.default` /
+  `.lora`) before every launch. Switching persona never touches the other's
+  save, and a persona with an empty slot replays onboarding by itself — which
+  is how the jager's first run reaches registration. `clear_app_data.sh`
+  sweeps the slots too.
 
 ## Deploying to the badge
 `scripts/deploy_to_badge.sh [--start]` pushes the app over USB — ~8s when

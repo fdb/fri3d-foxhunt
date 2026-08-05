@@ -49,16 +49,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Local (desktop emulator) ─────────────────────────────────────────
+# run_on_mac.sh keeps per-persona save slots ($APP_ID.default, $APP_ID.lora)
+# and makes $APP_ID a symlink into one of them, so sweep the slots as well —
+# clearing only the symlink would report success while both saves survive.
 cleared=0
 for root in "${MPOS_DIRS[@]}"; do
     [[ -d "$root" ]] || continue
     for parent in data prefs; do
-        dir="$root/internal_filesystem/$parent/$APP_ID"
-        if [[ -d "$dir" ]]; then
-            echo "Clearing local app data: $dir"
-            rm -rf "$dir"
-            cleared=1
-        fi
+        for name in "$APP_ID" "$APP_ID.default" "$APP_ID.lora"; do
+            dir="$root/internal_filesystem/$parent/$name"
+            if [[ -d "$dir" || -L "$dir" ]]; then
+                echo "Clearing local app data: $dir"
+                rm -rf "$dir"
+                cleared=1
+            fi
+        done
     done
 done
 if [[ "$cleared" -eq 0 ]]; then
