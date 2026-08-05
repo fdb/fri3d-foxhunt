@@ -86,8 +86,8 @@ class HomeActivity(Activity):
         # directional focus navigation is geometric, and a target nested
         # inside another target's rectangle is unreachable by joystick. Side
         # by side, identity and gear are two clean focus stops, each with the
-        # standard ring. A jager grows two more stops (snuffel + pluk with
-        # count badges), so the fox row keeps its whole width and JE BOEK
+        # standard ring. A jager grows two more stops (snuffel + pluk), so
+        # the fox row keeps its whole width and JE BOEK
         # gives up nothing; the verzamelaar gets those verbs as big cards
         # below instead (design: verzamelen.jsx PxHomeJager / PxHomeVerz).
         header_w = 172 if jager else 262
@@ -106,8 +106,8 @@ class HomeActivity(Activity):
         sub = p.get("hunter_id") or "Verzamelaar"
         ui.label(header, sub, 46, 24, ui.MYSTERY, ui.font_small())
         if jager:
-            self._kop_btn(182, "snuf", str(store.vonk_count_today()), self._snuffel)
-            self._kop_btn(227, "pluk", str(store.spots_ready_count()), self._pluk)
+            self._kop_btn(182, "snuf", self._snuffel)
+            self._kop_btn(227, "pluk", self._pluk)
         gear = ui.panel(s, 272, 6, 42, 40, bg=ui.CARD)
         art.icon(gear, "gear", 2).align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(gear, on_click=self._settings)
@@ -185,16 +185,11 @@ class HomeActivity(Activity):
             else:
                 ui.focusable(cell, focus_border=True)
 
-    def _kop_btn(self, x, icon, count, on_click):
-        """Jager header shortcut: a 42px icon panel with a gold count badge
-        (today's vonken / reloaded plukplekken)."""
+    def _kop_btn(self, x, icon, on_click):
+        """Jager header shortcut: a compact 42px icon panel."""
         s = self.screen
         btn = ui.panel(s, x, 6, 42, 40, bg=ui.CARD)
-        art.icon(btn, icon, 1).align(lv.ALIGN.CENTER, 0, 4)
-        badge = ui.box(btn, 24, 0, 14, 12, ui.GOLD)
-        badge.set_style_border_width(ui.BORDER_THIN, 0)
-        badge.set_style_border_color(ui.hexc(ui.INK), 0)
-        ui.label(badge, count, 0, 0, ui.INK, ui.font_small(), w=12, center=True)
+        art.icon(btn, icon, 1).align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(btn, on_click=on_click)
 
     def _nearby_row(self, s, awake, caught):
@@ -243,23 +238,12 @@ class HomeActivity(Activity):
 
     def _op_pad_row(self, s):
         # ── op pad: the verzamelaar's two verbs, where the (antenna-less,
-        # unhuntable) fox row would be. Big cards with a live stat each.
+        # unhuntable) fox row would be. Big cards explain each action without
+        # exposing the underlying daily/reload counters.
         self._section(52, "OP PAD", ui.GREEN_D)
-        vonken = store.vonk_count_today()
-        klaar = store.spots_ready_count()
-        snuf_stat = (
-            "%d vonk%s vandaag" % (vonken, "" if vonken == 1 else "en")
-            if vonken
-            else "zoek een maatje"
-        )
-        pluk_stat = (
-            "%d plek%s klaar" % (klaar, "" if klaar == 1 else "ken")
-            if klaar
-            else "ga op zoek"
-        )
         for x, icon, titel, stat, col, fn in (
-            (6, "snuf", "SNUFFELEN", snuf_stat, 0x8A6A2E, self._snuffel),
-            (163, "pluk", "PLUKKEN", pluk_stat, ui.TEXT_MUTED, self._pluk),
+            (6, "snuf", "SNUFFELEN", "zoek een maatje", 0x8A6A2E, self._snuffel),
+            (163, "pluk", "PLUKKEN", "ga op zoek", ui.TEXT_MUTED, self._pluk),
         ):
             card = ui.panel(s, x, 68, 151, 52, ui.CARD, border=ui.TERRA)
             art.icon(card, icon, 2).set_pos(6, 8)
