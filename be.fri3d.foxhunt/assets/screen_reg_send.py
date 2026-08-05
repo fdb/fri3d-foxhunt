@@ -13,6 +13,7 @@ import art
 import sound
 import store
 import companion
+import registrar
 from creatures import by_id
 from registrar import REGISTRAR
 from screen_starter import StarterActivity
@@ -76,6 +77,7 @@ class RegSendActivity(Activity):
         self.screen = ui.make_screen(SEND_BG)
         self._bar_timer = None
         self._starter = None  # startbeest id once the server grants one
+        self._exists = None  # the account payload, when the badge has one
         self.setContentView(self.screen)
         self._start_sending()
 
@@ -185,7 +187,12 @@ class RegSendActivity(Activity):
             return
         if st["done"]:
             self._stop_bar()
-            if st["ok"]:
+            if st.get("exists"):
+                # Neither done nor failed: the badge already has an account,
+                # and only the player knows whether it is theirs.
+                sound.play("tap")
+                self._build_exists(st)
+            elif st["ok"]:
                 store.update_profile(hunter_id=st["hunter_id"], synced=True)
                 self.p = store.profile() or self.p
                 # Bank the startbeest right away — the reveal is only
@@ -268,6 +275,148 @@ class RegSendActivity(Activity):
         )
         lbl.align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(btn, on_click=self._finish_registered)
+
+    # ---- state: the badge already has an account --------------------------
+    # The one thing the badge cannot work out on its own. badge_id is the MAC,
+    # so "already registered" means this piece of hardware had an account —
+    # the same player after a wipe, or a badge that changed hands. Adopting is
+    # right for the first, overwriting for the second, and getting it wrong
+    # either strands a jager's catches or puts a stranger's name on them. So
+    # show them the account and let them say.
+    def _build_exists(self, st):
+        self._exists = st
+        s = self.screen
+        s.clean()
+        s.set_style_bg_color(ui.hexc(ui.PAPER), 0)
+        ui.banner(s, "BADGE AL BEKEND", ui.GOLD)
+
+        info = ui.panel(s, ui.PAD, 30, 304, 38, bg=ui.SURFACE_TINT, border=ui.GREEN)
+        art.icon(info, "ant", 2).set_pos(8, 9)
+        ui.label(
+            info,
+            "Deze badge heeft al een jager. Ben jij dat?",
+            34,
+            9,
+            ui.INK,
+            ui.font_small(),
+            w=256,
+        )
+
+        head, accs, bg = companion.decode(st.get("companion"))
+        acct = ui.panel(s, ui.PAD, 74, 304, 74, bg=ui.CARD)
+        card = ui.panel(acct, 6, 6, 60, 60, bg=companion.BGS[bg], border=ui.GOLD)
+        companion.draw(card, head, accs, 3, x=4, y=4)
+        ui.label(acct, st.get("name") or "Jager", 76, 8, ui.INK, ui.font_title())
+        ui.label(acct, "JAGER ID", 76, 32, ui.MYSTERY, ui.font_small())
+        ui.label(acct, st.get("hunter_id") or "volgt", 140, 32, ui.INK, ui.font_small())
+        n = len(st.get("creatures") or [])
+        ui.label(
+            acct,
+            "%d beest%s in het boek" % (n, "" if n == 1 else "en"),
+            76,
+            50,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+        )
+
+        mine = ui.box(s, ui.PAD, 156, 148, 32, ui.GREEN, radius=ui.RADIUS)
+        mine.set_style_border_width(ui.BORDER, 0)
+        mine.set_style_border_color(ui.hexc(ui.INK), 0)
+        ml = ui.label(
+            mine, "DAT BEN IK", 0, 0, ui.CREAM, ui.font_title(), w=144, center=True
+        )
+        ml.align(lv.ALIGN.CENTER, 0, 0)
+        ui.focusable(mine, on_click=self._adopt_existing)
+
+        new = ui.box(s, 164, 156, 148, 32, ui.CARD, radius=ui.RADIUS)
+        new.set_style_border_width(ui.BORDER, 0)
+        new.set_style_border_color(ui.hexc(ui.INK), 0)
+        nl = ui.label(
+            new, "OVERSCHRIJF", 0, 0, ui.INK, ui.font_title(), w=144, center=True
+        )
+        nl.align(lv.ALIGN.CENTER, 0, 0)
+        ui.focusable(new, on_click=self._overwrite)
+
+        ui.label(
+            s,
+            "DAT BEN IK herstelt dit account. OVERSCHRIJF zet jouw nieuwe naam "
+            "en maatje erop; de beesten blijven bij de badge.",
+            ui.PAD,
+            194,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=304,
+        )
+
+    def _adopt_existing(self):
+        sound.play("caught")
+        registrar.adopt(self.p.get("badge_id", ""), self._exists)
+        self.p = store.profile() or self.p
+        self._finish_registered()
+
+    def _overwrite(self):
+        sound.play("tap")
+        self._start_overwriting()
+
+    def _start_overwriting(self):
+        s = self.screen
+        s.clean()
+        s.set_style_bg_color(ui.hexc(SEND_BG), 0)
+        ui.banner(s, "OVERSCHRIJVEN...", ui.GREEN)
+
+        card = ui.panel(s, ui.PAD, 40, 56, 56, bg=companion.BGS[self.p["bg"]])
+        companion.draw(card, self.p["head"], self.p["accs"], 3, x=2, y=2)
+        ui.label(s, self.p["name"], 74, 44, ui.INK, ui.font_title())
+        ui.label(s, self.p.get("badge_id", ""), 74, 70, ui.TEXT_MUTED, ui.font_small())
+
+        row = ui.panel(s, ui.PAD, 108, 304, 30, bg=ui.CARD)
+        art.icon(row, "st_wait", 2).set_pos(8, 6)
+        ui.label(row, "jouw naam op dit account...", 34, 7, ui.INK, ui.font_small())
+
+        ui.label(
+            s,
+            "even geduld - (B) annuleer",
+            0,
+            218,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=320,
+            center=True,
+        )
+
+        REGISTRAR.overwrite(
+            self.p["name"],
+            self.p.get("badge_id", ""),
+            companion.encode(self.p["head"], self.p["accs"], self.p["bg"]),
+            self._on_overwrite,
+        )
+
+    def _on_overwrite(self, st):
+        if not self.has_foreground() or not st["done"]:
+            return
+        if not st["ok"]:
+            sound.play("error")
+            self._build_error(
+                {
+                    "cloud": "fail",
+                    "bridge": "fail",
+                    "hunter": "fail",
+                    "error": st.get("error") or "E-01",
+                }
+            )
+            return
+        # The account is this badge's now. Its hunter id and its catches stay:
+        # both are keyed to the badge, and there is no second account to move
+        # them to — only the name and the maatje change hands.
+        registrar.adopt(
+            self.p.get("badge_id", ""),
+            self._exists,
+            name=self.p["name"],
+            code=companion.encode(self.p["head"], self.p["accs"], self.p["bg"]),
+        )
+        self.p = store.profile() or self.p
+        sound.play("caught")
+        self._build_done({"hunter_id": self._exists.get("hunter_id"), "bridge": "skip"})
 
     # ---- state: error -----------------------------------------------------
     def _build_error(self, st):

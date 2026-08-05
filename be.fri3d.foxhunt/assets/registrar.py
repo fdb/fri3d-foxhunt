@@ -46,6 +46,42 @@ def has_lora():
         return False
 
 
+def adopt(badge, account, name=None, code=None):
+    """Write an account the server handed back into the local store.
+
+    The one place both routes into an existing account agree on what taking it
+    over means: the welcome screen's "herstel", and the fork the registration
+    flow raises when the badge turns out to be known already.
+
+    `account` is the payload restore() documents — name, hunter_id, companion,
+    creatures. `name`/`code` override the first two fields for the player who
+    chose to overwrite the account instead of adopting it as it stands.
+
+    The catch list is not optional here. The maatje's accessory unlocks are
+    counted off it, so writing the profile alone hands the player an avatar
+    wearing things the builder then greys out as unearned.
+
+    Returns how many creatures the badge holds afterwards.
+    """
+    import store
+    import companion
+
+    code = code or account.get("companion")
+    head, accs, bg = companion.decode(code)
+    store.save_profile(
+        {
+            "name": name or account.get("name") or "Jager",
+            "head": head,
+            "accs": accs,
+            "bg": bg,
+            "badge_id": badge,
+            "hunter_id": account.get("hunter_id"),
+            "synced": True,
+        }
+    )
+    return len(store.restore_caught(account.get("creatures") or []))
+
+
 class Registrar:
     def register(self, name, badge, companion, on_update):
         """Send the profile to the cloud server and the LoRa bridge.
@@ -64,10 +100,30 @@ class Registrar:
                       restore) — the reveal screen only opens on a real grant
             "done": True on the terminal update
             "ok": (with done) the whole registration succeeded
+            "exists": (with done) THIS BADGE ALREADY HAS AN ACCOUNT. Neither
+                      ok nor an error — a fork the player has to settle, so
+                      the account payload (see restore(): "name",
+                      "hunter_id", "companion", "creatures") rides along and
+                      the screen offers adopt() or overwrite().
             "error": (with done, not ok) "E-01" cloud down | "E-02" bridge down
 
         Without a LoRa antenna the bridge/hunter steps report "skip" and the
         cloud save alone counts as success.
+        """
+        raise NotImplementedError
+
+    def overwrite(self, name, badge, companion, on_update):
+        """Put THIS profile on the account the badge already has (the
+        "overschrijf" answer to register()'s "exists"). The account keeps its
+        hunter_id and its catches — they are keyed to the badge, and there is
+        no second account to move them to — but the name and maatje become the
+        ones just built.
+
+        ASYNCHRONOUS BY CONTRACT, like register(). status:
+
+            "done" : True on the terminal update
+            "ok"   : the server took it
+            "error": "E-01" when it didn't
         """
         raise NotImplementedError
 
@@ -101,6 +157,8 @@ class FakeRegistrar(Registrar):
     STEP_MS = 700
     SIMULATE_LORA = True  # desktop has no radio; pretend, so the flow is testable
     FAIL_BRIDGE = False  # flip to walk the E-02 error path
+    REGISTER_EXISTS = False  # flip to walk the "badge is al bekend" fork
+    OVERWRITE_FAIL = False  # flip to walk the E-01 path out of that fork
     RESTORE_FOUND = True  # flip to walk the "onbekende badge" restore path
     RESTORE_FAIL = False  # flip to walk the E-01 restore path
     # A recovered companion that is deliberately NOT the default (uil + hoed +
@@ -134,6 +192,18 @@ class FakeRegistrar(Registrar):
 
         def cloud_done():
             st["cloud"] = "ok"
+            if self.REGISTER_EXISTS:
+                # The server knows this badge already: the same fork the real
+                # transport raises on a 409, carrying the same account payload
+                # a restore would have handed back.
+                st["exists"] = True
+                st["name"] = "Jager"
+                st["hunter_id"] = "JGR-%04d" % random.randrange(10000)
+                st["companion"] = self.RESTORE_COMPANION
+                st["creatures"] = list(self.RESTORE_CREATURES)
+                st["done"] = True
+                push()
+                return
             # same pick the real server makes: deterministic per badge
             from creatures import starter_for
 
@@ -169,6 +239,17 @@ class FakeRegistrar(Registrar):
 
         push()
         at(self.STEP_MS, cloud_done)
+
+    def overwrite(self, name, badge, companion, on_update):
+        ok = not self.OVERWRITE_FAIL
+        t = lv.timer_create(
+            lambda _t: on_update(
+                {"done": True, "ok": ok, "error": None if ok else "E-01"}
+            ),
+            self.STEP_MS,
+            None,
+        )
+        t.set_repeat_count(1)
 
     def restore(self, badge, on_update):
         def answer():
@@ -240,6 +321,32 @@ class HttpRegistrar(Registrar):
         on_update(dict(st))
         TaskManager.create_task(self._register(name, badge, companion, st, on_update))
 
+    async def _account(self, badge):
+        """The server's view of an account that already exists, in the shape
+        restore() reports. None when the server won't say — we refuse to offer
+        the player a choice we cannot back with the real account."""
+        status, data = await _json_request("GET", "/api/v1/auth/user?badge_id=" + badge)
+        if status != 200 or not data:
+            print("registrar: account lookup rejected, HTTP", status)
+            return None
+        creatures = data.get("creatures") or []
+        if not creatures:
+            # An account from before the startbeest existed. The server grants
+            # one to an EMPTY roster only, so this can neither reroll nor
+            # double; it just finishes what registration would have done.
+            s, d = await _json_request(
+                "POST", "/api/v1/auth/starter", {"badge_id": badge}
+            )
+            if s == 200 and d and d.get("ok"):
+                creatures = [d.get("starter")]
+        return {
+            "name": data.get("name"),
+            "hunter_id": _hunter_label(data.get("hunter_id")),
+            # "" is how the server spells "this account never sent one".
+            "companion": data.get("profile_pic") or None,
+            "creatures": creatures,
+        }
+
     async def _register(self, name, badge, companion, st, on_update):
         body = {"badge_id": badge, "name": name, "profile_pic": companion}
         ok = False
@@ -250,21 +357,25 @@ class HttpRegistrar(Registrar):
                 # A fresh account comes back holding its startbeest.
                 starter = data.get("starter") if data else None
             elif status == 409:
-                # Already in the book. Not an error: this is what a player who
-                # re-registers after a wipe instead of restoring looks like, so
-                # adopt the account by updating it rather than refusing them.
-                status, _ = await _json_request("PATCH", "/api/v1/auth/user", body)
-                if status == 200:
-                    # An adopted account may predate the startbeest. The
-                    # server grants one only to an empty roster (409 there
-                    # means "you already have creatures" and is not our
-                    # problem to solve here — a restore is).
-                    s2, d2 = await _json_request(
-                        "POST", "/api/v1/auth/starter", {"badge_id": badge}
-                    )
-                    if s2 == 200 and d2 and d2.get("ok"):
-                        starter = d2.get("starter")
-            ok = status in (200, 201)
+                # This badge is already in the book, and the badge cannot tell
+                # the two ways that happens apart: the same player after a
+                # wipe, or a badge that changed hands. They want opposite
+                # things, so stop and let the player settle it.
+                #
+                # This used to PATCH straight through and report success. That
+                # overwrote whoever's name was on the account without asking,
+                # and — because nothing read the existing row back — left the
+                # badge with hunter_id None and an empty catch list while the
+                # server still held both.
+                account = await self._account(badge)
+                if account is not None:
+                    st.update(account)
+                    st["cloud"] = "ok"
+                    st["exists"] = True
+                    st["done"] = True
+                    on_update(dict(st))
+                    return
+            ok = status == 201
             if not ok:
                 print("registrar: register rejected, HTTP", status)
         except Exception as e:
@@ -281,6 +392,21 @@ class HttpRegistrar(Registrar):
         st["ok"] = ok
         st["error"] = None if ok else "E-01"
         on_update(dict(st))
+
+    def overwrite(self, name, badge, companion, on_update):
+        TaskManager.create_task(self._overwrite(name, badge, companion, on_update))
+
+    async def _overwrite(self, name, badge, companion, on_update):
+        body = {"badge_id": badge, "name": name, "profile_pic": companion}
+        status = 0
+        try:
+            status, _ = await _json_request("PATCH", "/api/v1/auth/user", body)
+        except Exception as e:
+            print("registrar: overwrite failed:", e)
+        ok = status == 200
+        if not ok:
+            print("registrar: overwrite rejected, HTTP", status)
+        on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})
 
     def restore(self, badge, on_update):
         TaskManager.create_task(self._restore(badge, on_update))

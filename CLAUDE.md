@@ -199,6 +199,19 @@ talks to `/api/v1/auth/*` there.
   with no catches.
 - The badge writes only what is its own to claim — name, `profile_pic`
   (companion shortcode), `hunter_id` — via register/PATCH.
+- **A second registration on a known badge is a question, not a policy.**
+  `badge_id` is the MAC, so a 409 from `/register` means this *hardware* already
+  has an account: the same player after a wipe, or a badge that changed hands.
+  Those want opposite things and the badge cannot tell them apart, so the flow
+  stops and shows the account it found (`screen_reg_send._build_exists`) — DAT
+  BEN IK adopts it, OVERSCHRIJF PATCHes the new name and maatje onto it. Either
+  answer keeps the `hunter_id` and the catch list: both are keyed to the badge,
+  and there is no second account to move them to. `registrar.adopt` does the
+  writing for both, and for the welcome screen's "herstel" — one definition of
+  what recovery means. Do not restore the silent PATCH this replaced: it renamed
+  a stranger's account without asking, and because nothing read the existing row
+  back it left the badge with `hunter_id = None` and an empty roster while the
+  server still held both, under a screen that said "je bent ingeschreven".
 - **`hunter_id` is allocated 1-9999, four digits, even though the wire is wider.**
   The LoRa spec (§2.2) makes HID a big-endian `uint16` — `HID_hi`, `HID_lo`,
   1-65535, 0 reserved. We deliberately hand out only the bottom 1-9999 of that

@@ -105,26 +105,10 @@ class RestoreActivity(Activity):
     def _adopt(self, st):
         """Save the recovered account locally, straight away — same reasoning
         as the send screen: whatever happens next, the badge has the profile.
-        The companion comes back as a shortcode (companion.decode), so the player
-        gets their own avatar rather than a default fox; an account from
-        before shortcodes has none and falls back to the default.
-
-        The catch list comes back with it. It has to: the maatje's accessory
-        unlocks are counted off it, so restoring the avatar alone would hand
-        the player a sjaal the builder then greys out as unearned."""
-        head, accs, bg = companion.decode(st.get("companion"))
-        store.save_profile(
-            {
-                "name": st.get("name") or "Jager",
-                "head": head,
-                "accs": accs,
-                "bg": bg,
-                "badge_id": self.badge,
-                "hunter_id": st.get("hunter_id"),
-                "synced": True,
-            }
-        )
-        self.recovered = len(store.restore_caught(st.get("creatures") or []))
+        registrar.adopt does the writing; the registration flow's "badge al
+        bekend" fork calls the same function, so both routes into an existing
+        account recover exactly the same things."""
+        self.recovered = registrar.adopt(self.badge, st)
 
     # ---- state: found -----------------------------------------------------
     def _build_found(self, st):
