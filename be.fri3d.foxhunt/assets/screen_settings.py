@@ -15,6 +15,7 @@ import leds
 import registrar
 from screen_debug import DebugActivity
 from screen_wipe import WipeActivity
+from screen_uitleg import UitlegActivity
 
 TRACK_OFF = 0xE0D4B4  # switch track when off
 ROW_H, ROW_GAP = 26, 4
@@ -99,6 +100,13 @@ class SettingsActivity(Activity):
         # anything — and it opens a screen that makes you type the word, so this
         # row itself is safe to sit among the toggles.
         row = ui.panel(s, 6, 32 + 2 * (ROW_H + ROW_GAP), _ROW_W, ROW_H, bg=ui.CARD)
+        ui.label(row, "Hoe speel je?", 8, 5, ui.INK, ui.font_small())
+        ui.label(
+            row, "uitleg", 160, 5, ui.TEXT_MUTED, ui.font_small(), w=140, center=True
+        )
+        ui.focusable(row, on_click=self._uitleg)
+
+        row = ui.panel(s, 6, 32 + 3 * (ROW_H + ROW_GAP), _ROW_W, ROW_H, bg=ui.CARD)
         ui.label(row, "Alles wissen", 8, 5, ui.TERRA_D, ui.font_small())
         ui.label(
             row,
@@ -152,6 +160,10 @@ class SettingsActivity(Activity):
     def _wipe(self):
         sound.play("tap")
         self.startActivity(Intent(activity_class=WipeActivity))
+
+    def _uitleg(self):
+        sound.play("tap")
+        self.startActivity(Intent(activity_class=UitlegActivity))
 
     def _id_tap(self):
         self._id_taps += 1

@@ -19,6 +19,7 @@ from screen_profile import ProfileActivity
 from screen_settings import SettingsActivity
 from screen_snuffel import SnuffelActivity
 from screen_pluk import PlukActivity
+from screen_uitleg import UitlegActivity
 
 _CELL_W, _CELL_H, _GAP = 74, 52, 4  # boek tiles
 _HAIR = 0xDCCFA9  # section hairline on paper
@@ -33,6 +34,11 @@ class HomeActivity(Activity):
         self.screen = ui.make_screen(ui.PAPER)
         self._populate()
         self.setContentView(self.screen)
+        # First-ever home: one uitleg screen names the loop for this mode.
+        # A store flag, not part of onboarding, so restored accounts get it too.
+        if not store.flag("uitleg_gezien"):
+            store.set_flag("uitleg_gezien")
+            self.startActivity(Intent(activity_class=UitlegActivity))
 
     def onResume(self, screen):
         super().onResume(screen)
