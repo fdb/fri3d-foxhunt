@@ -126,7 +126,9 @@ class StarterActivity(Activity):
             w=320,
             center=True,
         )
-        self._button(s, "GEEF EEN HAPJE", self._build_feed)
+        # "GEEF EEN HAPJE" is 166px in font_title() and wraps to two clipped
+        # lines in the 152px button; the short form fits like every other one.
+        self._button(s, "GEEF HAPJE", self._build_feed)
 
     # ---- state: the guided first feeding ----------------------------------
     def _build_feed(self):
