@@ -41,14 +41,21 @@ playerRoutes.post("/found", async (c) => {
     const hunterId = validateHunterId(body.hunter_id);
     if (hunterId === null || hunterId === "invalid")
       return c.json({ error: "invalid hunter_id (integer 1-9999)" }, 400);
-    player = await c.env.DB.prepare("SELECT * FROM players WHERE hunter_id = ?")
+    // dt_deleted IS NULL: a wiped account keeps its row (auth.ts, DELETE
+    // /user), and the bridge may still hold its HID for a while. A find must
+    // not resurrect it — nor land on the next player, who will mint a new HID.
+    player = await c.env.DB.prepare(
+      "SELECT * FROM players WHERE hunter_id = ? AND dt_deleted IS NULL",
+    )
       .bind(hunterId)
       .first<Player>();
     if (!player) return c.json({ error: "unknown hunter_id" }, 404);
   } else {
     const badgeId = validateBadgeId(body.badge_id);
     if (!badgeId) return c.json({ error: "invalid badge_id" }, 400);
-    player = await c.env.DB.prepare("SELECT * FROM players WHERE badge_id = ?")
+    player = await c.env.DB.prepare(
+      "SELECT * FROM players WHERE badge_id = ? AND dt_deleted IS NULL",
+    )
       .bind(badgeId)
       .first<Player>();
     if (!player) return c.json({ error: "unknown badge_id" }, 404);

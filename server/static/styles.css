@@ -864,6 +864,14 @@ img {
   color: var(--ink);
 }
 
+/* A wiped account on the debug pages. It shows nowhere public, so this only
+   ever appears next to a name an organiser is looking at on purpose. */
+.tag-deleted {
+  background: var(--terra);
+  color: var(--cream);
+  font-family: var(--font-pixel);
+}
+
 .quote {
   margin: 1.75rem 0;
   padding: 1.1rem 1.4rem;

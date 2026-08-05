@@ -1,0 +1,13 @@
+-- Adds players.dt_deleted (the badge's "alles wissen" — see schema.sql).
+--
+-- schema.sql is all CREATE TABLE IF NOT EXISTS, so re-running it on a database
+-- that already holds players is a no-op and will NOT add this column. Run this
+-- once against each existing database instead:
+--
+--   wrangler d1 execute foxhunt --local  --file=migrations/001_soft_delete.sql
+--   wrangler d1 execute foxhunt --remote --file=migrations/001_soft_delete.sql
+--
+-- SQLite has no ADD COLUMN IF NOT EXISTS: on a database created from the
+-- current schema.sql this errors with "duplicate column name", which is the
+-- correct outcome — the column is already there.
+ALTER TABLE players ADD COLUMN dt_deleted TEXT;

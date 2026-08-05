@@ -18,6 +18,9 @@ const ROSTER_SIZE = CREATURES.length;
 // player's to discover (CLAUDE.md, "Server pages"), so this query counts
 // players_creatures and never reads a creature_id. profile_pic rides along
 // because the maatje is the player's face on the board.
+//
+// A wiped account leaves the board the moment it is wiped: taking your name off
+// this page is one of the two reasons the delete exists (auth.ts, DELETE /user).
 async function fetchScores(db: D1Database): Promise<ScoreRow[]> {
   const { results } = await db
     .prepare(
@@ -26,6 +29,7 @@ async function fetchScores(db: D1Database): Promise<ScoreRow[]> {
               MAX(pc.dt_found) AS last_found
        FROM players p
        LEFT JOIN players_creatures pc ON pc.player_id = p.id
+       WHERE p.dt_deleted IS NULL
        GROUP BY p.id
        ORDER BY creatures_found DESC, last_found ASC, p.name ASC`,
     )
@@ -144,6 +148,10 @@ pageRoutes.get("/scoreboard", async (c) => {
 // Player list: HTML table by default, JSON when requested.
 // The catch count rides along so the list answers "who is doing well" without
 // a click; the click (/debug/players/:id) answers "with what".
+//
+// Wiped accounts stay listed, tagged GEWIST. The public pages drop them, but
+// this page is where an organiser undoes one — you cannot restore a row you
+// cannot see, and the wipe is only reversible until the badge registers again.
 interface PlayerRow extends Player {
   creature_count: number;
 }
@@ -162,7 +170,10 @@ pageRoutes.get("/debug/players", async (c) => {
   }
 
   return c.html(
-    <Layout title="Spelers" right={`${results.length} spelers`}>
+    <Layout
+      title="Spelers"
+      right={`${results.filter((p) => !p.dt_deleted).length} spelers`}
+    >
       <section>
         <table>
           <thead>
@@ -185,6 +196,7 @@ pageRoutes.get("/debug/players", async (c) => {
                 </td>
                 <td>
                   <a href={`/debug/players/${p.id}`}>{p.name}</a>
+                  {p.dt_deleted && <span class="tag tag-deleted">gewist</span>}
                 </td>
                 <td class="muted">
                   <code>{p.badge_id}</code>
@@ -274,6 +286,7 @@ pageRoutes.get("/debug/players/:id", async (c) => {
           <dt>Speler</dt>
           <dd>
             {player.name} <span class="muted">#{player.id}</span>
+            {player.dt_deleted && <span class="tag tag-deleted">gewist</span>}
           </dd>
           <dt>Hunter</dt>
           <dd>{hunterLabel(player.hunter_id)}</dd>
@@ -289,6 +302,12 @@ pageRoutes.get("/debug/players/:id", async (c) => {
           <dd class="muted">{fullTime(player.dt_created)}</dd>
           <dt>Gewijzigd</dt>
           <dd class="muted">{fullTime(player.dt_updated)}</dd>
+          {player.dt_deleted && (
+            <>
+              <dt>Gewist</dt>
+              <dd class="muted">{fullTime(player.dt_deleted)}</dd>
+            </>
+          )}
         </dl>
       </section>
 

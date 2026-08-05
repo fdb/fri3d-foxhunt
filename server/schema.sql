@@ -17,7 +17,12 @@ CREATE TABLE IF NOT EXISTS players (
   name TEXT NOT NULL,
   profile_pic TEXT NOT NULL DEFAULT '',
   dt_created TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  dt_updated TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  dt_updated TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  -- Soft delete (the badge's "alles wissen"). The row stays so an organiser
+  -- can undo a regretted wipe, and so badge_id keeps its UNIQUE slot; a
+  -- re-registration on this badge revives THIS row rather than adding a second.
+  -- NULL = live. Every player-facing read filters on it.
+  dt_deleted TEXT
 );
 
 CREATE TABLE IF NOT EXISTS players_creatures (

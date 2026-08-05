@@ -11,6 +11,10 @@ export interface Player {
   profile_pic: string;
   dt_created: string;
   dt_updated: string;
+  // Soft delete: NULL while the account is live. A deleted account is invisible
+  // to every player-facing route (restore, PATCH, /found, the scoreboard) and
+  // is revived, not duplicated, when the badge registers again.
+  dt_deleted: string | null;
 }
 
 export interface GameEvent {
