@@ -6,7 +6,9 @@
 # idle list doubles as the visible "wil snuffelen" state.
 #
 # The handshake fires by itself: when a peer holds the CLOSE verdict for a
-# full streak (~3 s of -50 dBm or better), both sides celebrate. There is
+# full streak (~3 s of -50 dBm or better), both sides celebrate — the first
+# side to complete claims it on the air (SNF) and the other mirrors, so the
+# streaks need not line up. There is
 # nothing to choose and no buttons on the payoff — every snuffel shares food
 # automatically (a vonk is a picknick, a repeat a bite), and a vonk can
 # spark one of the other player's creatures to introduce itself. The same
@@ -75,14 +77,10 @@ class SnuffelActivity(Activity):
             center=True,
         )
 
-        bw = 151
-        boekje = ui.panel(s, 6, 204, bw, 30, ui.CARD)
-        art.icon(boekje, "boek", 2).set_pos(28, 6)
-        ui.label(boekje, "BOEKJE", 48, 8, ui.INK, ui.font_label())
+        boekje = ui.panel(s, 6, 204, 308, 30, ui.CARD)
+        art.icon(boekje, "boek", 2).set_pos(106, 6)
+        ui.label(boekje, "BOEKJE", 128, 8, ui.INK, ui.font_label())
         ui.focusable(boekje, on_click=self._boekje)
-        code = ui.panel(s, 6 + bw + 6, 204, bw, 30, ui.CARD)
-        ui.label(code, "CODE", 0, 8, ui.INK, ui.font_label(), w=bw - 4, center=True)
-        ui.focusable(code, on_click=self._code)
 
         self.setContentView(s)
 
@@ -177,6 +175,7 @@ class SnuffelActivity(Activity):
 
     # ── the payoff ──────────────────────────────────────────────────────
     def _snuffel(self, peer):
+        LINK.claim(peer.mac)  # tell the peer's badge, so both sides pay out
         result = store.record_snuffel(peer.mac, peer.naam, peer.code)
         geluk = store.roll_vonk_geluk(peer.roster) if result["vonk"] else None
         if geluk is not None:
@@ -203,18 +202,18 @@ class SnuffelActivity(Activity):
         sound.play("tap")
         self.startActivity(Intent(activity_class=BoekjeActivity))
 
-    def _code(self):
-        sound.play("tap")
-        self.startActivity(Intent(activity_class=SnuffelCodeActivity))
-
 
 class VonkActivity(Activity):
     """The handshake payoff. No buttons and nothing to decide: the picknick
     is already in the voorraad, the geluk creature already in the boek. Tap
     anywhere (or back) to continue; tapping the geluk panel opens the new
-    creature's own page, like any boek tile would."""
+    creature's own page, like any boek tile would.
+    The link keeps ticking underneath: the badge that finishes first must
+    keep beaconing (and resending its SNF claim) while this screen is up,
+    or the slower side never completes — that silence WAS the race."""
 
     def onCreate(self):
+        self.timer = None
         x = self.getIntent().extras
         self.naam = x.get("naam", "?")
         self.geluk = x.get("geluk")
@@ -332,6 +331,16 @@ class VonkActivity(Activity):
         )
         self.setContentView(s)
 
+    def onResume(self, screen):
+        super().onResume(screen)
+        self.timer = lv.timer_create(lambda t: LINK.tick(), 500, None)
+
+    def onPause(self, screen):
+        super().onPause(screen)
+        if self.timer:
+            self.timer.delete()
+            self.timer = None
+
     def _done(self):
         sound.play("tap")
         self.finish()
@@ -342,89 +351,4 @@ class VonkActivity(Activity):
         sound.play("tap")
         self.startActivity(
             Intent(activity_class=BeastActivity, extras={"fox_id": self.geluk})
-        )
-
-
-class SnuffelCodeActivity(Activity):
-    """The manual fallback: no radio, no problem — swap names out loud.
-    Each player types the other's name; the meeting counts the same (the
-    universal baseline the design mandates). No roster travels, so there is
-    no vonk-geluk this way — the radio path stays the magic one."""
-
-    def onCreate(self):
-        from mpos.ui.keyboard import MposKeyboard
-
-        p = store.profile()
-        s = ui.make_screen(ui.PAPER)
-        ui.banner(s, "SNUFFELCODE", ui.GREEN)
-        card = ui.panel(s, 8, 34, 304, 62, ui.CARD)
-        ui.label(
-            card,
-            "lukt de snuffel niet?",
-            0,
-            6,
-            ui.MYSTERY,
-            ui.font_small(),
-            w=300,
-            center=True,
-        )
-        ui.label(
-            card,
-            "jouw code is je naam:",
-            0,
-            20,
-            ui.INK,
-            ui.font_small(),
-            w=300,
-            center=True,
-        )
-        ui.label(
-            card, p["name"], 0, 34, ui.GREEN_D, ui.font_title(), w=300, center=True
-        )
-
-        ui.label(s, "typ de naam van je maatje:", 8, 104, ui.INK, ui.font_small())
-        ta = lv.textarea(s)
-        ta.set_pos(8, 118)
-        ta.set_size(304, 30)
-        ta.set_one_line(True)
-        ta.set_max_length(12)
-        ta.set_placeholder_text("tik om te typen")
-        self.ta = ta
-
-        self.kb = MposKeyboard(s)
-        self.kb.set_textarea(ta)
-        self.kb.add_flag(lv.obj.FLAG.HIDDEN)
-        ta.add_event_cb(
-            lambda e: self.kb.remove_flag(lv.obj.FLAG.HIDDEN), lv.EVENT.CLICKED, None
-        )
-        self.kb.add_event_cb(self._done, lv.EVENT.READY, None)
-        self.kb.add_event_cb(
-            lambda e: self.kb.add_flag(lv.obj.FLAG.HIDDEN), lv.EVENT.CANCEL, None
-        )
-        self.setContentView(s)
-
-    def _done(self, e):
-        naam = self.ta.get_text().strip()
-        if not naam:
-            sound.play("error")
-            return
-        self.kb.add_flag(lv.obj.FLAG.HIDDEN)
-        # identity for a manual meeting: the name, lowercased — the same pair
-        # meeting again the same day still only sparks once
-        result = store.record_snuffel("code:" + naam.lower(), naam, "")
-        sound.play("caught")
-        self.startActivity(
-            Intent(
-                activity_class=VonkActivity,
-                extras={
-                    "naam": naam,
-                    "code": "",
-                    "vonk": result["vonk"],
-                    "new_friend": result["new_friend"],
-                    "dag": result["dag"],
-                    "food": result["food"],
-                    "amount": result["amount"],
-                    "geluk": None,
-                },
-            )
         )

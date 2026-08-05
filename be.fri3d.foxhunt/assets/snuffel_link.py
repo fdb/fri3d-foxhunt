@@ -19,15 +19,25 @@
 #
 # Wire format (ASCII, pipe-separated, one line, <250 bytes):
 #   VJ1|HI|<naam>|<shortcode>|<roster csv>     broadcast, ~1/s
+#   VJ1|SNF|<peer mac>                         broadcast, a few /s for ~3 s
 # Identity is the MAC the frame arrived on; names are display only. The
 # handshake carries no payload: everything a snuffel yields (food, the
 # vonk-geluk creature) is derived locally from the HI roster.
+#
+# SNF closes the handshake race: each side counts its own CLOSE streak, so
+# without it both must complete within the same beacon — the first to finish
+# used to go quiet on its payoff screen and starve the other. Now the
+# finisher announces "I snuffelled <you>" and the named peer mirrors the
+# handshake at once, if its own radio also reads that peer as nearby
+# (INVITE_DBM). Both sides pay out from one completed streak.
 
 import random
 
 PROTO = b"VJ1"
 CLOSE_DBM = -50  # the consent boundary (findings section 4)
 CLOSE_STREAK = 6  # consecutive close readings before the handshake fires
+INVITE_DBM = -60  # accept a peer's SNF only if our radio reads them this close
+ANNOUNCE_TICKS = 6  # keep resending SNF this many ticks (~3 s): frames drop
 CHANNEL = 1  # fixed camp-wide snuffel channel: every badge must agree
 _BROADCAST = b"\xff\xff\xff\xff\xff\xff"
 _GONE_S = 6  # drop a peer this long after its last beacon
@@ -56,6 +66,12 @@ class BaseLink:
         self.naam = "?"
         self.code = ""
         self.roster = []
+        self._announce = None  # [peer mac, ticks left] while resending SNF
+
+    def claim(self, mac):
+        """The screen fired the handshake with `mac`: announce it on the air
+        for a few seconds so the peer's side fires too."""
+        self._announce = [mac, ANNOUNCE_TICKS]
 
     def set_identity(self, naam, code, roster):
         self.naam = naam or "?"
@@ -101,6 +117,7 @@ class EspNowLink(BaseLink):
         import network
 
         self._sta = network.WLAN(network.STA_IF)
+        self._my_mac = ""  # set in start(); SNF frames name their target by it
         self._now = espnow.ESPNow()
         self._now.active(True)
         try:
@@ -115,6 +132,7 @@ class EspNowLink(BaseLink):
             self._sta.disconnect()  # NOT active(False): that kills ESP-NOW
             self._sta.config(channel=CHANNEL)
             self._sta.config(pm=self._network.WLAN.PM_NONE)  # no modem sleep
+            self._my_mac = ":".join("%02x" % b for b in self._sta.config("mac"))
         except Exception as e:
             print("snuffel: start:", e)
 
@@ -135,6 +153,12 @@ class EspNowLink(BaseLink):
                 (PROTO, b"HI", self.naam.encode(), self.code.encode(), roster.encode())
             )
             self._now.send(_BROADCAST, msg, False)  # broadcast: never acked
+            if self._announce:
+                mac, left = self._announce
+                self._now.send(
+                    _BROADCAST, b"|".join((PROTO, b"SNF", mac.encode())), False
+                )
+                self._announce = [mac, left - 1] if left > 1 else None
             while True:
                 mac, payload = self._now.recv(0)  # drain without blocking
                 if mac is None:
@@ -147,9 +171,21 @@ class EspNowLink(BaseLink):
 
     def _on_frame(self, mac, payload):
         parts = payload.split(b"|")
-        if len(parts) < 2 or parts[0] != PROTO or parts[1] != b"HI":
+        if len(parts) < 2 or parts[0] != PROTO:
             return  # other ESP-NOW traffic in the field is harmless
         macs = ":".join("%02x" % b for b in mac)
+        if parts[1] == b"SNF":
+            # the peer's handshake fired with US: mirror it, even mid-streak.
+            # Local forgiving state only, and gated on OUR radio's reading of
+            # them (a forged frame cannot claim closeness) — but with margin
+            # under CLOSE_DBM, because the two radios never read alike.
+            target = parts[2].decode() if len(parts) > 2 else ""
+            p = self.peers.get(macs)
+            if target == self._my_mac and p and self._rssi_of(mac) >= INVITE_DBM:
+                p.streak = max(p.streak, CLOSE_STREAK)
+            return
+        if parts[1] != b"HI":
+            return
         naam = parts[2].decode() if len(parts) > 2 else "?"
         code = parts[3].decode() if len(parts) > 3 else ""
         roster = []
@@ -159,15 +195,17 @@ class EspNowLink(BaseLink):
                     roster.append(int(tok))
                 except ValueError:
                     pass
+        self._seen(macs, naam, code, roster, self._rssi_of(mac))
+
+    def _rssi_of(self, mac):
         # RSSI comes from OUR radio's peers_table, never from the payload.
-        rssi = -99
         try:
             entry = self._now.peers_table.get(mac)
             if entry:
-                rssi = entry[0]
+                return entry[0]
         except Exception:
             pass
-        self._seen(macs, naam, code, roster, rssi)
+        return -99
 
 
 class FakeLink(BaseLink):

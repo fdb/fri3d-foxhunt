@@ -380,8 +380,8 @@ creatures are perpetually sad.
   consecutive beacons and required *on both sides*. Usefully, RSSI is read by
   the receiver's own radio and never carried in the payload, so closeness
   cannot be claimed — only amplified. Still to test outdoors in a crowd; if
-  the threshold proves unstable there, promote the manual code to co-equal
-  status rather than shipping a boundary that lies.
+  the threshold proves unstable there, retune the verdict (threshold, streak
+  length, SNF mirror margin) rather than shipping a boundary that lies.
 - **ESP-NOW and camp WiFi on one radio — answered.** The espnow-test spike
   measured it: a badge associated with an AP is pinned to that AP's channel
   and cannot change it, so snuffel mode must disconnect (keeping the radio
@@ -425,9 +425,9 @@ creatures are perpetually sad.
 ### Social risks
 
 - **Shy players and non-Dutch speakers.** Walking up to strangers is the point,
-  but it must never be the *only* path: manual codes, the daily
-  verzamelmoment, and solo-viable progression (care + activities) keep the
-  game playable without cold-approaching anyone.
+  but it must never be the *only* path: the daily verzamelmoment and
+  solo-viable progression (care + activities) keep the game playable
+  without cold-approaching anyone.
 - **Non-players getting pestered.** 500 people aren't playing. Visible
   player-state (the "wil snuffelen" idle screen) tells kids who is fair game
   to approach.
@@ -708,8 +708,12 @@ would leave a new gatherer with nothing to do.
 Core care and mini-games work offline and synchronise later. Sharing
 transports, in order of universality:
 
-- A short, one-time manual code as the universal baseline.
-- The ESP-NOW snuffel, gated at -50 dBm, for deliberate face-to-face exchanges.
+- The ESP-NOW snuffel, gated at -50 dBm, for deliberate face-to-face
+  exchanges — the baseline. Its SNF mirror frame lets one completed streak
+  pay out both badges, so the two sides need not finish together.
+  (The manual code that once sat below it was cut in 2026-08: it carried no
+  secret — typing any name minted the reward — so it was self-service
+  cheating, not a fallback.)
 - The same ESP-NOW link, held open, for richer playdates.
 - Camp WiFi and the cloud server for durable provenance, scoring and recovery.
 
@@ -759,8 +763,8 @@ Before building a large economy, test a compact experience:
    burst, and a census of `fri3d-badge` BSSIDs on the terrain.
 1. Companion tutorial, ending in the startbeest reveal (server-minted in
    the registration POST).
-2. Creature spread through vonk-geluk, over snuffel and the manual code,
-   with the snuffel report syncing the result to the profile.
+2. Creature spread through vonk-geluk over snuffel, with the snuffel
+   report syncing the result to the profile.
 3. Plukken against one real `fri3d-badge` hotspot: warmer/colder screen,
    BSSID identity, per-badge reload.
 4. One motion mini-game, such as a tilt maze.
