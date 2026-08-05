@@ -23,6 +23,12 @@ board layer handles the hardware differences.
   test data — no real account, no real catches. Overwrite it with `{}` to
   replay first-run onboarding, or seed a profile to skip it, without asking.
   Only the badge and the server hold anything worth keeping.
+  **The ACCOUNT it registers is not throwaway.** `registrar.badge_id` falls back
+  to one fixed fake MAC on desktop, and `BASE_URL` points at prod, so every
+  desktop run registers as the same permanent player on the real server. Deleting
+  the local config does not touch it: the next onboarding meets its own account
+  as "BADGE AL BEKEND", correctly, forever. Clear the server side too —
+  `scripts/delete_account.sh --emulator`.
 
 ## Deploying to the badge
 `scripts/deploy_to_badge.sh [--start]` pushes the app over USB — ~8s when
@@ -262,6 +268,13 @@ talks to `/api/v1/auth/*` there.
 
   `scripts/test_server_wipe.sh` walks the whole lifecycle; the properties live in
   four different routes' WHERE clauses, so test it end to end, not route by route.
+
+  `scripts/delete_account.sh` does the same wipe from a laptop, for the accounts
+  ALLES WISSEN cannot reach: a badge already wiped locally, a dead badge, an
+  emulator profile that was thrown away. It calls the SAME route rather than
+  writing `dt_deleted` itself — a second definition of deleting would drift from
+  the first, and this one already carries the soft delete, the `game_events`
+  entry and the idempotency. Run it with no argument to list accounts.
 
 - **`hunter_id` is allocated 1-9999, four digits, even though the wire is wider.**
   The LoRa spec (§2.2) makes HID a big-endian `uint16` — `HID_hi`, `HID_lo`,
