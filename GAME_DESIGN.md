@@ -210,8 +210,11 @@ rests on a threshold we picked rather than on physics, which means it has to be
 measured in the field and can be tuned or defeated. Payloads stay
 shortcode-sized, far under anything ESP-NOW strains at.
 
-A **manual short code** remains the universal fallback (handshake failure, shy
-players, broken hardware) and awards the same rewards.
+There is no manual fallback: the snuffel code was cut in 2026-08 — it
+carried no secret, typing any name minted the reward, so it was
+self-service cheating rather than a fallback (see *Connectivity and
+trust*). The SNF mirror frame covers the handshake race instead. The fox
+keypad (`screen_code`) is a different mechanic and stays.
 
 ### What a snuffel carries
 
@@ -266,7 +269,7 @@ brand-new verzamelaars have something to spread from their first handshake.
 
 ### Het vriendenboekje (the permanent layer)
 
-The vonk resets daily; the **vriendenboekje** never does. The first time two
+The vonk re-arms on its cooldown; the **vriendenboekje** never resets. The first time two
 badges *ever* meet, each writes the other a page: companion avatar, name,
 day. It is a pure collection — it never decays, it grows all weekend, and it
 gives a snuffel between two empty-handed gatherers a payoff beyond the vonk.
@@ -425,7 +428,7 @@ creatures are perpetually sad.
   design.
 - **Introduction spam — resolved by removing deliberate introductions.**
   Creatures spread only through the vonk-geluk roll, which is bounded by the
-  vonk rules (per-pair-per-day, daily cap); there is no share button to spam.
+  vonk rules (per-pair cooldown, daily cap); there is no share button to spam.
 - **Badge speed-dating.** If vonken dominate scoring, optimal play is booping
   every stranger in the food queue. Mitigate with the daily vonk cap, modest
   vonk value, and optionally requiring a 30-second joint payload (mini
