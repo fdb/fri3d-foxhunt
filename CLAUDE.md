@@ -212,6 +212,34 @@ talks to `/api/v1/auth/*` there.
   a stranger's account without asking, and because nothing read the existing row
   back it left the badge with `hunter_id = None` and an empty roster while the
   server still held both, under a screen that said "je bent ingeschreven".
+- **ALLES WISSEN is the only real way to start over, and it is soft.** The 409
+  fork above is why: a badge that wiped only itself re-registers straight into
+  it and gets every catch handed back, so instellingen -> ALLES WISSEN
+  (`screen_wipe.py`) ends the account on both sides. Four rules hold it up.
+  - **The server goes first.** `registrar.delete_account` runs before
+    `store.reset_all`, because the local wipe is the step nobody can undo. A
+    server that doesn't answer must leave the badge untouched and say so — that
+    is also why the screen has no separate wifi check, and why a 404 counts as
+    success (the badge asked for the account to be gone).
+  - **`DELETE /api/v1/auth/user` is a soft delete** — `dt_deleted` stamped, row
+    kept. Every player-facing read filters it out (restore, PATCH, `/found`,
+    `/scores`); `/debug/players` keeps it tagged GEWIST so an organiser can undo
+    by clearing the column. Registering again **revives that row**: `/register`
+    therefore reads before it inserts, because `badge_id` is UNIQUE across
+    deleted rows and an INSERT can only ever report a conflict. Do not make it
+    a hard delete: the API is unauthenticated by house style, a vandalised name
+    is repairable and a destroyed catch list is not.
+  - **It is not erasure.** `game_events` is append-only and the projections are
+    rebuilt from it, so `player_registered` still carries the name. Say that
+    plainly rather than implying otherwise.
+  - **`store.reset_all` is an allowlist** — `Editor` has no `remove(key)`, so it
+    wipes everything and writes back `_KEEP_ON_RESET`. Keep it that way: a new
+    store key is then wiped by default instead of surviving into the next
+    player's badge. Only `settings` stays.
+
+  `scripts/test_server_wipe.sh` walks the whole lifecycle; the properties live in
+  four different routes' WHERE clauses, so test it end to end, not route by route.
+
 - **`hunter_id` is allocated 1-9999, four digits, even though the wire is wider.**
   The LoRa spec (§2.2) makes HID a big-endian `uint16` — `HID_hi`, `HID_lo`,
   1-65535, 0 reserved. We deliberately hand out only the bottom 1-9999 of that
@@ -262,7 +290,9 @@ tags) only — it is unreadable at paragraph length.
 
 **The scoreboard says HOW MANY, never WHICH.** `/scores` is public, so it shows
 each player's maatje, their catch count and when they last scored — and no
-creature name, id or picture. `fetchScores` is written so it cannot leak one:
+creature name, id or picture. It also shows their name, which is why taking
+that name off it is one of the two reasons ALLES WISSEN exists: `fetchScores`
+filters `dt_deleted IS NULL`. `fetchScores` is written so it cannot leak one:
 it counts `players_creatures` and never selects a `creature_id`. The names
 belong to the badge that earned them and to `/debug/players/:id`.
 
