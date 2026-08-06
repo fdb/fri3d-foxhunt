@@ -72,7 +72,13 @@ def _buzzer_output():
     return _output or None
 
 
+# The player last started, so stop() can cut a long tune. Only the ~4.3 s
+# legendary fanfare needs it; the UI beeps are over before anyone could ask.
+_last = None
+
+
 def play(event):
+    global _last
     tune = _TUNES.get(event)
     if not tune:
         return
@@ -82,6 +88,20 @@ def play(event):
     if not out:  # desktop: no buzzer -> stay silent
         return
     try:
-        AudioManager.rtttl_player(tune, output=out, volume=60).start()
+        _last = AudioManager.rtttl_player(tune, output=out, volume=60)
+        _last.start()
     except Exception as e:
         print("sound: could not play", event, e)
+
+
+def stop():
+    """Cut whatever is playing right now. celebrate.Fireworks.stop() calls
+    this so the looping legendary fanfare dies with the screen instead of
+    playing over the next one for up to 4 seconds."""
+    global _last
+    p, _last = _last, None
+    if p:
+        try:
+            p.stop()
+        except Exception:
+            pass

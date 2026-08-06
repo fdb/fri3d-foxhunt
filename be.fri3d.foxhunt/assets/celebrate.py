@@ -141,7 +141,9 @@ class Fireworks:
             h = random.randint(6, 11)
             piece = ui.box(self.layer, 0, 0, w, h, RAINBOW[i % len(RAINBOW)], radius=1)
             x = random.randint(0, 312)
-            y = random.randint(-240, 0)
+            # Seed most pieces ON screen: from -240 a slow piece took up to
+            # ~5 s to enter frame, so the payoff opened confetti-less.
+            y = random.randint(-40, 240)
             self.cf.append([piece, x, y, random.randint(4, 9), random.uniform(0, 6.2)])
             piece.set_pos(x, y)
 
@@ -166,6 +168,9 @@ class Fireworks:
             self.timer = None
         if self._leds:
             leds.off()
+        # The fanfare is ~4.3 s and _tick re-arms it: without this it kept
+        # playing over whatever screen came next.
+        sound.stop()
 
     def _led_chase(self, frame):
         return leds.write([_rgb(RAINBOW[(frame + i) % len(RAINBOW)]) for i in range(5)])
@@ -180,17 +185,27 @@ class Fireworks:
                 ui.hexc(_dim(RAINBOW[(f // 3) % len(RAINBOW)], 0.30)), 0
             )
 
-        # halo shimmer: rotate which hue each ring wears.
-        for i, ring in enumerate(self.rings):
-            ring.set_style_bg_color(ui.hexc(RAINBOW[(i + f // 2) % len(RAINBOW)]), 0)
+        # halo shimmer: rotate which hue each ring wears. f//2 only changes on
+        # even frames, so restyling on odd ones was a pure no-op invalidation
+        # of the four biggest filled circles on screen — half the tick's
+        # redraw bill for nothing.
+        if f % 2 == 0:
+            for i, ring in enumerate(self.rings):
+                ring.set_style_bg_color(
+                    ui.hexc(RAINBOW[(i + f // 2) % len(RAINBOW)]), 0
+                )
+            self.disc.set_style_border_color(
+                ui.hexc(RAINBOW[(f // 2) % len(RAINBOW)]), 0
+            )
+            self.title.set_style_text_color(
+                ui.hexc(_BRIGHT[(f // 2) % len(_BRIGHT)]), 0
+            )
 
-        # beast: bounce vertically + pulse the gold ring through the rainbow.
+        # beast: bounce vertically.
         dy = int(-6 * math.sin(f * 0.45))
         self.sprite.align(lv.ALIGN.CENTER, 0, _CY - 120 + dy)
-        self.disc.set_style_border_color(ui.hexc(RAINBOW[(f // 2) % len(RAINBOW)]), 0)
 
-        # title flashes through bright hues; praise cycles its message.
-        self.title.set_style_text_color(ui.hexc(_BRIGHT[(f // 2) % len(_BRIGHT)]), 0)
+        # praise cycles its message.
         if f % 9 == 0:
             self.praise.set_text(PRAISE[(f // 9) % len(PRAISE)])
 

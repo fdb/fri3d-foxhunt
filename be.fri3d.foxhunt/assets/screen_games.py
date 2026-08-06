@@ -53,6 +53,15 @@ class GameActivity(Activity):
         self.score = 0
         st, ok, self.pet_msg = store.do_play(self.fox_id, self.kost, self.fav)
         self.naam = (st or {}).get("bijnaam") or self.c["naam"]
+        # Hapjes spawn only in a session that COST energy. pet.play already
+        # rules that a beste vriend plays free and earns no band — "or free
+        # play becomes the infinite farming route" — but the mid-game hapjes
+        # sat outside that rule: bond a creature to 100, tap NOG EEN KEER
+        # forever, and DANSEN paid out roughly four hapjes per five rounds
+        # with none of plukken's reload limits. Energy is the rate limit on
+        # every reward, hapjes included. (The debug free-play switch rides
+        # the same gate, so it stops farming food too.)
+        self.treats = store.play_cost(self.kost, st) > 0
         self.screen = ui.make_screen(self.BG)
         self._build_chrome()
         self.build(self.screen)
@@ -213,6 +222,7 @@ class GameActivity(Activity):
             return
         sound.play("tap")
         st, ok, self.pet_msg = store.do_play(self.fox_id, self.kost, self.fav)
+        self.treats = store.play_cost(self.kost, st) > 0  # same gate as onCreate
         self._over = False
         self.screen.clean()
         self._build_chrome()
@@ -386,7 +396,7 @@ class VliegActivity(GameActivity):
                 }
             )
             self._treat_in -= 1
-            if self._treat_in <= 0:
+            if self._treat_in <= 0 and self.treats:
                 self._treat_in = random.randrange(*_VLIEG_TREAT)
                 t = art.icon(s, random.choice(store.FOODS), 2)
                 t.set_pos(320 + 5, gap_y - _TREAT_PX // 2)
@@ -608,7 +618,7 @@ class VangActivity(GameActivity):
             self._spawn_t = max(16, 30 - self._caught)
             vy = min(6.0, 2.5 + self._caught * 0.08)
             self._treat_in -= 1
-            if self._treat_in <= 0:
+            if self._treat_in <= 0 and self.treats:
                 # worth 0 marks the hapje: it pays a pantry item, not points
                 self._treat_in = random.randrange(*_VANG_TREAT)
                 w, worth = art.icon(self.screen, random.choice(store.FOODS), 3), 0
@@ -711,7 +721,9 @@ class DansActivity(GameActivity):
         self.treat_i = None
 
     def _seed_treat(self):
-        if self.treat is not None or random.randrange(_DANCE_TREAT_ODDS):
+        if not self.treats or self.treat is not None:
+            return
+        if random.randrange(_DANCE_TREAT_ODDS):
             return
         self.treat_i = random.randrange(4)
         dx, dy, _ = _DANCE_MOVES[self.treat_i]
