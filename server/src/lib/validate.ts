@@ -14,7 +14,9 @@ export function validateName(raw: unknown): string | null {
     if (cp > 0xffff) return null; // astral plane (emoji, etc.)
     if (cp >= 0x2600 && cp <= 0x27bf) return null; // misc symbols, dingbats
     if (cp >= 0xfe00 && cp <= 0xfe0f) return null; // variation selectors
-    if (cp === 0x200d) return null; // zero-width joiner
+    if (cp >= 0x200b && cp <= 0x200f) return null; // zero-width + bidi marks
+    if (cp >= 0x202a && cp <= 0x202e) return null; // bidi embed/override
+    if (cp >= 0x2066 && cp <= 0x2069) return null; // bidi isolates
   }
   return name;
 }

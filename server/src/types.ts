@@ -1,6 +1,9 @@
 export type Bindings = {
   DB: D1Database;
-  BRIDGE_KEY: string;
+  // Secrets, so absent until `wrangler secret put` — code must treat them as
+  // optional and fail closed (BRIDGE_KEY) or stay open (DEBUG_KEY, opt-in).
+  BRIDGE_KEY?: string;
+  DEBUG_KEY?: string;
 };
 
 export interface Player {
@@ -11,6 +14,8 @@ export interface Player {
   profile_pic: string;
   dt_created: string;
   dt_updated: string;
+  // Self-reported count of band-5 creatures (PATCH /auth/user, display only).
+  bonded: number;
   // Soft delete: NULL while the account is live. A deleted account is invisible
   // to every player-facing route (restore, PATCH, /found, the scoreboard) and
   // is revived, not duplicated, when the badge registers again.
