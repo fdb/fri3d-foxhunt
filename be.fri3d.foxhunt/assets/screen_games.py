@@ -525,16 +525,18 @@ class VangActivity(GameActivity):
 
 
 # ════ DANSEN — het beest doet pasjes voor, de speler doet ze na ══════════
-# (name, dx, dy, colour), in joystick-direction order. The same index drives
+# (dx, dy, colour), in joystick-direction order. The same index drives
 # movement, sound and LEDs, so every cue agrees.
 _DANCE_MOVES = (
-    ("LINKS", -64, 0, 0xF08A7A),
-    ("OP", 0, -52, 0xF6D88A),
-    ("NEER", 0, 52, 0x9ACE7A),
-    ("RECHTS", 64, 0, 0xB8C8D6),
+    (-64, 0, 0xF08A7A),
+    (0, -52, 0xF6D88A),
+    (0, 52, 0x9ACE7A),
+    (64, 0, 0xB8C8D6),
 )
 _DANCE_X = 136
 _DANCE_Y = 104
+_DANCE_LEAD_TICKS = 10  # one second to get ready before the first move
+_DANCE_STEP_TICKS = 10  # one second per move: 600 ms posed, 400 ms centred
 _WIN_ROUNDS = 8
 
 
@@ -567,7 +569,6 @@ class DansActivity(GameActivity):
             w=276,
             center=True,
         )
-        self.spot = ui.box(s, _DANCE_X - 4, _DANCE_Y - 4, 56, 56, ui.CREAM)
         self.beast = art.creature_panel(s, self.c, 3, animate=True)
         self.beast.set_pos(_DANCE_X, _DANCE_Y)
         self.seq = []
@@ -579,14 +580,10 @@ class DansActivity(GameActivity):
 
     def _pose(self, i=None):
         if i is None:
-            self.spot.set_pos(_DANCE_X - 4, _DANCE_Y - 4)
-            self.spot.set_style_bg_color(ui.hexc(ui.CREAM), 0)
             self.beast.set_pos(_DANCE_X, _DANCE_Y)
             leds.off()
             return
-        name, dx, dy, colour = _DANCE_MOVES[i]
-        self.spot.set_pos(_DANCE_X + dx - 4, _DANCE_Y + dy - 4)
-        self.spot.set_style_bg_color(ui.hexc(colour), 0)
+        dx, dy, colour = _DANCE_MOVES[i]
         self.beast.set_pos(_DANCE_X + dx, _DANCE_Y + dy)
         try:
             rgb = ((colour >> 16) & 0xFF, (colour >> 8) & 0xFF, colour & 0xFF)
@@ -603,6 +600,14 @@ class DansActivity(GameActivity):
         }
         i = keys.get(e.get_key())
         if i is not None:
+            # The badge repeats a held joystick direction after 400 ms. A
+            # dance step is one deliberate tilt, so consume nothing else from
+            # this input device until the stick has physically returned to
+            # neutral. This also stops a direction held during the demo from
+            # leaking into the player's turn.
+            indev = lv.indev_active()
+            if indev:
+                indev.wait_release()
             self._press(i)
 
     def step(self):
@@ -614,17 +619,21 @@ class DansActivity(GameActivity):
             self.seq.append(random.randrange(4))
             self.show_i = 0
             self.t = 0
-            self.state = "show"
+            self.state = "lead"
             self.hint_l.set_text("kijk naar de pasjes")
+        elif self.state == "lead":
+            self.t += 1
+            if self.t >= _DANCE_LEAD_TICKS:
+                self.state = "show"
+                self.t = 0
         elif self.state == "show":
-            # 500 ms per step: 300 ms posed, 200 ms centred, then the next one.
-            ph = self.t % 5
+            ph = self.t % _DANCE_STEP_TICKS
             if ph == 0:
                 self._pose(self.seq[self.show_i])
                 sound.play("sim%d" % self.seq[self.show_i])
-            elif ph == 3:
+            elif ph == 6:
                 self._pose()
-            elif ph == 4:
+            elif ph == _DANCE_STEP_TICKS - 1:
                 self.show_i += 1
                 if self.show_i >= len(self.seq):
                     self.state = "wait"
