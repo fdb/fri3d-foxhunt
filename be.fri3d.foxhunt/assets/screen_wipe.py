@@ -220,6 +220,11 @@ class WipeActivity(Activity):
         if not st.get("done"):
             return
         if not st.get("ok"):
+            if not self.has_foreground():
+                # The player walked out mid-wait and this screen is destroyed:
+                # every widget below is a dangling reference, and nothing was
+                # wiped on either side. Silently drop the verdict.
+                return
             # Nothing has been touched yet, on either side. Say so — a player
             # who thinks the wipe half-happened will go looking for damage.
             sound.play("error")
@@ -232,9 +237,16 @@ class WipeActivity(Activity):
             self.status.set_style_text_color(ui.hexc(ui.TERRA_D), 0)
             self._start_poll()  # so the button can arm again for a retry
             return
-        # The server is done; the badge follows. From here the profile is gone,
+        # The server is done; the badge follows — even if the player wandered
+        # off mid-wait. They typed the word and pressed the button, and the
+        # server row is already gone: keeping the local profile would leave the
+        # badge living on a deleted account. From here the profile is gone,
         # which is the signal every screen below reads on the way out: settings
         # and the boek finish themselves, and the router (foxhunt.py) shows the
         # welcome screen again.
         store.reset_all()
-        self.finish()
+        # finish() pops the TOP of the screen stack unconditionally, which is
+        # only this screen while it still has the foreground — a late verdict
+        # must not close whatever the player is looking at now.
+        if self.has_foreground():
+            self.finish()
