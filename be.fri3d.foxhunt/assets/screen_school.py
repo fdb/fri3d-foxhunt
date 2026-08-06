@@ -62,10 +62,10 @@ class SchoolActivity(Activity):
         st = store.beast_state(self.fox_id)
         if st is None:
             return
-        # gate on exact energy points, not display segments: segments() may
-        # round 35 up to 2 cells while pet.play still refuses a 40-point game
+        # Show complete spendable units so one lit cell always pays for a
+        # one-energy game. Affordability still gates on exact energy points.
         energie = st["energy"]
-        segs = pet.segments(energie)
+        segs = pet.energy_segments(energie)
         cheapest = min(g[3] for g in GAMES)
         moe = energie < store.play_cost(cheapest, st) * pet.SEG
         naam = st.get("bijnaam") or self.c["naam"]

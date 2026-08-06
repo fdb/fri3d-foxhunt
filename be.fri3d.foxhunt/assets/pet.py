@@ -45,6 +45,11 @@ def segments(value, total=5):
     return min(total, max(0, int(value * total / 100 + 0.5)))
 
 
+def energy_segments(value):
+    """Complete spendable energy segments; one cell pays for one-cost play."""
+    return min(5, max(0, int(value) // SEG))
+
+
 def level(bond):
     """1..5, every 25 bond points is a level; 5 only at max bond."""
     return min(LEVEL_MAX, 1 + bond // 25)
@@ -173,6 +178,8 @@ if __name__ == "__main__":
     assert not ok  # feed()/play() are the economy; act() is aaien only
     # presentation helpers: 25-point levels, 5 only at max
     assert segments(0) == 0 and segments(100) == 5 and segments(50) == 3, segments(50)
+    assert energy_segments(19) == 0 and energy_segments(20) == 1
+    assert energy_segments(39) == 1 and energy_segments(40) == 2
     assert level(0) == 1 and level(50) == 3 and level(99) == 4, level(99)
     assert level(100) == 5 and hearts(100) == 5
     assert level_pct(30) == 20 and level_pct(100) == 100, level_pct(30)

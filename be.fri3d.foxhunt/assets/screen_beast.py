@@ -101,7 +101,10 @@ class BeastActivity(Activity):
             ui.label(g, "speelt altijd mee", 24, 64, ui.TEXT_MUTED, ui.font_small())
         else:
             for i, (k, lab, col) in enumerate(_SEG):
-                ui.seg_bar(g, 0, 44 + i * 22, lab, pet.segments(st[k]), col)
+                shown = (
+                    pet.energy_segments(st[k]) if k == "energy" else pet.segments(st[k])
+                )
+                ui.seg_bar(g, 0, 44 + i * 22, lab, shown, col)
         ui.label(
             g,
             "gevonden " + st.get("date", "?"),

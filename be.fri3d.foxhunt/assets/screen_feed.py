@@ -116,7 +116,7 @@ class FeedActivity(Activity):
         st = store.beast_state(self.fox_id)
         if st is None:
             return
-        self._set_bar(self.energy_cells, pet.segments(st["energy"]), ui.GREEN)
+        self._set_bar(self.energy_cells, pet.energy_segments(st["energy"]), ui.GREEN)
         self._set_bar(self.hunger_cells, pet.segments(st["hunger"]), ui.TERRA)
         v = store.voorraad()
         self.total_l.set_text("%d voer" % store.voorraad_total())
