@@ -70,9 +70,10 @@ class Fireworks:
     The caller adds its own foreground widgets (the VERDER button) AFTER
     constructing this, so they stack on top of the confetti."""
 
-    def __init__(self, screen, creature):
+    def __init__(self, screen, creature, detail=None):
         self.s = screen
         self.c = creature
+        self.detail = detail or "toegevoegd aan je boek!"
         self.timer = None
         self.frame = 0
         self._leds = False  # set in start(): True only when real NeoPixels answered
@@ -123,7 +124,7 @@ class Fireworks:
         )
         ui.label(
             s,
-            "toegevoegd aan je boek!",
+            self.detail,
             0,
             184,
             ui.CREAM,

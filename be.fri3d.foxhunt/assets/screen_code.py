@@ -155,7 +155,10 @@ class CodeActivity(Activity):
                 # not a dud (GAME_DESIGN.md) — sightings, stamp and pakket
                 # instead of a re-add that would change nothing
                 pakket = store.zelf_gevonden(self.fox_id)
-                sound.play("caught")
+                # Fireworks owns the looping legendary fanfare so its sound
+                # starts in sync with the visuals, including on a re-find.
+                if self.c["rarity"] != "leg":
+                    sound.play("caught")
                 self.startActivity(
                     Intent(
                         activity_class=WinActivity,

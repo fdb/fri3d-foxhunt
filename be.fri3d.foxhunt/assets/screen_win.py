@@ -6,9 +6,9 @@
 # (celebrate.Fireworks): rainbow halo, confetti, flashing title, bouncing
 # beast, looping fanfare and a rainbow LED chase.
 #
-# A `pakket` extra makes it the ZELF GEVONDEN variant instead (GAME_DESIGN.md):
-# the calm card for every rarity — a re-find is a visit, not a new legend —
-# with the verzorgingspakket listed under a warmer title.
+# A `pakket` extra makes normal and rare catches the calmer ZELF GEVONDEN
+# variant (GAME_DESIGN.md). A legendary remains legendary on every encounter;
+# its fireworks carry the verzorgingspakket summary instead of the book line.
 
 import lvgl as lv
 import mpos.ui
@@ -24,12 +24,18 @@ class WinActivity(Activity):
         self.fox_id = self.getIntent().extras.get("fox_id", 0)
         self.pakket = self.getIntent().extras.get("pakket")  # zelf gevonden
         c = by_id(self.fox_id)
-        leg = c["rarity"] == "leg" and not self.pakket
+        leg = c["rarity"] == "leg"
         self.fx = None
 
         s = ui.make_screen(0x140A2E if leg else 0x20301C)
         if leg:
-            self.fx = Fireworks(s, c)
+            detail = None
+            if self.pakket:
+                regel = "  ".join(
+                    "+%d %s" % (n, f) for f, n in sorted(self.pakket.items())
+                )
+                detail = "zelf gevonden - pakket: " + regel
+            self.fx = Fireworks(s, c, detail=detail)
             self._verder_button(s, ui.GOLD, ui.INK)
         else:
             panel = self._calm_card(s, c)
