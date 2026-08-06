@@ -9,7 +9,6 @@ from mpos import Activity, Intent
 import mpos.time
 import ui
 import art
-import pet
 import sound
 import store
 import companion
@@ -71,12 +70,10 @@ class ProfileActivity(Activity):
         sl = ui.label(panel, str(score), 80, 6, ui.INK, ui.font_title(), w=98)
         sl.set_style_text_align(lv.TEXT_ALIGN.RIGHT, 0)
 
-        # stat tiles
-        band = 0
-        for cid in caught:
-            state = store.beast_state(cid)
-            if state:
-                band += pet.level(state["bond"])
+        # stat tiles. band_total, not a beast_state loop: beast_state persists
+        # its decay pass, so asking per creature cost a whole-config parse and
+        # flash write per catch, on every resume of this screen.
+        band = store.band_total()
         since = p.get("since")
         now = mpos.time.epoch_seconds()
         days = 1 + max(0, (now - since) // 86400) if since else 1

@@ -35,6 +35,20 @@ def _now():
     return mpos.time.epoch_seconds()
 
 
+def _clock_ok():
+    """True once the wall clock is real (NTP has run — year >= 2026). Until
+    then the badge thinks it is 2000-01-01: any daily/phase gate that rolls
+    on a date comparison would see a "new day" on every unsynced boot and
+    re-arm its once-per-day rules, and cooldown math against 2026 stamps
+    goes wildly negative."""
+    try:
+        from mpos.time_zone import TimeZone
+
+        return bool(TimeZone.time_is_set())
+    except Exception:
+        return True  # desktop or older OS: trust the host clock
+
+
 def _today():
     lt = mpos.time.localtime()
     return "%04d-%02d-%02d" % (lt[0], lt[1], lt[2])
@@ -312,6 +326,22 @@ def finished_ids():
     return {int(k) for k, v in beasts.items() if pet.finished(v)}
 
 
+def band_total():
+    """Sum of band levels across the caught roster — the profile's BAND stat.
+    One raw prefs read, no decay pass, no writes: bond never decays (same
+    rule as finished_ids), and the profile screen asks for the whole roster
+    on every resume — 22 beast_state() calls meant 22 whole-file parses AND
+    22 whole-file flash writes just to draw a number."""
+    prefs = SharedPreferences(_APP)
+    beasts = prefs.get_dict("beast", {})
+    total = 0
+    for cid in prefs.get_list("caught", []):
+        st = beasts.get(str(cid))
+        # unseeded legacy catch: fresh state, bond 10 -> level 1
+        total += pet.level(int(st.get("bond", 10))) if st else 1
+    return total
+
+
 def beast_state(cid):
     """Pet stats with time-decay applied and persisted. None if uncaught."""
     prefs = SharedPreferences(_APP)
@@ -460,6 +490,13 @@ def enqueue_report(kind, data):
     prefs = SharedPreferences(_APP)
     box = prefs.get_list("outbox", [])
     box.append({"kind": kind, "data": data, "t": _now()})
+    # Bounded: SharedPreferences re-parses the whole config on every
+    # construction and Editor deep-copies it per commit, so an offline
+    # weekend's unbounded queue would tax every feed and every toggle. 200
+    # is far above a busy day's report count; beyond it the oldest reports
+    # are the ones least likely to still matter.
+    if len(box) > 200:
+        box = box[-200:]
     prefs.edit().put_list("outbox", box).commit()
 
 
@@ -554,9 +591,12 @@ def visitor_pending():
         if pending not in have:
             return pending
         # It arrived through another route before the player opened the visit.
-        replacement = visitor_creature_for(
-            badge, d.get("pending_slot", d.get("slot", 0)), have
-        )
+        # .get with a default is not enough here: _visitor() setdefaults the
+        # key to None, so it always exists — test the VALUE.
+        slot = d.get("pending_slot")
+        if slot is None:
+            slot = d.get("slot", 0)
+        replacement = visitor_creature_for(badge, slot, have)
         if replacement is not None:
             d["pending"] = replacement
             _save_visitor(d)
@@ -624,7 +664,11 @@ def claim_visitor():
         _save_visitor(d)
         return None
 
-    slot = int(d.get("pending_slot", d.get("slot", 0)))
+    # The key always exists (setdefault None in _visitor), so int() on the
+    # .get default would raise TypeError on a pre-pending_slot save — right
+    # in the visit that is the collector's safety net.
+    slot = d.get("pending_slot")
+    slot = int(slot) if slot is not None else int(d.get("slot", 0))
     debug = bool(d.get("debug"))
     d["pending"] = None
     d["pending_slot"] = None
@@ -660,9 +704,11 @@ def _vonk_log():
     pairs = d.get("pairs", {})
     if not isinstance(pairs, dict):  # pre-cooldown logs kept a daily mac list
         pairs = {}
-    if d.get("date") != _today():
+    if d.get("date") != _today() and (_clock_ok() or d.get("date") is None):
         # the day rolls the CAP counter only; pair cooldowns are wall-clock
-        # and survive midnight, or a 23:00 vonk would re-arm at 00:00
+        # and survive midnight, or a 23:00 vonk would re-arm at 00:00.
+        # An unsynced clock (2000-01-01) is not a new day — rolling on it
+        # would re-arm the daily cap on every pre-NTP boot.
         return {"date": _today(), "pairs": pairs, "count": 0}
     d["pairs"] = pairs
     return d
@@ -864,7 +910,11 @@ def _pluk():
     d = SharedPreferences(_APP).get_dict("pluk", {})
     d.setdefault("spots", {})
     phase = pluk_phase()
-    if d.get("phase") != phase:
+    # Same clock gate as _vonk_log: a pre-NTP boot reads phase "1999-12-31",
+    # and rolling on it would re-arm every spot's once-per-camp-phase
+    # creature roll — with a genuinely different seed, so a new roll, not a
+    # repeat.
+    if d.get("phase") != phase and (_clock_ok() or d.get("phase") is None):
         d["phase"] = phase
         d["count"] = 0
         d["creature_spots"] = []
@@ -873,11 +923,13 @@ def _pluk():
 
 
 def pluk_wait_s(bssid):
-    """Seconds until this spot yields again for this badge (0 = ready)."""
+    """Seconds until this spot yields again for this badge (0 = ready).
+    Clamped to one full reload: a clock that regressed (pre-NTP boot reading
+    2000 against 2026 stamps) would otherwise report a ~26-year wait."""
     t = _pluk()["spots"].get(bssid)
     if t is None:
         return 0
-    return max(0, PLUK_RELOAD_S - (_now() - int(t)))
+    return min(PLUK_RELOAD_S, max(0, PLUK_RELOAD_S - (_now() - int(t))))
 
 
 def pluk_waits(bssids):
@@ -888,7 +940,9 @@ def pluk_waits(bssids):
     spots = _pluk()["spots"]
     now = _now()
     return {
-        b: max(0, PLUK_RELOAD_S - (now - int(spots[b]))) if b in spots else 0
+        b: min(PLUK_RELOAD_S, max(0, PLUK_RELOAD_S - (now - int(spots[b]))))
+        if b in spots
+        else 0
         for b in bssids
     }
 

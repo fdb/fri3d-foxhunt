@@ -90,16 +90,24 @@ def _finish(s):
 def decay(state, now):
     """Age the living stats by the real time elapsed since state['last'].
     Returns a new dict; clamps to 0..100 so long absences can't overflow.
-    A finished friend does not age — permanently content."""
+    A finished friend does not age — permanently content.
+
+    Decay applies in WHOLE hours and `last` advances only by the hours
+    consumed, never to `now`: stamping `now` while int() truncated the
+    sub-hour part to zero threw the remainder away on every visit, so a
+    player hopping between the beest page, the school and the feed screen
+    every few minutes never accumulated any hunger at all — the +6/h economy
+    the feed loop is built on silently did not apply during active play."""
     s = dict(state)
     if finished(s):
         s["last"] = now
         return _finish(s)
-    hours = max(0, (now - s.get("last", now))) / 3600
+    base = s.get("last", now)
+    hours = int(max(0, now - base) // 3600)
     if hours > 0:
         for key, rate in _DECAY.items():
-            s[key] = _clamp(s.get(key, 0) + int(rate * hours))
-        s["last"] = now
+            s[key] = _clamp(s.get(key, 0) + rate * hours)
+        s["last"] = base + hours * 3600
     return s
 
 
