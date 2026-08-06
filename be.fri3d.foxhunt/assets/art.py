@@ -629,7 +629,9 @@ def _flip_x(src):
             src_x = row + x * 4
             dst_x = row + (_IMG_SRC - 1 - x) * 4
             out[dst_x : dst_x + 4] = src[src_x : src_x + 4]
-    return out
+    # Keep the same immutable type as an atlas frame. MicroPython does not
+    # implement ``bytearray * int``, which _upscale uses to replicate pixels.
+    return bytes(out)
 
 
 def _sprite_dsc(name, frame, scale, flip_x=False):
