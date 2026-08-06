@@ -47,8 +47,27 @@ class FoxRadio:
     def active_foxes(self):
         raise NotImplementedError
 
+    def start(self, fox_id):
+        """The hunt screen begins (or returns to) hunting fox_id. Part of the
+        interface because screen_hunt calls it on every resume: a real radio
+        that measures continuously simply ignores it, but leaving it off the
+        base class hands the real implementation an AttributeError on the
+        hunt screen's first resume."""
+        pass
+
+    def bump(self, fox_id, delta):
+        """Test hook (emulator keys nudge the signal). No-op on hardware."""
+        pass
+
     def reading(self, fox_id):
         raise NotImplementedError
+
+    def peek(self, fox_id):
+        """A reading for OBSERVERS — the home row's heat bars — as opposed to
+        the hunt loop. A real radio measures either way; the fake advances
+        its simulated approach only in reading(), so that merely LOOKING at
+        the home screen doesn't walk every fox to level 5."""
+        return self.reading(fox_id)
 
     def submit_code(self, fox_id, code, on_result):
         """Hand a code to the fox network for validation.
@@ -92,6 +111,13 @@ class FakeFoxRadio(FoxRadio):
         s += random.uniform(-0.04, 0.10)  # drift up, with jitter
         s = max(0.0, min(1.0, s))
         self._strength[fox_id] = s
+        return FoxReading(fox_id, int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR))))
+
+    def peek(self, fox_id):
+        # No drift: reading() simulates walking toward the fox, and the home
+        # row samples every awake fox on every resume — through reading(),
+        # ~30 visits home pinned all the heat bars at maximum forever.
+        s = self._strength.get(fox_id, 0.12)
         return FoxReading(fox_id, int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR))))
 
     def submit_code(self, fox_id, code, on_result):

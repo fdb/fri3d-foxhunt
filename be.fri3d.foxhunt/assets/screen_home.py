@@ -261,7 +261,9 @@ class HomeActivity(Activity):
         nearby = []
         for c in CREATURES:
             if c["id"] in awake:
-                r = RADIO.reading(c["id"])
+                # peek, not reading: the fake radio's reading() advances its
+                # simulated approach, and home only wants to LOOK.
+                r = RADIO.peek(c["id"])
                 heat = max(1, min(3, (r.level * 3 + 4) // 5))
                 nearby.append((c, heat))
         # still-huntable first (the row is a hunt shortcut), warmest leading;
