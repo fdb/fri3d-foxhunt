@@ -33,6 +33,7 @@ class PlukActivity(Activity):
         self._armed = False
         self._target = None
         self._harvest = None
+        self._meter_level = None  # last drawn meter level; None = never drawn
         self.screen = ui.make_screen(_BG_ZOEK)
         self._build_zoek()
         self.setContentView(self.screen)
@@ -156,6 +157,12 @@ class PlukActivity(Activity):
 
     def _meter(self, level):
         leds.show_level(level)
+        # Skip the restyle when the level is unchanged — each set_style call
+        # invalidates its cell, and the tick repeats the same level far more
+        # often than it changes it (same guard as VliegActivity._drift).
+        if level == self._meter_level:
+            return
+        self._meter_level = level
         cols = leds.colors_for_level(level)
         for i, cell in enumerate(self.cells):  # top cell is the warm end
             rr, gg, bb = cols[4 - i]
@@ -307,5 +314,6 @@ class PlukActivity(Activity):
         sound.play("tap")
         self._harvest = None
         self._target = None
+        self._meter_level = None  # fresh cells: the skip-cache must not match
         self.screen.clean()
         self._build_zoek()

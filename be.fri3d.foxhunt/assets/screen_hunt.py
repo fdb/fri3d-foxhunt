@@ -23,6 +23,7 @@ class HuntActivity(Activity):
         self.c = by_id(self.fox_id)
         self.timer = None
         self._beat = False
+        self._mirror_level = None  # last drawn LED-mirror level; None = never
 
         s = ui.make_screen(0xCFE2AD)
         rarity = self.c["rarity"]
@@ -98,10 +99,15 @@ class HuntActivity(Activity):
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 6 if self._beat else 10)
 
         leds.show_level(r.level)  # physical LEDs (badge)
-        cols = leds.colors_for_level(r.level)
-        for i, seg in enumerate(self.mirror):
-            rr, gg, bb = cols[i]
-            seg.set_style_bg_color(ui.hexc((rr << 16) | (gg << 8) | bb), 0)
+        # Restyle the mirror only when the level moved: every set_style call
+        # invalidates its cell, and at 4 Hz an unchanged level would redraw
+        # all five for nothing (same guard discipline as VliegActivity._drift).
+        if r.level != self._mirror_level:
+            self._mirror_level = r.level
+            cols = leds.colors_for_level(r.level)
+            for i, seg in enumerate(self.mirror):
+                rr, gg, bb = cols[i]
+                seg.set_style_bg_color(ui.hexc((rr << 16) | (gg << 8) | bb), 0)
 
     def _enter_code(self):
         if self.timer:

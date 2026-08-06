@@ -164,3 +164,12 @@ class BeastActivity(Activity):
         t.delete()
         self._bubble_timer = None
         self.bubble.set_text("")
+
+    def onDestroy(self, screen):
+        super().onDestroy(screen)
+        # The flash timer must not outlive the screen: teardown deletes the
+        # bubble, and a surviving timer would set_text on freed memory —
+        # AAI, back-swipe within the 1.1s window, crash.
+        if self._bubble_timer:
+            self._bubble_timer.delete()
+            self._bubble_timer = None

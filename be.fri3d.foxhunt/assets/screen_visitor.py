@@ -32,11 +32,15 @@ class VisitorActivity(Activity):
     def onCreate(self):
         self.fox_id = store.visitor_pending()
         self.c = by_id(self.fox_id) if self.fox_id is not None else None
+        self.screen = ui.make_screen(_BG)
+        # On the stack BEFORE the corrupt-state guard may finish(): finish
+        # pops the top of the screen stack unconditionally, and before
+        # setContentView that top is the HOME screen — the guard existed to
+        # fail safely and instead threw the player out of the book.
+        self.setContentView(self.screen)
         if self.c is None or self.c["rarity"] != "norm":
             self.finish()
             return
-        self.screen = ui.make_screen(_BG)
-        self.setContentView(self.screen)
         self._build_meeting()
 
     def _button(self, text, on_click):
