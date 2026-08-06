@@ -28,7 +28,8 @@
 #   scripts/delete_account.sh BOBBY --local       # against wrangler dev
 #
 # Env overrides:
-#   FOXHUNT_SERVER   same as --server (default: prod, where the app points)
+#   FOXHUNT_SERVER      same as --server (default: prod, where the app points)
+#   FOXHUNT_DEBUG_KEY   the server's DEBUG_KEY secret, when /debug is locked
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
@@ -62,7 +63,11 @@ done
 
 command -v jq >/dev/null || { echo "error: jq is required" >&2; exit 1; }
 
-PLAYERS=$(curl -sf -m 10 -H 'Accept: application/json' "$BASE/debug/players") || {
+DEBUG_AUTH=()
+[[ -n "${FOXHUNT_DEBUG_KEY:-}" ]] && DEBUG_AUTH=(-H "Authorization: Bearer $FOXHUNT_DEBUG_KEY")
+
+PLAYERS=$(curl -sf -m 10 -H 'Accept: application/json' \
+    ${DEBUG_AUTH[@]+"${DEBUG_AUTH[@]}"} "$BASE/debug/players") || {
     echo "error: no server at $BASE" >&2
     exit 1
 }

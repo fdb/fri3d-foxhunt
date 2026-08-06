@@ -16,7 +16,8 @@
 #   scripts/test_server_wipe.sh --server https://foxhunt.enigmeta.workers.dev
 #
 # Env overrides:
-#   FOXHUNT_SERVER   same as --server (default: the local wrangler dev worker)
+#   FOXHUNT_SERVER      same as --server (default: the local wrangler dev worker)
+#   FOXHUNT_DEBUG_KEY   the server's DEBUG_KEY secret, when /debug is locked
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
@@ -128,7 +129,9 @@ else
     ok "off the public scoreboard"
 fi
 
-if curl -s -H 'Accept: application/json' "$BASE/debug/players" | grep -q "\"id\":$PLAYER_ID,"; then
+if curl -s -H 'Accept: application/json' \
+    ${FOXHUNT_DEBUG_KEY:+-H "Authorization: Bearer $FOXHUNT_DEBUG_KEY"} \
+    "$BASE/debug/players" | grep -q "\"id\":$PLAYER_ID,"; then
     ok "still on /debug/players, so an organiser can undo it"
 else
     bad "an organiser can no longer see the wiped row"

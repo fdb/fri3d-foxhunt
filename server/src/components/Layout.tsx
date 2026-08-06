@@ -14,12 +14,16 @@ export const Layout = ({
   right,
   bare,
   description,
+  poll,
   children,
 }: PropsWithChildren<{
   title: string;
   right?: string;
   bare?: boolean;
   description?: string;
+  // Loads htmx, for the one page that live-polls (the scoreboard). Off by
+  // default: the other pages run no scripts, so they ship none.
+  poll?: boolean;
 }>) => (
   <html lang="nl">
     <head>
@@ -35,7 +39,13 @@ export const Layout = ({
       />
       <link rel="icon" href="/vos.png" />
       <link rel="stylesheet" href="/styles.css" />
-      <script src="https://unpkg.com/htmx.org@2.0.6" />
+      {poll && (
+        <script
+          src="https://unpkg.com/htmx.org@2.0.6"
+          integrity="sha384-Akqfrbj/HpNVo8k11SXBb6TlBWmXXlYQrCSqEWmyKJe+hDm3Z/B2WVG4smwBkRVm"
+          crossorigin="anonymous"
+        />
+      )}
     </head>
     <body>
       {!bare && (

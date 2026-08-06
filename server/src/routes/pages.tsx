@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { getCookie, setCookie } from "hono/cookie";
 import type { Bindings, GameEvent, Player, ScoreRow } from "../types";
 import { Layout } from "../components/Layout";
 import { Home } from "../components/Home";
@@ -8,6 +9,33 @@ import { CREATURES, RARITY_LABEL, creatureById } from "../lib/creatures";
 import { starterFor } from "../lib/starter";
 
 export const pageRoutes = new Hono<{ Bindings: Bindings }>();
+
+// The /debug pages list every badge_id, and a badge_id is the only credential
+// the unauthenticated API has — public, those pages turn "vandalise the one
+// account whose MAC you can see" into "loop over the whole camp". With the
+// DEBUG_KEY secret set they need ?key=<secret> once (a cookie carries it
+// across the links); unset, they stay open for local dev. Set it in prod.
+pageRoutes.use("/debug/*", async (c, next) => {
+  const key = c.env.DEBUG_KEY;
+  if (!key) return next();
+  const offered = c.req.query("key");
+  if (offered === key) {
+    setCookie(c, "debug_key", key, {
+      path: "/debug",
+      httpOnly: true,
+      secure: true,
+      sameSite: "Lax",
+      maxAge: 7 * 24 * 60 * 60,
+    });
+    return next();
+  }
+  if (
+    getCookie(c, "debug_key") === key ||
+    c.req.header("Authorization") === `Bearer ${key}`
+  )
+    return next();
+  return c.text("debug is vergrendeld - voeg ?key=... toe", 403);
+});
 
 // The whole roster is the denominator — catching all of them is the game. The
 // count comes from the roster itself so adding a beest moves the goalposts
@@ -133,7 +161,7 @@ pageRoutes.get("/", (c) =>
 pageRoutes.get("/scores", async (c) => {
   const scores = await fetchScores(c.env.DB);
   return c.html(
-    <Layout title="Scorebord" right={`${scores.length} spelers`}>
+    <Layout title="Scorebord" right={`${scores.length} spelers`} poll>
       <Scoreboard scores={scores} />
     </Layout>,
   );
