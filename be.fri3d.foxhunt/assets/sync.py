@@ -27,8 +27,12 @@ def flush():
     global _busy
     if _busy or not store.outbox():
         return
-    _busy = True
+    # Claim the slot only once the task is really scheduled: a create_task
+    # that raises would otherwise leave _busy stuck True with no drain
+    # running, killing sync for the session. Single-threaded event loop, so
+    # nothing runs between the two statements.
     TaskManager.create_task(_drain())
+    _busy = True
 
 
 async def _drain():
@@ -49,6 +53,15 @@ async def _drain():
                 status, _ = await registrar._json_request(route[0], route[1], body)
             except Exception:
                 return  # no network; the next natural moment retries
+            if status == 404:
+                # "unknown badge_id" is transient, not a refusal: it is the
+                # normal state while a registration the server never confirmed
+                # waits for resync. Popping here permanently lost every
+                # meeting and grant queued before the account existed — a
+                # restore then handed back only the startbeest. Keep the
+                # report; the wipe path can't wedge on this (reset_all clears
+                # the outbox with everything else).
+                return
             if 200 <= status < 300 or 400 <= status < 500:
                 store.outbox_pop()
             else:
