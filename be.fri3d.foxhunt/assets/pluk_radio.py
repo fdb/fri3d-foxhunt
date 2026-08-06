@@ -135,8 +135,12 @@ class WifiPlukRadio:
         try:
             from mpos import TaskManager
 
-            self._thread.stack_size(TaskManager.good_stack_size())
+            # stack_size is process-global for every thread started after it;
+            # save-and-restore is the OS's own convention (async_dns), so the
+            # next caller wanting a different size doesn't silently lose it.
+            prev = self._thread.stack_size(TaskManager.good_stack_size())
             self._thread.start_new_thread(self._run, ())
+            self._thread.stack_size(prev)
         except Exception as e:
             print("pluk: worker:", e)
             with self._lock:
@@ -146,7 +150,22 @@ class WifiPlukRadio:
         try:
             while time.ticks_diff(time.ticks_ms(), self._asked_ms) < _IDLE_EXIT_MS:
                 self._scan_once()
-                time.sleep_ms(_SCAN_GAP_MS)
+                # Sleep the breather in slices and re-check the deadline in
+                # each: stop() rewinds _asked_ms, but a plain sleep honoured
+                # it only after the full gap — on top of the ~3 s the sweep
+                # before it already took. Snuffelen pins channel 1 the moment
+                # its screen opens; every extra sweep tramples that, so the
+                # worker must die as soon after stop() as the in-flight sweep
+                # allows.
+                waited = 0
+                while waited < _SCAN_GAP_MS:
+                    if (
+                        time.ticks_diff(time.ticks_ms(), self._asked_ms)
+                        >= _IDLE_EXIT_MS
+                    ):
+                        return
+                    time.sleep_ms(100)
+                    waited += 100
         finally:
             with self._lock:
                 self._worker = False
@@ -161,10 +180,22 @@ class WifiPlukRadio:
             svc = WifiService
         except Exception:
             pass
+        claimed = False
         if svc is not None:
-            if svc.is_busy():
-                return
-            svc.wifi_busy = True
+            # _acquire_busy pairs the check and the set under a lock — the
+            # hand-rolled is_busy()/wifi_busy=True it replaces had a window
+            # where auto_connect could claim the flag between the two, after
+            # which our finally released a flag we never owned and a third
+            # operation could barge into the middle of the connect.
+            acquire = getattr(svc, "_acquire_busy", None)
+            if acquire is not None:
+                if not acquire():
+                    return
+            else:  # older OS: best-effort check-then-set
+                if svc.is_busy():
+                    return
+                svc.wifi_busy = True
+            claimed = True
         try:
             if not self._wlan.active():
                 self._wlan.active(True)
@@ -172,7 +203,7 @@ class WifiPlukRadio:
         except Exception:
             return
         finally:
-            if svc is not None:
+            if claimed:
                 svc.wifi_busy = False
         self._publish(nets)
 
@@ -234,5 +265,6 @@ def _make():
         return FakePlukRadio()
 
 
-# Shared singleton — the pluk screen and the home stat talk to the same radio.
+# Shared singleton. One caller today (the pluk screen's tick), but the
+# smoothing state must survive screen rebuilds, so it lives module-wide.
 RADIO = _make()
