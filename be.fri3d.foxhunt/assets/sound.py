@@ -26,6 +26,30 @@ _TUNES = {
 }
 
 
+# The mute flag, cached — same deal as leds.brightness(). store.settings()
+# builds a SharedPreferences instance, and that READS AND PARSES config.json
+# every time; play() is called per dance note, per catch, per tap, inside game
+# loops that tick at 50 ms. Reading the whole save file to answer "is sound
+# on?" is the wrong price for a beep. Only the instellingen screen changes it,
+# and it calls set_muted() (screen_settings._flip_geluid).
+_muted = None
+
+
+def muted():
+    global _muted
+    if _muted is None:
+        import store
+
+        _muted = not store.settings()["geluid"]
+    return _muted
+
+
+def set_muted(on):
+    """Apply a new geluid setting without a restart."""
+    global _muted
+    _muted = bool(on)
+
+
 def _buzzer_output():
     try:
         for out in AudioManager.get_outputs():
@@ -40,9 +64,7 @@ def play(event):
     tune = _TUNES.get(event)
     if not tune:
         return
-    import store
-
-    if not store.settings()["geluid"]:  # muted from the instellingen screen
+    if muted():  # muted from the instellingen screen
         return
     out = _buzzer_output()
     if not out:  # desktop: no buzzer -> stay silent

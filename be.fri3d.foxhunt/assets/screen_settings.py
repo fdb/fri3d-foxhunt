@@ -282,6 +282,7 @@ class SettingsActivity(Activity):
     def _flip_geluid(self):
         value = not store.settings()["geluid"]
         store.set_setting("geluid", value)
+        sound.set_muted(not value)  # live: no restart to take effect
         # play after the write, so flipping geluid ON is audible immediately
         sound.play("tap")
         self._geluid.set(value)
