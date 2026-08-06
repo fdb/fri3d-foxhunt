@@ -125,7 +125,15 @@ class SnuffelActivity(Activity):
         for p in peers:
             refs = self._rows.get(p.mac)
             if refs:
-                self._update_row(refs, p)
+                try:
+                    self._update_row(refs, p)
+                except Exception:
+                    # Teardown races the timer: during the exit animation
+                    # has_foreground() still answers True while the widgets
+                    # are already deleted (the OS topmenu logs the same
+                    # LvReferenceError in that window). Drop the tick; the
+                    # timer dies with onPause a moment later.
+                    return
         if self.empty_l:
             if peers:
                 self.empty_l.add_flag(lv.obj.FLAG.HIDDEN)
