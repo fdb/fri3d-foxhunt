@@ -14,6 +14,32 @@ const BASE_CREATURES = new Set(
   CREATURES.filter((c) => c.rarity === "norm").map((c) => c.id),
 );
 
+// Server-owned bounds on the unauthenticated grant routes. The badge's own
+// rate limits (per-pair cooldowns, one roll per spot per phase) all key on
+// caller-supplied strings, so on their own they bound nothing: a curl loop
+// with 22 invented BSSIDs once walked an account to the full roster — the
+// exact quantity the public scoreboard ranks on. The server cannot verify a
+// BSSID or a meeting, but it owns two things the caller does not: the clock
+// and the count. So a grant must be reported near the day it claims to have
+// happened (the outbox drains at every home resume, so honest reports arrive
+// within hours), and each route grants at most what a very diligent honest
+// player could earn. Over-cap or stale reports still record the meeting/spot
+// and still answer ok — the badge keeps its local creature either way; the
+// server just refuses to mint scoreboard weight for it.
+const SNUFFEL_GRANTS_PER_DAY = 3;
+const SNUFFEL_GRANTS_TOTAL = 6;
+const PLUK_GRANTS_PER_PHASE = 3;
+const PLUK_GRANTS_TOTAL = 8;
+
+// day/phase within [-36h, +60h) of its UTC midnight: covers the Brussels
+// offset, the 15:00 pluk-phase boundary and a day of outbox lag, nothing more.
+function dayNear(day: string): boolean {
+  const t = Date.parse(day + "T00:00:00Z");
+  if (Number.isNaN(t)) return false;
+  const diff = Date.now() - t;
+  return diff > -36 * 3600 * 1000 && diff < 60 * 3600 * 1000;
+}
+
 // POST /api/v1/player/found
 // Sent by the LoRa bridge relay (not the badge), authenticated with the
 // pre-shared BRIDGE_KEY. Body: { hunter_id, fox_id }
@@ -23,7 +49,10 @@ const BASE_CREATURES = new Set(
 // raw byte silently credits the wrong creature for CHAR 0-3. See server/README.
 playerRoutes.post("/found", async (c) => {
   const auth = c.req.header("Authorization") ?? "";
-  const bridged = auth === `Bearer ${c.env.BRIDGE_KEY}`;
+  // Fail closed when the secret was never set: on a re-created worker with no
+  // BRIDGE_KEY, `Bearer ${undefined}` is the literal string "Bearer undefined"
+  // — valid credentials anyone can type. No key configured = no bridge.
+  const bridged = !!c.env.BRIDGE_KEY && auth === `Bearer ${c.env.BRIDGE_KEY}`;
 
   let body: Record<string, unknown>;
   try {
@@ -136,6 +165,22 @@ playerRoutes.post("/snuffel", async (c) => {
     .first<Player>();
   if (!player) return c.json({ error: "unknown badge_id" }, 404);
 
+  // The grant caps, counted BEFORE this report's row lands (see the bounds
+  // comment at the top): a capped or stale report still records the meeting
+  // below, it just cannot mint another creature.
+  let allowGrant = creatureId !== null && dayNear(day);
+  if (allowGrant) {
+    const counts = await c.env.DB.prepare(
+      `SELECT COUNT(*) AS total, COALESCE(SUM(day = ?), 0) AS today
+         FROM snuffels WHERE player_id = ? AND creature_id IS NOT NULL`,
+    )
+      .bind(day, player.id)
+      .first<{ total: number; today: number }>();
+    allowGrant =
+      (counts?.total ?? 0) < SNUFFEL_GRANTS_TOTAL &&
+      (counts?.today ?? 0) < SNUFFEL_GRANTS_PER_DAY;
+  }
+
   const result = await c.env.DB.prepare(
     "INSERT OR IGNORE INTO snuffels (player_id, peer, day, creature_id) VALUES (?, ?, ?, ?)",
   )
@@ -147,7 +192,7 @@ playerRoutes.post("/snuffel", async (c) => {
   // restore hands it back. Rides the meeting's dedupe — a duplicate report
   // grants nothing new (INSERT OR IGNORE covers the re-send race anyway).
   let granted = false;
-  if (creatureId !== null && !duplicate) {
+  if (allowGrant && !duplicate) {
     const grant = await c.env.DB.prepare(
       "INSERT OR IGNORE INTO players_creatures (player_id, creature_id) VALUES (?, ?)",
     )
@@ -209,6 +254,21 @@ playerRoutes.post("/pluk", async (c) => {
     .first<Player>();
   if (!player) return c.json({ error: "unknown badge_id" }, 404);
 
+  // Same server-owned bounds as snuffel: every pluks row is a grant attempt
+  // (the badge only reports successful rolls), so the caps count rows.
+  let allowGrant = dayNear(phase);
+  if (allowGrant) {
+    const counts = await c.env.DB.prepare(
+      `SELECT COUNT(*) AS total, COALESCE(SUM(phase = ?), 0) AS this_phase
+         FROM pluks WHERE player_id = ?`,
+    )
+      .bind(phase, player.id)
+      .first<{ total: number; this_phase: number }>();
+    allowGrant =
+      (counts?.total ?? 0) < PLUK_GRANTS_TOTAL &&
+      (counts?.this_phase ?? 0) < PLUK_GRANTS_PER_PHASE;
+  }
+
   const result = await c.env.DB.prepare(
     "INSERT OR IGNORE INTO pluks (player_id, bssid, phase, creature_id) VALUES (?, ?, ?, ?)",
   )
@@ -218,12 +278,14 @@ playerRoutes.post("/pluk", async (c) => {
 
   let granted = false;
   if (!duplicate) {
-    const grant = await c.env.DB.prepare(
-      "INSERT OR IGNORE INTO players_creatures (player_id, creature_id) VALUES (?, ?)",
-    )
-      .bind(player.id, creatureId)
-      .run();
-    granted = grant.meta.changes > 0;
+    const grant = allowGrant
+      ? await c.env.DB.prepare(
+          "INSERT OR IGNORE INTO players_creatures (player_id, creature_id) VALUES (?, ?)",
+        )
+          .bind(player.id, creatureId)
+          .run()
+      : null;
+    granted = (grant?.meta.changes ?? 0) > 0;
     await logEvent(c.env.DB, "pluk_creature_found", {
       player_id: player.id,
       bssid,
