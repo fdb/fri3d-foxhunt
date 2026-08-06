@@ -67,6 +67,49 @@ class CompanionProfileSyncTest(unittest.TestCase):
         )
         screen.finish.assert_called_once_with()
 
+    def test_name_edit_saves_locally_and_queues_name_patch(self):
+        """NAAM WIJZIGEN is the same promise as the maatje edit: the name is
+        what /scores shows in public, so a rename that only lands locally
+        leaves the scoreboard calling the player something they dropped."""
+        registrar = types.ModuleType("registrar")
+        registrar.badge_id = MagicMock(return_value="A4:CF:12:9B:03:7E")
+        companion_mod = types.ModuleType("screen_companion")
+        companion_mod.CompanionActivity = type("CompanionActivity", (), {})
+        mpos = types.ModuleType("mpos")
+        mpos.Activity = type("Activity", (), {})
+        mpos.Intent = type("Intent", (), {})
+        keyboard = types.ModuleType("mpos.ui.keyboard")
+        keyboard.MposKeyboard = MagicMock()
+        store = MagicMock()
+        sound = MagicMock()
+        modules = {
+            "lvgl": MagicMock(),
+            "mpos": mpos,
+            "mpos.ui": types.ModuleType("mpos.ui"),
+            "mpos.ui.keyboard": keyboard,
+            "ui": MagicMock(),
+            "art": MagicMock(),
+            "sound": sound,
+            "store": store,
+            "registrar": registrar,
+            "screen_companion": companion_mod,
+        }
+        spec = importlib.util.spec_from_file_location(
+            "screen_register_under_test", ASSETS / "screen_register.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, modules):
+            spec.loader.exec_module(module)
+
+        screen = MagicMock(edit=True)
+        screen._name.return_value = "Vosje"
+
+        module.RegisterActivity._next(screen)
+
+        store.update_profile.assert_called_once_with(name="Vosje")
+        store.enqueue_report.assert_called_once_with("profile", {"name": "Vosje"})
+        screen.finish.assert_called_once_with()
+
     def test_profile_report_uses_auth_user_patch(self):
         store = types.ModuleType("store")
         registrar = types.ModuleType("registrar")

@@ -200,6 +200,13 @@ class RegisterActivity(Activity):
         sound.play("tap")
         if self.edit:
             store.update_profile(name=name)
+            # Same promise as the maatje edit: local first (an edit must stick
+            # without WiFi), and the outbox PATCHes the server from the next
+            # home resume. The name is the one profile field /scores prints in
+            # public, so a rename that never leaves the badge leaves the
+            # scoreboard calling the player something they dropped.
+            # Enqueue last: it writes through its own preferences instance.
+            store.enqueue_report("profile", {"name": name})
             self.finish()
             return
         self.startActivityForResult(
