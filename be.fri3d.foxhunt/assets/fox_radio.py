@@ -11,14 +11,35 @@ from creatures import CREATURES
 # Which beacons are transmitting right now (drives awake/dormant on home).
 _AWAKE = (0, 1, 2, 12, 17, 19)
 
+# The dBm span the hunt is played over: on top of the box, and the far edge of
+# reception. Both mappings below are views of the same measured number.
+RSSI_NEAR = -40
+RSSI_FAR = -120
+
+
+def rssi_to_bpm(rssi):
+    """Heart rate IS the signal: -40 dBm reads as 215 bpm, -120 as 135.
+
+    A plain offset, no scaling — it puts the whole usable dBm span inside a
+    believable pulse and keeps the number monotonic with proximity, so a
+    rising heart rate always means you are getting warmer.
+    """
+    return rssi + 255
+
+
+def rssi_to_level(rssi):
+    """0..5 discrete hot/cold for the LEDs — the same reading, coarsened."""
+    lvl = int(round((rssi - RSSI_FAR) * 5 / (RSSI_NEAR - RSSI_FAR)))
+    return max(0, min(5, lvl))
+
 
 class FoxReading:
     # NB: no "found" flag — RSSI can't tell you you've physically reached the
     # box. The player decides when to enter the code. We only report signal.
-    def __init__(self, fox_id, level, strength, bearing=None):
+    def __init__(self, fox_id, rssi, bearing=None):
         self.fox_id = fox_id
-        self.level = level  # 0..5 discrete hot/cold -> the 5 LEDs
-        self.strength = strength  # 0.0..1.0 continuous   -> bpm
+        self.rssi = rssi  # dBm, the one measured value
+        self.level = rssi_to_level(rssi)  # 0..5 hot/cold -> the 5 LEDs
         self.bearing = bearing  # degrees; present but UI ignores it (classic ARDF)
 
 
@@ -71,7 +92,7 @@ class FakeFoxRadio(FoxRadio):
         s += random.uniform(-0.04, 0.10)  # drift up, with jitter
         s = max(0.0, min(1.0, s))
         self._strength[fox_id] = s
-        return FoxReading(fox_id, int(round(s * 5)), s)
+        return FoxReading(fox_id, int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR))))
 
     def submit_code(self, fox_id, code, on_result):
         # A one-shot timer stands in for the round trip; the verdict is decided

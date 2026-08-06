@@ -75,6 +75,24 @@ class FoxRadioTest(unittest.TestCase):
         self.timers[0].fire()
         self.assertEqual(results, ["wrong"])
 
+    def test_bpm_is_the_rssi_shifted_into_a_pulse_range(self):
+        self.assertEqual(self.module.rssi_to_bpm(-40), 215)
+        self.assertEqual(self.module.rssi_to_bpm(-120), 135)
+
+    def test_level_spans_the_whole_bar_across_the_rssi_range(self):
+        self.assertEqual(self.module.rssi_to_level(self.module.RSSI_NEAR), 5)
+        self.assertEqual(self.module.rssi_to_level(self.module.RSSI_FAR), 0)
+        # out of range on either side clamps, never wraps past the bar
+        self.assertEqual(self.module.rssi_to_level(-10), 5)
+        self.assertEqual(self.module.rssi_to_level(-200), 0)
+
+    def test_reading_reports_an_rssi_that_agrees_with_its_level(self):
+        self.radio.start(3)
+        for _ in range(20):
+            r = self.radio.reading(3)
+            self.assertTrue(self.module.RSSI_FAR <= r.rssi <= self.module.RSSI_NEAR)
+            self.assertEqual(r.level, self.module.rssi_to_level(r.rssi))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 # screen_hunt.py — classic ARDF. Silhouette + heart/bpm + 5-LED hot/cold.
 #
-# A timer polls the (faked) radio; strength -> bpm + LEDs (warmer = closer).
+# A timer polls the (faked) radio; the RSSI it reports IS the heart rate
+# (rssi + 255) and also drives the LEDs (warmer = closer).
 # There is NO automatic "found": RSSI can't tell you you've physically reached
 # the box. The player walks up, reads the code off the device, and taps
 # "VOER DE CODE IN" themselves.
@@ -12,7 +13,7 @@ import art
 import leds
 import sound
 from creatures import by_id
-from fox_radio import RADIO
+from fox_radio import RADIO, rssi_to_bpm
 from screen_code import CodeActivity
 
 
@@ -90,7 +91,7 @@ class HuntActivity(Activity):
         if not self.has_foreground():
             return
         r = RADIO.reading(self.fox_id)
-        self.bpm.set_text(str(int(60 + r.strength * 100)))
+        self.bpm.set_text(str(rssi_to_bpm(r.rssi)))
 
         # heartbeat: nudge the heart up/down each tick so it visibly throbs
         self._beat = not self._beat
