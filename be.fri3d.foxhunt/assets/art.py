@@ -28,6 +28,29 @@ HEART = [
     "....k....",
 ]
 
+# The ring: the ordinary thing the mini-games drop. A HOLLOW silhouette is the
+# one shape none of the three hapjes can imitate, so a rare hapje falling among
+# rings reads as an event even at full speed — which is the whole point of
+# replacing the hapje rain with something duller.
+# One grid, three palettes (like HEART, the palette IS the variation). The
+# tuple is ordered brons, zilver, goud — cheapest first, so the index doubles
+# as what the ring is worth.
+RING = [
+    "..kkkk..",
+    ".kwwcck.",
+    "kwc..cck",
+    "kc....ck",
+    "kc....ck",
+    "kcc..cck",
+    ".kcccck.",
+    "..kkkk..",
+]
+RING_PALS = (
+    {"k": 0x5A3316, "c": 0xC1783A, "w": 0xE8A96A},
+    {"k": 0x4A5058, "c": 0xB8BFC6, "w": 0xEFF3F7},
+    {"k": 0x6B4A12, "c": 0xE8B84B, "w": 0xFFF0B0},
+)
+
 # ── Scenery: the beestenschool backdrops ────────────────────────────────────
 # Bare row grids like HEART, not ICONS entries, because here the palette IS the
 # depth cue: the same cloud drawn pale and small is far away, drawn bright and
@@ -483,6 +506,9 @@ ICONS["noot"] = ICONS["nut"]
 ICONS["eikel"] = ICONS["acorn"]
 ICONS["boek"] = ICONS["book"]
 ICONS["spoor"] = ICONS["paw"]
+# The ring as a plain UI icon (the school tile). Goud, because one ring
+# standing for all three should be the one worth chasing.
+ICONS["ring"] = {"rows": RING, "pal": RING_PALS[2]}
 
 
 def icon(parent, name, scale=2):

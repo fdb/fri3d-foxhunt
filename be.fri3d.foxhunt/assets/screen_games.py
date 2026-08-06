@@ -9,6 +9,13 @@
 #
 # Controls use the badge where it fits: taps for VLIEGEN and VANGEN, the
 # four-way joystick for DANSEN. No gesture needs explaining to a seven-year-old.
+#
+# Every game also hides real hapjes among its ordinary collectables — see
+# GameActivity.take_treat. They are the only thing a game hands the player
+# beyond a number on an end card, so they are deliberately rare: rare enough
+# that finding one is an event, common enough that a long round pays. Each
+# game counts its own interval and starts the next one the moment it pays out,
+# so playing longer is exactly what earns more.
 
 import random
 
@@ -58,6 +65,13 @@ class GameActivity(Activity):
         self.right_l = ui.label(
             self.screen, "", 240, 8, ui.CREAM, ui.font_small(), w=72, center=True
         )
+        # The hapje toast lives in the banner, between the title and the score:
+        # the one strip of screen no game draws in, so it never covers play.
+        self.toast_l = ui.label(
+            self.screen, "", 104, 8, ui.CREAM, ui.font_small(), w=132, center=True
+        )
+        self._toast_t = 0
+        self._bonus = 0  # score earned by hapjes, on top of what a game counts
         self.set_score(0)
 
     def set_score(self, n):
@@ -77,7 +91,27 @@ class GameActivity(Activity):
 
     def _tick(self, t):
         if self.has_foreground() and not self._over:
+            if self._toast_t:
+                self._toast_t -= 1
+                if not self._toast_t:
+                    self.toast_l.set_text("")
             self.step()
+
+    def take_treat(self):
+        """Collect a hapje found mid-game: bank it, say so, score it.
+
+        `store.add_food` writes through its OWN SharedPreferences instance, so
+        it may only ever run where nothing else holds an editor. Here that is
+        true at any moment: the play session was committed back in onCreate and
+        no game keeps a pending write, so banking on the spot is safe — and it
+        means a player who walks out mid-round still keeps what they caught."""
+        food = random.choice(store.FOODS)
+        store.add_food(food)
+        sound.play("caught")
+        self.toast_l.set_text("+1 %s!" % food)
+        self._toast_t = max(8, 2000 // self.TICK_MS)
+        self._bonus += 1
+        self.set_score(self.score + 1)
 
     def grab_keys(self, s, on_key):
         """Give the playfield itself the joystick/keyboard focus.
@@ -208,6 +242,12 @@ _SKY_BOT = 148
 # IS the visible signal, and a forgiving box would just clip the fox off-screen.
 _GRACE = 5
 
+# Branch pairs between hapjes. The hapje hangs in the middle of the gap, so it
+# costs no detour — flying the centre line instead of scraping past a branch is
+# the whole skill of this game, and this pays for it.
+_VLIEG_TREAT = (10, 21)
+_TREAT_PX = 16  # a food icon at scale 2
+
 
 class VliegActivity(GameActivity):
     TITLE = "VLIEGEN"
@@ -237,8 +277,9 @@ class VliegActivity(GameActivity):
         # who is still reading the hint has already fallen out of the sky.
         self._flying = False
         self.bird.set_pos(_BIRD_X, int(self._y))
-        self.obs = []  # {"top", "bot", "x", "passed"}
+        self.obs = []  # {"top", "bot", "x", "passed", "treat"}
         self._spawn_t = 10
+        self._treat_in = random.randrange(*_VLIEG_TREAT)
         ui.label(
             s,
             "tik om te fladderen - of stick omhoog",
@@ -319,19 +360,44 @@ class VliegActivity(GameActivity):
                     "x": 320.0,
                     "gap": gap_y,
                     "passed": False,
+                    "treat": None,
                 }
             )
+            self._treat_in -= 1
+            if self._treat_in <= 0:
+                self._treat_in = random.randrange(*_VLIEG_TREAT)
+                t = art.icon(s, random.choice(store.FOODS), 2)
+                t.set_pos(320 + 5, gap_y - _TREAT_PX // 2)
+                self.obs[-1]["treat"] = t
         for o in self.obs[:]:
             o["x"] -= 3.0
             x = int(o["x"])
             o["top"].set_x(x)
             o["bot"].set_x(x)
+            t = o["treat"]
+            if t is not None:
+                t.set_x(x + 5)
+                # The hapje's own box against the fox's forgiving one. It sits
+                # inside the gap, so this can only ever fire on a pass the
+                # branch test below is going to allow anyway.
+                ty = o["gap"] - _TREAT_PX // 2
+                if (
+                    x + 5 < _BIRD_X + 32 - _GRACE
+                    and x + 5 + _TREAT_PX > _BIRD_X + _GRACE
+                    and ty < self._y + 32 - _GRACE
+                    and ty + _TREAT_PX > self._y + _GRACE
+                ):
+                    t.delete()
+                    o["treat"] = None
+                    self.take_treat()
             if not o["passed"] and x + 26 < _BIRD_X:
                 o["passed"] = True
                 self.set_score(self.score + 1)
             if x < -30:
                 o["top"].delete()
                 o["bot"].delete()
+                if o["treat"] is not None:
+                    o["treat"].delete()
                 self.obs.remove(o)
                 continue
             # collision: the fox's hitbox (its 32x32 box inset by _GRACE, so
@@ -377,14 +443,33 @@ _CAMP_ART = (
 # unfair again.
 _RUN = 4.0  # beast px per tick; it never stops, it only turns
 _CX_MIN, _CX_MAX = 6.0, 282.0  # how far the beast can run
-_BEAST_Y = 196  # top of the beast: where a falling hapje is caught
-_ITEM_PX = 24  # a food icon at scale 3
-_DROP_Y = 30  # where a hapje appears
+_BEAST_Y = 196  # top of the beast: where a falling item is caught
+_ITEM_PX = 24  # an 8x8 icon at scale 3 — ring and hapje are the same size
+_DROP_Y = 30  # where an item appears
 _CATCH_Y = _BEAST_Y - _ITEM_PX  # item y at which its bottom meets the beast
-_GONE_Y = 232  # past here the hapje is missed
+_GONE_Y = 232  # past here the item is missed
 # The catch window: cx may be anywhere in (item.x - 32, item.x + 24), so the
-# beast aims at item.x - _AIM and a target cx wants a hapje at cx + _AIM.
+# beast aims at item.x - _AIM and a target cx wants an item at cx + _AIM.
 _AIM = 4
+
+# What falls, and what it is worth. Rings are the rain; a hapje is the event.
+# Metal is the only variation, so worth has to follow the eye: brons 1, zilver
+# 2, goud 3, and rarer the higher it pays.
+_RING_ODDS = (70, 22, 8)
+# Drops between hapjes. The round ends on the third miss, so a fixed "every
+# 50th" would hand the good players everything and the young ones nothing; the
+# interval is redrawn each time instead, and it is short enough that an ordinary
+# round still meets one.
+_VANG_TREAT = (30, 61)
+
+
+def _ring_kind():
+    r = random.randrange(sum(_RING_ODDS))
+    for i, w in enumerate(_RING_ODDS):
+        if r < w:
+            return i
+        r -= w
+    return 0
 
 
 class VangActivity(GameActivity):
@@ -406,9 +491,14 @@ class VangActivity(GameActivity):
         self._cx = 144.0
         self._dir = 1
         self.beast.set_pos(int(self._cx), _BEAST_Y)
-        self.items = []  # {"w", "x", "y", "vy"}
+        self.items = []  # {"w", "x", "y", "vy", "worth"}
         self._spawn_t = 10
         self._missed = 0
+        # Difficulty rides the number of CATCHES, never the score: a gold ring
+        # is worth three and would otherwise ramp the game three times as fast
+        # as the player is actually playing it.
+        self._caught = 0
+        self._treat_in = random.randrange(*_VANG_TREAT)
         self.hearts_box = ui.box(s, 8, 30, 66, 18)
         self._hearts()
         ui.label(
@@ -454,17 +544,17 @@ class VangActivity(GameActivity):
         return (_CATCH_Y - it["y"]) / it["vy"]
 
     def _drop_x(self, vy):
-        """Where a hapje falling at `vy` may appear: only somewhere the beast
+        """Where an item falling at `vy` may appear: only somewhere the beast
         can still run to, given everything already in the air.
 
         The beast moves a fixed _RUN per tick and cannot stop, so its range is
         just speed times time — but time from WHERE. Measuring from where it
-        stands now is not enough: two or three hapjes are usually falling at
+        stands now is not enough: two or three items are usually falling at
         once, and a player who is off collecting the one that lands first has
         no way back for a second that was only reachable from a standstill.
         That is the version of this game that felt unfair.
 
-        So the window chains: it hangs off the last hapje already due, and is
+        So the window chains: it hangs off the last item already due, and is
         as wide as the run the beast can make between that catch and this one.
         Serving them in the order they land is then always possible, which is
         the order a player plays in anyway. With an empty sky there is nothing
@@ -494,13 +584,22 @@ class VangActivity(GameActivity):
 
         self._spawn_t -= 1
         if self._spawn_t <= 0:
-            self._spawn_t = max(16, 30 - self.score)
-            vy = min(6.0, 2.5 + self.score * 0.08)
-            food = random.choice(store.FOODS)
-            w = art.icon(self.screen, food, 3)
+            self._spawn_t = max(16, 30 - self._caught)
+            vy = min(6.0, 2.5 + self._caught * 0.08)
+            self._treat_in -= 1
+            if self._treat_in <= 0:
+                # worth 0 marks the hapje: it pays a pantry item, not points
+                self._treat_in = random.randrange(*_VANG_TREAT)
+                w, worth = art.icon(self.screen, random.choice(store.FOODS), 3), 0
+            else:
+                kind = _ring_kind()
+                w = art.draw_sprite(self.screen, art.RING, art.RING_PALS[kind], 3)
+                worth = kind + 1
             x = self._drop_x(vy)
             w.set_pos(x, _DROP_Y)
-            self.items.append({"w": w, "x": x, "y": float(_DROP_Y), "vy": vy})
+            self.items.append(
+                {"w": w, "x": x, "y": float(_DROP_Y), "vy": vy, "worth": worth}
+            )
         for it in self.items[:]:
             it["y"] += it["vy"]
             it["w"].set_y(int(it["y"]))
@@ -509,10 +608,14 @@ class VangActivity(GameActivity):
                 and it["x"] + _ITEM_PX > self._cx
                 and it["x"] < self._cx + 32
             ):
-                sound.play("tap")
                 it["w"].delete()
                 self.items.remove(it)
-                self.set_score(self.score + 1)
+                self._caught += 1
+                if it["worth"]:
+                    sound.play("tap")
+                    self.set_score(self.score + it["worth"])
+                else:
+                    self.take_treat()
             elif it["y"] > _GONE_Y:
                 it["w"].delete()
                 self.items.remove(it)
@@ -538,6 +641,12 @@ _DANCE_Y = 104
 _DANCE_LEAD_TICKS = 10  # one second to get ready before the first move
 _DANCE_STEP_TICKS = 10  # one second per move: 600 ms posed, 400 ms centred
 _WIN_ROUNDS = 8
+# 1 in N player turns puts a hapje on one of the four tiles. It is seeded when
+# the player's turn STARTS, never during the demo — the beast walking over it
+# while showing the steps would read as eating it. If this round's steps never
+# visit that tile it simply stays for the next one, so a seeded hapje is always
+# eventually reachable, and a new one is only drawn once this one is taken.
+_DANCE_TREAT_ODDS = 5
 
 
 class DansActivity(GameActivity):
@@ -577,6 +686,17 @@ class DansActivity(GameActivity):
         self.show_i = 0
         self.inp = 0
         self._dim_t = 0
+        self.treat = None
+        self.treat_i = None
+
+    def _seed_treat(self):
+        if self.treat is not None or random.randrange(_DANCE_TREAT_ODDS):
+            return
+        self.treat_i = random.randrange(4)
+        dx, dy, _ = _DANCE_MOVES[self.treat_i]
+        self.treat = art.icon(self.screen, random.choice(store.FOODS), 2)
+        self.treat.set_pos(_DANCE_X + dx + 16, _DANCE_Y + dy + 16)
+        self.beast.move_foreground()  # the beast steps ON the hapje, not under it
 
     def _pose(self, i=None):
         if i is None:
@@ -638,6 +758,7 @@ class DansActivity(GameActivity):
                 if self.show_i >= len(self.seq):
                     self.state = "wait"
                     self.inp = 0
+                    self._seed_treat()
                     self.hint_l.set_text("doe ze na met de stick!")
             self.t += 1
         elif self.state == "pause":
@@ -655,9 +776,14 @@ class DansActivity(GameActivity):
             sound.play("error")
             self.game_over("OEPS!")
             return
+        if self.treat is not None and i == self.treat_i:
+            self.treat.delete()
+            self.treat = None
+            self.treat_i = None
+            self.take_treat()
         self.inp += 1
         if self.inp >= len(self.seq):
-            self.set_score(len(self.seq))
+            self.set_score(len(self.seq) + self._bonus)
             if len(self.seq) >= _WIN_ROUNDS:
                 sound.play("caught")
                 self.game_over("SUPER!")

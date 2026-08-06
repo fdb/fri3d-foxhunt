@@ -7,7 +7,7 @@
 # banks the band through store.do_play when the session starts.
 #
 # The design's third tile was DOOLHOF (tilt maze), but the IMU has no
-# spike yet — VANGEN (tap to turn, catch the falling hapjes) takes its
+# spike yet — VANGEN (tap to turn, catch the falling rings) takes its
 # slot until it does.
 
 import lvgl as lv
@@ -24,7 +24,7 @@ from screen_games import VliegActivity, VangActivity, DansActivity
 # (game id, icon, naam, energy cost in segments, subtitle)
 GAMES = (
     ("vlieg", "vlieg", "VLIEGEN", 2, "ontwijk de takken"),
-    ("vang", "bes", "VANGEN", 1, "vang de hapjes"),
+    ("vang", "ring", "VANGEN", 1, "vang de ringen"),
     ("dans", "dans", "DANSEN", 1, "doe de pasjes na"),
 )
 _GAME_ACT = {"vlieg": VliegActivity, "vang": VangActivity, "dans": DansActivity}
