@@ -619,11 +619,26 @@ def _upscale(src, scale):
     return out
 
 
-def _sprite_dsc(name, frame, scale):
+def _flip_x(src):
+    """Mirror one 16x16 BGRA atlas frame without involving LVGL transforms."""
+    row_size = _IMG_SRC * 4
+    out = bytearray(len(src))
+    for y in range(_IMG_SRC):
+        row = y * row_size
+        for x in range(_IMG_SRC):
+            src_x = row + x * 4
+            dst_x = row + (_IMG_SRC - 1 - x) * 4
+            out[dst_x : dst_x + 4] = src[src_x : src_x + 4]
+    return out
+
+
+def _sprite_dsc(name, frame, scale, flip_x=False):
     """One atlas frame as an lv.image_dsc_t, pre-scaled to 16*scale square.
     Returns (dsc, data); the caller must keep data referenced (see _keep).
     No PNG decode: sprites.bin already holds the bytes LVGL blits."""
     src = _frame_bytes(name, frame)
+    if flip_x:
+        src = _flip_x(src)
     data = src if scale == 1 else _upscale(src, scale)
     px = _IMG_SRC * scale
     dsc = lv.image_dsc_t(
@@ -650,7 +665,7 @@ def _keep(w, refs):
     w.add_event_cb(lambda e: _live.pop(k, None), lv.EVENT.DELETE, None)
 
 
-def sprite_img(parent, name, scale, x=0, y=0, frame=0):
+def sprite_img(parent, name, scale, x=0, y=0, frame=0, flip_x=False):
     """A baked 16x16 sprite blown up to 16*scale at (x, y) — scaled HERE by
     pixel replication, never by LVGL. LVGL's draw-time transform steps the
     source edge-to-edge in (dest_w - 1) increments, which renders half-width
@@ -658,7 +673,7 @@ def sprite_img(parent, name, scale, x=0, y=0, frame=0):
     a buffer that already matches the widget size never enters that path.
     The image counterpart of draw_sprite() — same grid, same scale factor, so
     a caller can swap art backends without moving anything else."""
-    dsc, data = _sprite_dsc(name, frame, scale)
+    dsc, data = _sprite_dsc(name, frame, scale, flip_x)
     px = _IMG_SRC * scale
     w = lv.image(parent)
     w.set_src(dsc)
@@ -673,7 +688,7 @@ def sprite_img(parent, name, scale, x=0, y=0, frame=0):
 _ANIM_FRAME_MS = 180  # sprite-sheet playback: ~5.5 fps reads as pixel art
 
 
-def animate_sprite(img, name, scale, ms=_ANIM_FRAME_MS):
+def animate_sprite(img, name, scale, ms=_ANIM_FRAME_MS, flip_x=False):
     """Cycle a sprite_img through its sheet frames, forever. Every frame is
     pre-scaled up front and anchored to the widget, so a tick is one set_src —
     no allocation, no rescale.
@@ -686,7 +701,7 @@ def animate_sprite(img, name, scale, ms=_ANIM_FRAME_MS):
     n = frames(name)
     if n < 2:
         return
-    seq = [_sprite_dsc(name, f, scale) for f in range(n)]
+    seq = [_sprite_dsc(name, f, scale, flip_x) for f in range(n)]
     _keep(img, seq)
     a = lv.anim_t()
     a.init()
@@ -718,7 +733,7 @@ def _bare(o):
     o.remove_flag(lv.obj.FLAG.CLICKABLE)  # let taps fall through to the cell
 
 
-def _layer(parent, c, scale, tint=None, animate=False):
+def _layer(parent, c, scale, tint=None, animate=False, flip_x=False):
     """One creature image/canvas at (0,0), sized 16*scale, full colour (tint
     None) or flattened to the tone `tint`. Non-clickable so it never steals
     taps from a clickable cell.
@@ -728,17 +743,25 @@ def _layer(parent, c, scale, tint=None, animate=False):
     partial opacity — would leak the real colours, which is the whole thing
     we are hiding."""
     name = "animals/" + c["img"]
-    w = sprite_img(parent, name, scale)
+    w = sprite_img(parent, name, scale, flip_x=flip_x)
     if tint is not None:
         w.set_style_image_recolor(lv.color_hex(tint[0]), 0)
         w.set_style_image_recolor_opa(lv.OPA.COVER, 0)
     elif animate and c.get("anim"):
-        animate_sprite(w, name, scale)
+        animate_sprite(w, name, scale, flip_x=flip_x)
     return w
 
 
 def creature_panel(
-    parent, c, scale, reveal=1.0, silhouette=False, mask=None, veil=SIL, animate=False
+    parent,
+    c,
+    scale,
+    reveal=1.0,
+    silhouette=False,
+    mask=None,
+    veil=SIL,
+    animate=False,
+    flip_x=False,
 ):
     """The creature shown full / hidden / partially revealed (fills top-down).
     Full/hidden return the bare sprite (no wrapper, so it never blocks clicks);
@@ -752,20 +775,28 @@ def creature_panel(
 
     `animate` plays a sprite sheet's frames, for creatures flagged "anim" —
     only ever on the honest full reveal (the payoff screens and the beast
-    page); silhouettes and veils hold frame 0 so a mystery stays still."""
+    page); silhouettes and veils hold frame 0 so a mystery stays still.
+    `flip_x` mirrors the pixels before drawing, without an LVGL transform."""
     if silhouette or reveal <= 0.0:
-        return _layer(parent, c, scale, veil)
+        return _layer(parent, c, scale, veil, flip_x=flip_x)
     if reveal >= 1.0:
-        return _layer(parent, c, scale, mask, animate=(animate and mask is None))
+        return _layer(
+            parent,
+            c,
+            scale,
+            mask,
+            animate=(animate and mask is None),
+            flip_x=flip_x,
+        )
     # partial: veiled base + revealed part clipped to the top `reveal`
     px = 16 * scale
     wrap = lv.obj(parent)
     _bare(wrap)
     wrap.set_size(px, px)
-    _layer(wrap, c, scale, veil)
+    _layer(wrap, c, scale, veil, flip_x=flip_x)
     clip = lv.obj(wrap)
     _bare(clip)
     clip.set_size(px, max(1, int(reveal * px)))
     clip.set_pos(0, 0)
-    _layer(clip, c, scale, mask)
+    _layer(clip, c, scale, mask, flip_x=flip_x)
     return wrap

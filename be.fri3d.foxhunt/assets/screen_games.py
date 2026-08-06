@@ -228,7 +228,7 @@ class VliegActivity(GameActivity):
             self.clouds.append(
                 {"w": w, "x": float(x), "px": len(rows[0]) * scale, "sp": sp, "ix": x}
             )
-        self.bird = art.creature_panel(s, self.c, 2)
+        self.bird = art.creature_panel(s, self.c, 2, flip_x=True)
         self._y = 110.0
         self._vy = 0.0
         # The round starts on the first tap, not on the first tick. Gravity,
