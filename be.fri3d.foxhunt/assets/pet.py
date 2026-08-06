@@ -89,7 +89,7 @@ def decay(state, now):
     s = dict(state)
     if finished(s):
         s["last"] = now
-        return s
+        return _finish(s)
     hours = max(0, (now - s.get("last", now))) / 3600
     if hours > 0:
         for key, rate in _DECAY.items():
@@ -143,7 +143,7 @@ def play(state, cost, favourite, now):
     s = dict(state)
     if finished(s):
         s["last"] = now
-        return s, True, "wat een lol!"
+        return _finish(s), True, "wat een lol!"
     if s.get("energy", 0) < cost * SEG:
         s["last"] = now
         return s, False, "te moe om te spelen"
@@ -215,4 +215,13 @@ if __name__ == "__main__":
     freeplay, ok, msg = play(done, 2, True, st["last"])
     assert ok and msg == "wat een lol!", (ok, msg)
     assert freeplay["energy"] == 100 and freeplay["bond"] == 100, freeplay
+    # Legacy max-bond saves are normalized too, even if they were persisted
+    # before the permanent-content rule started snapping their living stats.
+    legacy_done = dict(done)
+    legacy_done["energy"] = 0
+    legacy_done["hunger"] = 100
+    normalized = decay(legacy_done, st["last"] + 3600)
+    assert normalized["energy"] == 100 and normalized["hunger"] == 0, normalized
+    freeplay, ok, _ = play(legacy_done, 2, False, st["last"])
+    assert ok and freeplay["energy"] == 100 and freeplay["hunger"] == 0, freeplay
     print("pet.py self-test OK")

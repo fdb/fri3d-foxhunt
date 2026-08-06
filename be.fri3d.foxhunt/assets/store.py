@@ -333,16 +333,21 @@ def do_feed(cid, food):
     return state, ok, msg, is_fav
 
 
-def play_cost(cost):
+def play_cost(cost, state=None):
     """What a beestenschool session really costs in energy segments — the
-    tile's price normally, zero while the debug ONVERMOEIBAAR switch is on.
+    tile's price normally, zero for a beste vriend or while the debug
+    ONVERMOEIBAAR switch is on.
 
     Three places gate on energy (the school's tiles, the game's NOG EEN KEER,
     do_play itself) and they all ask here, so the switch can never leave one
-    of them refusing while another lets you in. It suspends the *price*, not
-    the reward: a free session still earns its normal band, and
-    like every debug path it never leaves the badge."""
-    return 0 if settings().get("nooit_moe") else cost
+    of them refusing while another lets you in. A beste vriend earns no more
+    band (pet.play); the debug switch still suspends only the price, not the
+    reward, and like every debug path it never leaves the badge."""
+    return (
+        0
+        if (state is not None and pet.finished(state)) or settings().get("nooit_moe")
+        else cost
+    )
 
 
 def do_play(cid, cost, favourite):
@@ -351,9 +356,8 @@ def do_play(cid, cost, favourite):
     raw = _raw_state(prefs, cid)
     if raw is None:
         return None, False, ""
-    state, ok, msg = pet.play(
-        pet.decay(raw, _now()), play_cost(cost), favourite, _now()
-    )
+    state = pet.decay(raw, _now())
+    state, ok, msg = pet.play(state, play_cost(cost, state), favourite, _now())
     prefs.edit().put_dict_item("beast", str(cid), state).commit()
     if ok and pet.finished(state) and not pet.finished(raw):
         _report_bonded()

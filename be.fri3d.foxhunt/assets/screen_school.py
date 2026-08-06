@@ -67,7 +67,7 @@ class SchoolActivity(Activity):
         energie = st["energy"]
         segs = pet.segments(energie)
         cheapest = min(g[3] for g in GAMES)
-        moe = energie < store.play_cost(cheapest) * pet.SEG
+        moe = energie < store.play_cost(cheapest, st) * pet.SEG
         naam = st.get("bijnaam") or self.c["naam"]
         fav = favourite_game(self.fox_id)
 
@@ -113,7 +113,8 @@ class SchoolActivity(Activity):
         tile_h = 40 if note else 52
         y = top
         for gid, icon, gnaam, kost, sub in GAMES:
-            kan = not moe and energie >= store.play_cost(kost) * pet.SEG
+            echte_kost = store.play_cost(kost, st)
+            kan = not moe and energie >= echte_kost * pet.SEG
             is_fav = gid == fav
             tile = ui.panel(
                 s,
@@ -136,7 +137,7 @@ class SchoolActivity(Activity):
             ui.label(tile, sub, 38, tile_h - 18, ui.MYSTERY, ui.font_small())
             ui.label(
                 tile,
-                "-%d" % kost,
+                "gratis" if echte_kost == 0 else "-%d" % echte_kost,
                 150,
                 4,
                 ui.TERRA if kan else ui.MYSTERY,
@@ -145,7 +146,14 @@ class SchoolActivity(Activity):
                 center=True,
             )
             ui.label(
-                tile, "energie", 150, 20, ui.MYSTERY, ui.font_small(), w=44, center=True
+                tile,
+                "energie" if echte_kost else "spelen",
+                150,
+                20,
+                ui.MYSTERY,
+                ui.font_small(),
+                w=44,
+                center=True,
             )
             if kan:
                 ui.focusable(

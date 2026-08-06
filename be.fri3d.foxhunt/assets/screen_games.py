@@ -150,7 +150,7 @@ class GameActivity(Activity):
 
     def _again(self):
         st = store.beast_state(self.fox_id)
-        if st is None or st["energy"] < store.play_cost(self.kost) * pet.SEG:
+        if st is None or st["energy"] < store.play_cost(self.kost, st) * pet.SEG:
             sound.play("error")
             self.note_l.set_text("te moe - eerst een hapje!")
             return
