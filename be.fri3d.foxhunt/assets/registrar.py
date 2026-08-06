@@ -150,7 +150,11 @@ def resync():
     REGISTRAR.register(
         p.get("name") or "Jager",
         p.get("badge_id") or badge_id(),
-        companion.encode(p["head"], p["accs"], p["bg"]),
+        # .get with defaults, like name and badge_id above: this runs from
+        # FoxhuntActivity.onCreate, before any screen exists — a KeyError on
+        # a partial profile would kill the app before it could draw anything,
+        # leaving no way to reach ALLES WISSEN and recover.
+        companion.encode(p.get("head", "vos"), p.get("accs") or [], p.get("bg", 0)),
         _on_resync,
     )
 
@@ -161,7 +165,13 @@ def _on_resync(st):
     import store
     from creatures import by_id
 
-    store.update_profile(hunter_id=st.get("hunter_id"), synced=True)
+    # synced always; hunter_id only when the answer carried one. The register
+    # route never mints (bridge/hunter report "skip"), so writing its absent
+    # hunter_id unconditionally would clobber an id another path banked.
+    if st.get("hunter_id"):
+        store.update_profile(hunter_id=st["hunter_id"], synced=True)
+    else:
+        store.update_profile(synced=True)
     # The startbeest rides the registration, so a retried one grants it too.
     # Bank it silently: the reveal is theatre, and the player is somewhere
     # else entirely by now.
@@ -325,7 +335,7 @@ class FakeRegistrar(Registrar):
                 # a restore would have handed back.
                 st["exists"] = True
                 st["name"] = "Jager"
-                st["hunter_id"] = "JGR-%04d" % random.randrange(10000)
+                st["hunter_id"] = "JGR-%04d" % random.randrange(1, 10000)
                 st["companion"] = self.RESTORE_COMPANION
                 st["creatures"] = list(self.RESTORE_CREATURES)
                 st["done"] = True
@@ -360,7 +370,7 @@ class FakeRegistrar(Registrar):
 
         def mint_done():
             st["hunter"] = "ok"
-            st["hunter_id"] = "JGR-%04d" % random.randrange(10000)
+            st["hunter_id"] = "JGR-%04d" % random.randrange(1, 10000)
             st["done"] = st["ok"] = True
             push()
 
@@ -416,7 +426,7 @@ class FakeRegistrar(Registrar):
                         "done": True,
                         "found": True,
                         "name": "Jager",
-                        "hunter_id": "JGR-%04d" % random.randrange(10000),
+                        "hunter_id": "JGR-%04d" % random.randrange(1, 10000),
                         "companion": self.RESTORE_COMPANION,
                         "creatures": list(self.RESTORE_CREATURES),
                         "error": None,
@@ -461,7 +471,7 @@ def _hunter_label(n):
     width wherever it is placed. None (no antenna yet) stays None, so the
     profile says "JGR volgt" rather than inventing an id. The number is always
     recoverable from the server when the LoRa layer needs it."""
-    return None if n is None else "JGR-%04d" % n
+    return None if not n else "JGR-%04d" % n
 
 
 class HttpRegistrar(Registrar):
@@ -560,12 +570,14 @@ class HttpRegistrar(Registrar):
 
     async def _overwrite(self, name, badge, companion, on_update):
         body = {"badge_id": badge, "name": name, "profile_pic": companion}
-        status = 0
+        status, data = 0, None
         try:
-            status, _ = await _json_request("PATCH", "/api/v1/auth/user", body)
+            status, data = await _json_request("PATCH", "/api/v1/auth/user", body)
         except Exception as e:
             print("registrar: overwrite failed:", e)
-        ok = status == 200
+        # JSON body required, like the delete: adopt() runs on this verdict,
+        # and a captive portal's bare 200 must not rewrite the local profile.
+        ok = status == 200 and data is not None
         if not ok:
             print("registrar: overwrite rejected, HTTP", status)
         on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})
@@ -589,7 +601,11 @@ class HttpRegistrar(Registrar):
         # same 404 with no JSON at all, and that one is not a grant: it once
         # let a badge wipe itself while the account it asked about lived on,
         # so the next registration met its own row and said "badge al bekend".
-        ok = status == 200 or (status == 404 and data is not None)
+        # The JSON-body requirement applies to the 200 arm for the same
+        # reason: a captive portal or intercepting proxy answering a bare 200
+        # is not the game server, and the wipe this authorises is the one
+        # step nobody can undo. The real route always sends JSON.
+        ok = status in (200, 404) and data is not None
         if not ok:
             print("registrar: delete rejected, HTTP", status)
         on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})
