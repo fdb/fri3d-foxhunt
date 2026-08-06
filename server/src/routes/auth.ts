@@ -4,7 +4,6 @@ import { logEvent } from "../lib/events";
 import { starterFor } from "../lib/starter";
 import {
   validateBadgeId,
-  validateHunterId,
   validateName,
   validateProfilePic,
 } from "../lib/validate";
@@ -46,9 +45,9 @@ authRoutes.post("/register", async (c) => {
   if (!name)
     return c.json({ error: "invalid name (1-32 chars, no emoji)" }, 400);
 
-  const hunterId = validateHunterId(body.hunter_id);
-  if (hunterId === "invalid")
-    return c.json({ error: "invalid hunter_id (integer 1-9999)" }, 400);
+  // hunter_id is deliberately NOT read from the body: the server is the
+  // allocator (POST /hunter mints it), and letting registration claim one
+  // would let anyone squat an id another jager already earned.
 
   // The companion shortcode rides along with registration: it is what a restore
   // hands back, so a badge that never sent one can never recover its avatar.
@@ -81,29 +80,31 @@ authRoutes.post("/register", async (c) => {
     // player owned goes: the roster, and the hunter_id — the next player on
     // this badge mints their own, and an in-flight bridge report for the old
     // HID must not credit them.
-    await c.env.DB.prepare("DELETE FROM players_creatures WHERE player_id = ?")
-      .bind(existing.id)
-      .run();
-    await c.env.DB.prepare("DELETE FROM pluks WHERE player_id = ?")
-      .bind(existing.id)
-      .run();
+    // Every per-player table, not just the roster: pluks, snuffels and
+    // visitors are dedupe records, and a row the old owner left behind would
+    // keep suppressing the NEW player's grants ("duplicate": true) — the same
+    // spot, the same friend, or a visitor slot silently paying out nothing.
+    for (const table of ["players_creatures", "pluks", "snuffels", "visitors"])
+      await c.env.DB.prepare(`DELETE FROM ${table} WHERE player_id = ?`)
+        .bind(existing.id)
+        .run();
     player = await c.env.DB.prepare(
       `UPDATE players
-          SET name = ?, profile_pic = ?, hunter_id = ?, dt_deleted = NULL,
+          SET name = ?, profile_pic = ?, hunter_id = NULL, dt_deleted = NULL,
               dt_created = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
               dt_updated = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
         WHERE id = ? RETURNING *`,
     )
-      .bind(name, profilePic, hunterId, existing.id)
+      .bind(name, profilePic, existing.id)
       .first<Player>();
   } else if (existing) {
     return c.json({ error: "badge_id already registered" }, 409);
   } else {
     try {
       player = await c.env.DB.prepare(
-        "INSERT INTO players (badge_id, name, hunter_id, profile_pic) VALUES (?, ?, ?, ?) RETURNING *",
+        "INSERT INTO players (badge_id, name, profile_pic) VALUES (?, ?, ?) RETURNING *",
       )
-        .bind(badgeId, name, hunterId, profilePic)
+        .bind(badgeId, name, profilePic)
         .first<Player>();
     } catch (err) {
       const conflict = uniqueConflict(err);
@@ -116,7 +117,6 @@ authRoutes.post("/register", async (c) => {
   await logEvent(c.env.DB, "player_registered", {
     player_id: player!.id,
     badge_id: badgeId,
-    hunter_id: hunterId,
     name,
     profile_pic: profilePic,
     revived: existing ? true : undefined,
@@ -222,13 +222,28 @@ authRoutes.post("/hunter", async (c) => {
   for (let i = 0; i < 25; i++) {
     const hid = 1 + Math.floor(Math.random() * 9999);
     try {
-      await c.env.DB.prepare(
+      // AND hunter_id IS NULL: two concurrent mints (a double-tap, or the
+      // badge's retry after a lost reply) would otherwise both pass the check
+      // above and both write — different ids, so no UNIQUE violation — and
+      // the first caller would store an id the row no longer holds. With the
+      // guard the loser's UPDATE matches nothing; return the id that won.
+      const result = await c.env.DB.prepare(
         `UPDATE players
             SET hunter_id = ?, dt_updated = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-          WHERE id = ?`,
+          WHERE id = ? AND hunter_id IS NULL`,
       )
         .bind(hid, player.id)
         .run();
+      if (result.meta.changes === 0) {
+        const won = await c.env.DB.prepare(
+          "SELECT hunter_id FROM players WHERE id = ?",
+        )
+          .bind(player.id)
+          .first<{ hunter_id: number | null }>();
+        if (!won?.hunter_id)
+          return c.json({ error: "no hunter_id available" }, 503);
+        return c.json({ ok: true, hunter_id: won.hunter_id, minted: false });
+      }
     } catch (err) {
       if (uniqueConflict(err) === "hunter_id") continue;
       throw err;
@@ -298,12 +313,10 @@ authRoutes.patch("/user", async (c) => {
     changes.name = name;
   }
   if (body.hunter_id !== undefined) {
-    const hunterId = validateHunterId(body.hunter_id);
-    if (hunterId === "invalid")
-      return c.json({ error: "invalid hunter_id (integer 1-9999)" }, 400);
-    fields.push("hunter_id = ?");
-    values.push(hunterId);
-    changes.hunter_id = hunterId;
+    // The mint route (POST /hunter) is the only writer of hunter_id. A PATCH
+    // that could set it — or null it — would let anyone free a jager's id and
+    // claim it, redirecting every bridge-attested find to the thief.
+    return c.json({ error: "hunter_id is not patchable" }, 400);
   }
   if (body.profile_pic !== undefined) {
     const profilePic = validateProfilePic(body.profile_pic);
