@@ -373,6 +373,37 @@ ICONS = {
         ],
         "pal": {"b": 0x8A5F2C, "g": 0x5A9A3C, "r": 0xD6483A, "h": 0xC98B4E},
     },
+    # A low shrub and loose leaf for the random-visitor scene. The three
+    # greens keep it readable at scale 2 on the home popup and scale 4 in the
+    # full-screen meeting without introducing bitmap files for tiny scenery.
+    "bush": {
+        "rows": [
+            "................",
+            ".....llll.......",
+            "...llggggll.....",
+            "..lggggggggl....",
+            ".lggddggggggll..",
+            "lgggddggggggggl.",
+            "lggggggddggggggl",
+            ".lgggggddgggggl.",
+            "..llllllllllll..",
+            "................",
+        ],
+        "pal": {"l": 0x3C6B2E, "g": 0x5A9A3C, "d": 0x477D32},
+    },
+    "leaf": {
+        "rows": [
+            "......gg",
+            "....gggg",
+            "..ggggg.",
+            ".ggggg..",
+            "ggggg...",
+            ".ggg....",
+            "..g.....",
+            ".g......",
+        ],
+        "pal": {"g": 0x5A9A3C},
+    },
     # Rising signal bars (the pluk day-stat strip).
     "sig": {
         "rows": [

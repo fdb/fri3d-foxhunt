@@ -20,6 +20,7 @@ from screen_settings import SettingsActivity
 from screen_snuffel import SnuffelActivity
 from screen_pluk import PlukActivity
 from screen_uitleg import UitlegActivity
+from screen_visitor import VisitorActivity
 import sync
 
 _CELL_W, _CELL_H, _GAP = 74, 52, 4  # boek tiles
@@ -32,6 +33,8 @@ _RARITY_FRAME = {"rare": ui.TERRA, "leg": ui.GOLD}
 class HomeActivity(Activity):
     def onCreate(self):
         self._fresh = True
+        self._visitor_timer = None
+        self._visitor_id = None
         self.screen = ui.make_screen(ui.PAPER)
         self._populate()
         self.setContentView(self.screen)
@@ -54,6 +57,7 @@ class HomeActivity(Activity):
         # reports (snuffel/pluk grants, bonded counts). Fire-and-forget — a
         # dead network just leaves the outbox for the next resume.
         sync.flush()
+        self._start_visitor_poll()
         # Refresh caught state in place. Do NOT call setContentView again — it
         # appends a new screen to the stack and leaks the old one (11 canvas
         # buffers!). clean() frees the previous cells before repopulating.
@@ -62,6 +66,29 @@ class HomeActivity(Activity):
             return
         self.screen.clean()
         self._populate()
+
+    def onPause(self, screen):
+        super().onPause(screen)
+        self._stop_visitor_poll()
+
+    def onDestroy(self, screen):
+        super().onDestroy(screen)
+        self._stop_visitor_poll()
+
+    def _start_visitor_poll(self):
+        if self._visitor_timer is None:
+            self._visitor_timer = lv.timer_create(self._poll_visitor, 500, None)
+
+    def _stop_visitor_poll(self):
+        if self._visitor_timer is not None:
+            self._visitor_timer.delete()
+            self._visitor_timer = None
+
+    def _poll_visitor(self, _timer):
+        pending = store.visitor_pending()
+        if pending is not None and self._visitor_id is None:
+            self.screen.clean()
+            self._populate()
 
     def _section(self, y, text, color, right=None):
         """Small section header: label + hairline (+ count on the right)."""
@@ -184,6 +211,35 @@ class HomeActivity(Activity):
                 )
             else:
                 ui.focusable(cell, focus_border=True)
+
+        # The store refuses to create new normal meetings for a jager, but
+        # still returns a visitor that was already waiting before the upgrade.
+        self._visitor_id = store.visitor_pending()
+        if self._visitor_id is not None:
+            self._visitor_popup()
+
+    def _visitor_popup(self):
+        pop = ui.panel(self.screen, 8, 178, 304, 54, ui.SURFACE_SOFT, border=ui.GREEN_D)
+        art.icon(pop, "bush", 2).set_pos(8, 15)
+        ui.label(pop, "GEZOEK!", 56, 9, ui.GREEN_D, ui.font_label())
+        ui.label(
+            pop,
+            "Er ritselt iets bij je kamp...",
+            56,
+            28,
+            ui.INK,
+            ui.font_small(),
+        )
+        btn = ui.panel(pop, 204, 8, 90, 38, ui.GREEN)
+        label = ui.label(
+            btn, "GA KIJKEN", 0, 0, ui.CREAM, ui.font_label(), w=86, center=True
+        )
+        label.align(lv.ALIGN.CENTER, 0, 0)
+        ui.focusable(btn, on_click=self._visitor)
+
+    def _visitor(self):
+        sound.play("tap")
+        self.startActivity(Intent(activity_class=VisitorActivity))
 
     def _kop_btn(self, x, icon, on_click):
         """Jager header shortcut: a compact 42px icon panel."""

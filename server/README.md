@@ -38,6 +38,7 @@ So the badge's traffic is asymmetric, on purpose:
 | `/api/v1/player/found`  | POST   | Bridge relay reports `{ hunter_id, fox_id }` (Bearer `BRIDGE_KEY`)  |
 | `/api/v1/player/snuffel`| POST   | Badge reports a meeting and optional spreadable creature grant     |
 | `/api/v1/player/pluk`   | POST   | Badge reports `{ bssid, phase, creature_id }` wild encounter       |
+| `/api/v1/player/visitor`| POST   | Badge reports `{ slot, creature_id }` base-tier visitor grant      |
 | `/`                     | GET    | Public landing page: what the game is, both play tracks             |
 | `/scores`               | GET    | Public dashboard, auto-refreshing scoreboard                        |
 | `/debug/log`            | GET    | Event log — HTML table, or JSON with `Accept: application/json`     |
@@ -123,6 +124,8 @@ wrangler d1 execute foxhunt --local  --file=migrations/2026-08-05-snuffels-and-b
 wrangler d1 execute foxhunt --remote --file=migrations/2026-08-05-snuffels-and-bonded.sql
 wrangler d1 execute foxhunt --local  --file=migrations/2026-08-06-pluks.sql
 wrangler d1 execute foxhunt --remote --file=migrations/2026-08-06-pluks.sql
+wrangler d1 execute foxhunt --local  --file=migrations/2026-08-06-visitors.sql
+wrangler d1 execute foxhunt --remote --file=migrations/2026-08-06-visitors.sql
 ```
 
 ## Deployment

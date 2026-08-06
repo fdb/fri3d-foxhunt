@@ -13,6 +13,8 @@
 #                {vonk: epoch, food: epoch}}} — pair cooldown timestamps
 #   "pluk"     : {spots: {bssid: epoch}, phase, count, creature_spots: []} —
 #                hourly food reloads + one creature roll per spot/camp phase
+#   "visitor"  : {started, slot, pending, pending_slot, debug, debug_due,
+#                cooldown} — scheduled fallback meetings for verzamelaars
 #   "outbox"   : list of queued badge→server reports (sync.py drains it)
 #
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
@@ -416,10 +418,10 @@ def outbox():
 
 
 def enqueue_report(kind, data):
-    """Queue a badge→server report. kind: "snuffel" | "pluk" | "bonded" |
-    "profile" — sync.py maps kinds to routes. Callers enqueue LAST in their
-    write path (the one-instance-one-editor rule: this commits via its own
-    instance)."""
+    """Queue a badge→server report. kind: "snuffel" | "pluk" | "visitor" |
+    "bonded" | "profile" — sync.py maps kinds to routes. Callers enqueue LAST
+    in their write path (the one-instance-one-editor rule: this commits via its
+    own instance)."""
     prefs = SharedPreferences(_APP)
     box = prefs.get_list("outbox", [])
     box.append({"kind": kind, "data": data, "t": _now()})
@@ -432,6 +434,175 @@ def outbox_pop():
     box = prefs.get_list("outbox", [])
     if box:
         prefs.edit().put_list("outbox", box[1:]).commit()
+
+
+# ── random visitors: a safe collection floor for verzamelaars ─────────────
+# Three broad, seeded windows spread meetings over a busy camp weekend. The
+# badge owns the schedule so a bad network cannot make the fallback disappear;
+# successful real meetings ride the outbox so account restore keeps the beest.
+_VISITOR_WINDOWS_H = ((2, 4), (18, 26), (38, 48))
+_VISITOR_FLOORS = (2, 3, 4)  # total collection size, including the startbeest
+_VISITOR_COOLDOWN_S = 6 * 60 * 60
+_CAMP_START = 1786021200  # Thu 2026-08-06 15:00 Europe/Brussels
+_CAMP_END = 1786280400  # Sun 2026-08-09 15:00 Europe/Brussels
+
+
+def visitor_due_at(started, badge_id, slot):
+    """Seed one visitor time inside its broad post-registration window."""
+    lo_h, hi_h = _VISITOR_WINDOWS_H[slot]
+    span_s = (hi_h - lo_h) * 60 * 60
+    seed = "%s|visitor|%d" % (badge_id.strip().lower(), slot)
+    offset = _pluk_hash(seed) % (span_s + 1)
+    return int(started) + lo_h * 60 * 60 + offset
+
+
+def visitor_creature_for(badge_id, slot, have):
+    """Pick an unknown base-tier visitor deterministically.
+
+    The base-only pool is deliberate and is also enforced by the server. A
+    random meeting can therefore never become a legendary grant, even if this
+    local function or its caller is bypassed.
+    """
+    known = set(have)
+    cands = [c for c in CREATURES if c["rarity"] == "norm" and c["id"] not in known]
+    if not cands:
+        return None
+    seed = "%s|visitor-creature|%s" % (badge_id.strip().lower(), slot)
+    return cands[_pluk_hash(seed) % len(cands)]["id"]
+
+
+def _visitor():
+    d = SharedPreferences(_APP).get_dict("visitor", {})
+    p = profile() or {}
+    since = p.get("since")
+    if since is None:
+        since = _now()
+    since = int(since)
+    d.setdefault("started", max(since, _CAMP_START))
+    d.setdefault("slot", 0)
+    d.setdefault("pending", None)
+    d.setdefault("pending_slot", None)
+    d.setdefault("debug", False)
+    d.setdefault("debug_due", 0)
+    d.setdefault("cooldown", 0)
+    return d
+
+
+def _save_visitor(d):
+    SharedPreferences(_APP).edit().put_dict("visitor", d).commit()
+
+
+def schedule_debug_visitor(delay_s=10):
+    """Make a local-only visitor due after delay_s; return its due epoch."""
+    d = _visitor()
+    d["debug_due"] = _now() + int(delay_s)
+    _save_visitor(d)
+    return d["debug_due"]
+
+
+def visitor_pending():
+    """Return the visitor currently waiting, or create a due one.
+
+    Merely checking never awards anything. A pending visitor is durable and
+    survives becoming a jager; only creating future normal visits is disabled
+    for jagers. Debug meetings bypass timing/mode but never server sync.
+    """
+    p = profile()
+    if not p:
+        return None
+    d = _visitor()
+    have = caught_ids()
+    badge = p.get("badge_id", "")
+
+    pending = d.get("pending")
+    if pending is not None:
+        if pending not in have:
+            return pending
+        # It arrived through another route before the player opened the visit.
+        replacement = visitor_creature_for(
+            badge, d.get("pending_slot", d.get("slot", 0)), have
+        )
+        if replacement is not None:
+            d["pending"] = replacement
+            _save_visitor(d)
+            return replacement
+        d["pending"] = None
+        d["pending_slot"] = None
+        d["debug"] = False
+        _save_visitor(d)
+        return None
+
+    now = _now()
+    if d.get("debug_due", 0) and now >= int(d["debug_due"]):
+        cid = visitor_creature_for(badge, "debug-%d" % int(d["debug_due"]), have)
+        d["debug_due"] = 0
+        if cid is not None:
+            d["pending"] = cid
+            d["pending_slot"] = -1
+            d["debug"] = True
+        _save_visitor(d)
+        return cid
+
+    if p.get("hunter_id") or now < int(d.get("cooldown", 0)):
+        return None
+
+    slot = int(d.get("slot", 0))
+    while slot < len(_VISITOR_WINDOWS_H):
+        due = visitor_due_at(d["started"], badge, slot)
+        if due > _CAMP_END:
+            d["slot"] = len(_VISITOR_WINDOWS_H)
+            _save_visitor(d)
+            return None
+        if now < due:
+            return None
+        if len(have) >= _VISITOR_FLOORS[slot]:
+            slot += 1
+            d["slot"] = slot
+            _save_visitor(d)
+            continue
+        cid = visitor_creature_for(badge, slot, have)
+        if cid is None:
+            d["slot"] = len(_VISITOR_WINDOWS_H)
+            _save_visitor(d)
+            return None
+        d["pending"] = cid
+        d["pending_slot"] = slot
+        d["debug"] = False
+        _save_visitor(d)
+        return cid
+    return None
+
+
+def claim_visitor():
+    """Award the waiting visitor and queue a durable report for real visits."""
+    d = _visitor()
+    cid = d.get("pending")
+    if cid is None:
+        return None
+    c = by_id(cid)
+    if c is None or c["rarity"] != "norm":
+        # Corrupt state must fail closed: especially never turn into a
+        # legendary award merely because a debug save was hand-edited.
+        d["pending"] = None
+        d["pending_slot"] = None
+        d["debug"] = False
+        _save_visitor(d)
+        return None
+
+    slot = int(d.get("pending_slot", d.get("slot", 0)))
+    debug = bool(d.get("debug"))
+    d["pending"] = None
+    d["pending_slot"] = None
+    d["debug"] = False
+    if not debug:
+        d["slot"] = max(int(d.get("slot", 0)), slot + 1)
+        d["cooldown"] = _now() + _VISITOR_COOLDOWN_S
+    _save_visitor(d)
+
+    add_caught(cid, origin="bezoek")
+    if not debug:
+        enqueue_report("visitor", {"slot": slot, "creature_id": cid})
+    return cid
 
 
 # ── snuffelen: vrienden (permanent) + vonken (cooldown-gated) ───────────────

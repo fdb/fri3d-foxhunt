@@ -195,6 +195,28 @@ committed verzamelaar without becoming expected or guaranteed.
 Camp assignments, movement missions and mini-games stay as alternative food
 sources for players who cannot roam.
 
+### Random visitors — the collection floor
+
+A verzamelaar who does not gain enough creatures through snuffelen or plukken
+receives up to three scheduled visitors. Their broad, per-badge seeded windows
+are 2–4, 18–26 and 38–48 hours after registration; each is skipped when the
+collection has already reached two, three or four creatures respectively. A
+full-weekend solo player therefore reaches four creatures including the
+startbeest, while an active player sees fewer or no fallback meetings.
+
+A due visitor waits permanently behind a calm home-screen notification. The
+player opens a campsite scene, says hello to the silhouette, and the creature
+joins the book. There is no countdown, inventory cost, wrong choice or failure
+state. Only one visitor waits at once, and claimed visits leave at least six
+hours before another can appear.
+
+Visitors are selected only from unknown **base-tier creatures**. This is a hard
+rule on both badge and server: rare and legendary creatures never come from a
+random visit. A waiting visitor survives a later WORD JAGER upgrade, but jagers
+do not schedule new ones. The hidden debug menu can schedule a local-only visit
+after ten seconds so the complete visual flow can be tested without changing
+server collection state.
+
 ### Spelen — turn food into bond
 
 Mini-games close the economy. The chain is:

@@ -10,6 +10,9 @@ const SPREADABLE = new Set(
   CREATURES.filter((c) => c.rarity !== "leg").map((c) => c.id),
 );
 const KNOWN_CREATURES = new Set(CREATURES.map((c) => c.id));
+const BASE_CREATURES = new Set(
+  CREATURES.filter((c) => c.rarity === "norm").map((c) => c.id),
+);
 
 // POST /api/v1/player/found
 // Sent by the LoRa bridge relay (not the badge), authenticated with the
@@ -225,6 +228,72 @@ playerRoutes.post("/pluk", async (c) => {
       player_id: player.id,
       bssid,
       phase,
+      creature_id: creatureId,
+      granted,
+    });
+  }
+
+  return c.json({ ok: true, duplicate, granted });
+});
+
+// POST /api/v1/player/visitor
+// Sent through the badge outbox after a scheduled fallback meeting. The badge
+// owns the offline-friendly timing; the server owns two hard safety rails:
+// three slots at most and base-tier creatures only. In particular, a forged or
+// corrupted badge report can never turn a random meeting into a legendary.
+playerRoutes.post("/visitor", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid JSON body" }, 400);
+  }
+
+  const badgeId = validateBadgeId(body.badge_id);
+  if (!badgeId) return c.json({ error: "invalid badge_id" }, 400);
+
+  const slot = body.slot;
+  if (
+    typeof slot !== "number" ||
+    !Number.isInteger(slot) ||
+    slot < 0 ||
+    slot > 2
+  )
+    return c.json({ error: "invalid slot (integer 0-2)" }, 400);
+
+  const creatureId = body.creature_id;
+  if (
+    typeof creatureId !== "number" ||
+    !Number.isInteger(creatureId) ||
+    !BASE_CREATURES.has(creatureId)
+  )
+    return c.json({ error: "invalid creature_id (base tier only)" }, 400);
+
+  const player = await c.env.DB.prepare(
+    "SELECT * FROM players WHERE badge_id = ? AND dt_deleted IS NULL",
+  )
+    .bind(badgeId)
+    .first<Player>();
+  if (!player) return c.json({ error: "unknown badge_id" }, 404);
+
+  const result = await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO visitors (player_id, slot, creature_id) VALUES (?, ?, ?)",
+  )
+    .bind(player.id, slot, creatureId)
+    .run();
+  const duplicate = result.meta.changes === 0;
+
+  let granted = false;
+  if (!duplicate) {
+    const grant = await c.env.DB.prepare(
+      "INSERT OR IGNORE INTO players_creatures (player_id, creature_id) VALUES (?, ?)",
+    )
+      .bind(player.id, creatureId)
+      .run();
+    granted = grant.meta.changes > 0;
+    await logEvent(c.env.DB, "visitor_claimed", {
+      player_id: player.id,
+      slot,
       creature_id: creatureId,
       granted,
     });

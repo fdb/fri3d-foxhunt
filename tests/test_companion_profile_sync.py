@@ -97,6 +97,21 @@ class CompanionProfileSyncTest(unittest.TestCase):
 
         self.assertEqual(sync._ROUTES["pluk"], ("POST", "/api/v1/player/pluk"))
 
+    def test_visitor_report_uses_player_visitor_route(self):
+        store = types.ModuleType("store")
+        registrar = types.ModuleType("registrar")
+        mpos = types.ModuleType("mpos")
+        mpos.TaskManager = MagicMock()
+        modules = {"store": store, "registrar": registrar, "mpos": mpos}
+        spec = importlib.util.spec_from_file_location(
+            "sync_visitor_under_test", ASSETS / "sync.py"
+        )
+        sync = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, modules):
+            spec.loader.exec_module(sync)
+
+        self.assertEqual(sync._ROUTES["visitor"], ("POST", "/api/v1/player/visitor"))
+
 
 if __name__ == "__main__":
     unittest.main()

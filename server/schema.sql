@@ -64,3 +64,15 @@ CREATE TABLE IF NOT EXISTS pluks (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   UNIQUE (player_id, bssid, phase)
 );
+
+-- Random visitor grants: a local badge schedule supplies at most three
+-- fallback meetings. The server enforces slot dedupe and base-tier ids; debug
+-- meetings never leave the badge and therefore never reach this table.
+CREATE TABLE IF NOT EXISTS visitors (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  slot INTEGER NOT NULL,
+  creature_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (player_id, slot)
+);

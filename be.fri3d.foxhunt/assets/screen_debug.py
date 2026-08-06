@@ -69,6 +69,20 @@ class DebugActivity(Activity):
             lambda: self._toggle_setting("nooit_moe", self.moe_toggle, self.moe_label),
         )
 
+        visit = ui.panel(body, 0, 0, 308, 34, ui.CARD)
+        ui.label(visit, "RANDOM BEZOEK", 8, 3, ui.GREEN_D, ui.font_small())
+        self.visit_label = ui.label(
+            visit, "na 10 seconden", 8, 17, ui.INK, ui.font_small()
+        )
+        button = ui.box(visit, 178, 2, 110, 26, ui.GREEN, radius=ui.RADIUS)
+        button.set_style_border_width(ui.BORDER, 0)
+        button.set_style_border_color(ui.hexc(ui.GREEN_D), 0)
+        label = ui.label(
+            button, "START", 0, 0, ui.CREAM, ui.font_small(), w=110, center=True
+        )
+        label.align(lv.ALIGN.CENTER, 0, 0)
+        ui.focusable(button, on_click=self._schedule_visitor, focus_border=True)
+
         # Uitschrijven is not a debug tool: it is ALLES WISSEN in instellingen,
         # where a player can find it. This only says where, so nobody builds a
         # second one down here.
@@ -154,6 +168,11 @@ class DebugActivity(Activity):
         self._paint_toggle(
             button, label, enabled, on_text="ACTIEF", off_text="NIET ACTIEF"
         )
+
+    def _schedule_visitor(self):
+        sound.play("tap")
+        store.schedule_debug_visitor(10)
+        self.visit_label.set_text("komt over 10 sec - ga terug")
 
     def _toggle_debug_code(self):
         sound.play("tap")
