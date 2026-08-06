@@ -23,6 +23,12 @@ BASE_URL = "https://foxhunt.enigmeta.workers.dev"
 # Connect timeout. Only guards opening the socket (that is all the aiohttp
 # shim takes), which is the part that hangs on a dead network.
 CONNECT_TIMEOUT = 10
+# Whole-request deadline. The connect timeout cannot help once the socket is
+# open: a server (or captive portal) that accepts and then stalls would hang
+# the awaiting task forever — sync._drain holds its one _busy slot across
+# this await, so a single stalled response used to wedge the outbox until
+# reboot. Generous on purpose: it only has to beat "forever".
+TOTAL_TIMEOUT = 30
 
 
 def _env(name):
@@ -428,7 +434,14 @@ async def _json_request(method, path, body=None):
 
     A response with no parseable body is not an error here — a 404 from the
     restore route is a perfectly good answer — so the caller reads the status
-    and decides."""
+    and decides. Raises (TimeoutError included) on anything short of a
+    response; every caller already treats an exception as "no answer"."""
+    import asyncio
+
+    return await asyncio.wait_for(_json_request_raw(method, path, body), TOTAL_TIMEOUT)
+
+
+async def _json_request_raw(method, path, body):
     import aiohttp
 
     async with aiohttp.ClientSession(BASE_URL) as session:
