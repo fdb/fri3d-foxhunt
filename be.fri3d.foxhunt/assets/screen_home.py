@@ -28,6 +28,7 @@ _HAIR = 0xDCCFA9  # section hairline on paper
 _NEAR_BG = 0xF6E7CD  # nearby-card fill
 _SEG_OFF = 0xE4D6BC  # unlit heat segment
 _RARITY_FRAME = {"rare": ui.TERRA, "leg": ui.GOLD}
+_VISITOR_POLL_MS = 30_000
 
 
 class HomeActivity(Activity):
@@ -77,7 +78,13 @@ class HomeActivity(Activity):
 
     def _start_visitor_poll(self):
         if self._visitor_timer is None:
-            self._visitor_timer = lv.timer_create(self._poll_visitor, 500, None)
+            # _populate checks once immediately whenever home is built or
+            # resumed. The timer only catches a visitor becoming due while a
+            # player leaves home open; visitor timing is measured in hours,
+            # so polling the whole preferences file twice a second is wasteful.
+            self._visitor_timer = lv.timer_create(
+                self._poll_visitor, _VISITOR_POLL_MS, None
+            )
 
     def _stop_visitor_poll(self):
         if self._visitor_timer is not None:
