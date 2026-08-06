@@ -18,7 +18,7 @@
 #   findings describe — not built yet.
 #
 # Wire format (ASCII, pipe-separated, one line, <250 bytes):
-#   VJ1|HI|<naam>|<shortcode>|<roster csv>     broadcast, ~1/s
+#   VJ1|HI|<naam>|<shortcode>|<roster csv>|<session>  broadcast, ~1/s
 #   VJ1|SNF|<peer mac>                         broadcast, a few /s for ~3 s
 # Identity is the MAC the frame arrived on; names are display only. The
 # handshake carries no payload: everything a snuffel yields (food, the
@@ -44,11 +44,12 @@ _GONE_S = 6  # drop a peer this long after its last beacon
 
 
 class Peer:
-    def __init__(self, mac, naam, code, roster):
+    def __init__(self, mac, naam, code, roster, session=""):
         self.mac = mac  # "aa:bb:..." — the identity
         self.naam = naam  # display only
         self.code = code  # companion shortcode
         self.roster = roster  # creature ids they carry (for vonk-geluk)
+        self.session = session  # random per visit; couples both geluk rolls
         self.rssi = -99
         self.age = 0  # ticks since last beacon
         self.streak = 0  # consecutive CLOSE readings
@@ -66,6 +67,8 @@ class BaseLink:
         self.naam = "?"
         self.code = ""
         self.roster = []
+        self._my_mac = ""
+        self._session = ""
         self._announce = None  # [peer mac, ticks left] while resending SNF
 
     def claim(self, mac):
@@ -78,11 +81,20 @@ class BaseLink:
         self.code = code or ""
         self.roster = list(roster or [])
 
-    def _seen(self, mac, naam, code, roster, rssi):
+    def encounter_key(self, peer):
+        """A key both badges derive identically for this snuffel session."""
+        ends = [
+            "%s@%s" % (self._my_mac, self._session),
+            "%s@%s" % (peer.mac, peer.session),
+        ]
+        ends.sort()
+        return "|".join(ends)
+
+    def _seen(self, mac, naam, code, roster, rssi, session=""):
         p = self.peers.get(mac)
         if p is None:
-            p = self.peers[mac] = Peer(mac, naam, code, roster)
-        p.naam, p.code, p.roster = naam, code, roster
+            p = self.peers[mac] = Peer(mac, naam, code, roster, session)
+        p.naam, p.code, p.roster, p.session = naam, code, roster, session
         p.rssi = rssi
         p.age = 0
         p.streak = p.streak + 1 if p.close else 0
@@ -117,7 +129,6 @@ class EspNowLink(BaseLink):
         import network
 
         self._sta = network.WLAN(network.STA_IF)
-        self._my_mac = ""  # set in start(); SNF frames name their target by it
         self._now = espnow.ESPNow()
         self._now.active(True)
         try:
@@ -133,6 +144,7 @@ class EspNowLink(BaseLink):
             self._sta.config(channel=CHANNEL)
             self._sta.config(pm=self._network.WLAN.PM_NONE)  # no modem sleep
             self._my_mac = ":".join("%02x" % b for b in self._sta.config("mac"))
+            self._session = "%08x" % random.randrange(0x100000000)
         except Exception as e:
             print("snuffel: start:", e)
 
@@ -150,7 +162,14 @@ class EspNowLink(BaseLink):
         try:
             roster = ",".join(str(c) for c in self.roster[:24])
             msg = b"|".join(
-                (PROTO, b"HI", self.naam.encode(), self.code.encode(), roster.encode())
+                (
+                    PROTO,
+                    b"HI",
+                    self.naam.encode(),
+                    self.code.encode(),
+                    roster.encode(),
+                    self._session.encode(),
+                )
             )
             self._now.send(_BROADCAST, msg, False)  # broadcast: never acked
             if self._announce:
@@ -195,7 +214,8 @@ class EspNowLink(BaseLink):
                     roster.append(int(tok))
                 except ValueError:
                     pass
-        self._seen(macs, naam, code, roster, self._rssi_of(mac))
+        session = parts[5].decode() if len(parts) > 5 else ""
+        self._seen(macs, naam, code, roster, self._rssi_of(mac), session)
 
     def _rssi_of(self, mac):
         # RSSI comes from OUR radio's peers_table, never from the payload.
@@ -224,6 +244,8 @@ class FakeLink(BaseLink):
 
     def start(self):
         self._rssi = {}
+        self._my_mac = "fa:ke:ff:00:00:ff"
+        self._session = "%08x" % random.randrange(0x100000000)
 
     def stop(self):
         self.peers = {}
@@ -234,7 +256,7 @@ class FakeLink(BaseLink):
             r = self._rssi.get(mac, float(base)) + ramp + random.uniform(-2.5, 2.5)
             r = max(-90.0, min(-42.0, r))
             self._rssi[mac] = r
-            self._seen(mac, naam, code, list(roster), int(r))
+            self._seen(mac, naam, code, list(roster), int(r), "cast-%02x" % i)
         return self.peers
 
 

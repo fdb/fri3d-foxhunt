@@ -179,7 +179,11 @@ class SnuffelActivity(Activity):
     def _snuffel(self, peer):
         LINK.claim(peer.mac)  # tell the peer's badge, so both sides pay out
         result = store.record_snuffel(peer.mac, peer.naam, peer.code)
-        geluk = store.roll_vonk_geluk(peer.roster) if result["vonk"] else None
+        geluk = (
+            store.roll_vonk_geluk(LINK.roster, peer.roster, LINK.encounter_key(peer))
+            if result["vonk"]
+            else None
+        )
         if geluk is not None:
             store.add_caught(geluk, origin="spoor")
         if result["vonk"]:

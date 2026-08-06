@@ -301,7 +301,9 @@ automatically and symmetrically, and the payoff screen has no buttons.
   to come from working the terrain. The same pair can snuffel again after
   stepping apart.
 - **A vonk can carry a creature** (vonk-geluk, below): one of the other
-  player's creatures may introduce itself.
+  player's creatures may introduce itself. The chance is mutual: it only
+  fires when both rosters have something new to offer, then both players get
+  a creature the other had and they did not.
 - **Speeldate** (any ↔ any) stays a deliberate, longer cooperative
   interaction — the one thing a plain handshake doesn't give you.
 
@@ -338,6 +340,13 @@ nowhere. Pluk encounters are the complementary solo route and the only
 verzamelaar route whose pool includes legendaries. The startbeest guarantees
 the snuffel pool is never empty: even two brand-new verzamelaars have something
 to spread from their first handshake.
+
+The two directions are coupled into one outcome. Vonk-geluk only fires when
+each player owns at least one creature the other does not; it then chooses one
+such creature in each direction and awards both. A short random session token
+in the presence frame lets both badges derive the same roll without either
+badge choosing the exchange. The stricter rarity chance of the selected pair
+governs the shared roll.
 
 ### Het vriendenboekje (the permanent layer)
 

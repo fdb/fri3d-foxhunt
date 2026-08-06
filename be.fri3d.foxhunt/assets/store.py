@@ -695,17 +695,44 @@ def record_snuffel(mac, naam, code):
 _GELUK_PCT = {"norm": 45, "rare": 15, "leg": 0}
 
 
-def roll_vonk_geluk(peer_roster):
-    """Roll against the peer's roster; returns a creature id or None. Only
-    creatures we don't already know can introduce themselves."""
-    cands = [by_id(cid) for cid in peer_roster]
-    cands = [c for c in cands if c and not is_caught(c["id"])]
-    if not cands:
+def roll_vonk_geluk(own_roster, peer_roster, encounter_key):
+    """Return a new creature from the peer, or None, as a mutual outcome.
+
+    Both badges know the same two advertised rosters and encounter key. They
+    therefore select one candidate in each direction and share one chance
+    roll. Either both players receive something the other player had and they
+    did not, or neither does. The lower of the two selected creatures' rarity
+    chances applies, so a creature never spreads more eagerly merely because
+    the creature travelling in the opposite direction is common.
+    """
+    own = {cid for cid in own_roster if by_id(cid)}
+    peer = {cid for cid in peer_roster if by_id(cid)}
+    own_key = ",".join(str(cid) for cid in sorted(own))
+    peer_key = ",".join(str(cid) for cid in sorted(peer))
+    if own_key <= peer_key:
+        left, right = own, peer
+        left_key, right_key = own_key, peer_key
+        receive_side = "right"
+    else:
+        left, right = peer, own
+        left_key, right_key = peer_key, own_key
+        receive_side = "left"
+
+    left_only = sorted(left - right)
+    right_only = sorted(right - left)
+    if not left_only or not right_only:
         return None
-    c = random.choice(cands)
-    if random.randrange(100) < _GELUK_PCT.get(c["rarity"], 0):
-        return c["id"]
-    return None
+
+    seed = "%s|%s|%s" % (encounter_key, left_key, right_key)
+    left_pick = left_only[_pluk_hash(seed + "|left") % len(left_only)]
+    right_pick = right_only[_pluk_hash(seed + "|right") % len(right_only)]
+    chance = min(
+        _GELUK_PCT.get(by_id(left_pick)["rarity"], 0),
+        _GELUK_PCT.get(by_id(right_pick)["rarity"], 0),
+    )
+    if _pluk_hash(seed + "|chance") % 100 >= chance:
+        return None
+    return right_pick if receive_side == "right" else left_pick
 
 
 # ── plukken: hourly food + one creature roll per camp phase ─────────────────
