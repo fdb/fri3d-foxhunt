@@ -643,20 +643,30 @@ def vonk_count_today():
 
 def record_snuffel(mac, naam, code):
     """A completed snuffel with peer `mac`. Writes the boekje page on a
-    first-ever meeting; scores a vonk when the pair's 4h cooldown has passed
-    (daily cap on top) — a vonk is a picknick, 2-5 hapjes of one kind; a
-    repeat inside the vonk cooldown shares a single hapje at most once an
-    hour per pair. Inside the hour the handshake still celebrates but pays
-    nothing. Nothing is chosen: the handshake itself pays out.
+    first-ever meeting and refreshes its name and companion on every later
+    meeting; scores a vonk when the pair's 4h cooldown has passed (daily cap
+    on top) — a vonk is a picknick, 2-5 hapjes of one kind; a repeat inside
+    the vonk cooldown shares a single hapje at most once an hour per pair.
+    Inside the hour the handshake still celebrates but pays nothing. Nothing
+    is chosen: the handshake itself pays out.
     Returns {"new_friend", "vonk", "dag", "food", "amount"} —
     food None / amount 0 when the pair is fully cooled down."""
     prefs = SharedPreferences(_APP)
     vr = prefs.get_list("vrienden", [])
-    new_friend = not any(f.get("mac") == mac for f in vr)
+    friend = None
+    for f in vr:
+        if f.get("mac") == mac:
+            friend = f
+            break
+    new_friend = friend is None
     dag = _today()
     e = prefs.edit()
     if new_friend:
         vr.append({"mac": mac, "naam": naam, "code": code, "dag": dag})
+        e.put_list("vrienden", vr)
+    elif friend.get("naam") != naam or friend.get("code") != code:
+        friend["naam"] = naam
+        friend["code"] = code
         e.put_list("vrienden", vr)
     log = _vonk_log()
     now = _now()
