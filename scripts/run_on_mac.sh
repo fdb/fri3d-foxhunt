@@ -36,11 +36,13 @@ cd "$(dirname "$0")/.."
 # persona whose slot is empty simply onboards itself — which is exactly what
 # the jager's first run must do, since its MAC has no account yet.
 #
-# Env overrides:
+# Environment:
 #   MPOS_DIR        prebuilt MicroPythonOS dir (default: ~/MicroPythonOS)
 #   MPOS_PKG_URL    download URL for the prebuilt macOS package zip
-#   FOXHUNT_BADGE_ID / FOXHUNT_FAKE_LORA
-#                   what --lora sets; set them yourself for a third persona.
+#
+# FOXHUNT_BADGE_ID and FOXHUNT_FAKE_LORA are internal implementation details
+# of --lora. They are cleared below so an inherited value cannot accidentally
+# turn a normal emulator launch into a jager.
 
 PROJECT_DIR="$(pwd)"
 APP_ID="be.fri3d.foxhunt"
@@ -109,6 +111,7 @@ fi
 # desktop port only. Always say which account this run is, because the server
 # side of a desktop run is real and permanent.
 PERSONA="default"
+unset FOXHUNT_FAKE_LORA FOXHUNT_BADGE_ID
 if [[ "$LORA" -eq 1 ]]; then
     PERSONA="lora"
     export FOXHUNT_FAKE_LORA=1

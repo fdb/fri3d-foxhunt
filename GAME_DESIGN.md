@@ -614,18 +614,17 @@ reward.
 
 Setup asks no antenna question: everyone starts as verzamelaar, and the
 upgrade is one button. Instellingen has **WORD JAGER**: it probes the SPI
-bus for the LoRa radio (a Seeed Wio-SX1262-N; read a register with a known
-reset value — a missing module answers bus noise), celebrates "Antenne
+bus for the physical LoRa kit (a Seeed Wio-SX1262-N; read its packet type,
+whose only valid values are GFSK and LoRa — a missing module answers bus
+noise), celebrates "Antenne
 gevonden!", enables Jagen and mints the hunter_id. Not found → a friendly
 "geen antenne gevonden" and nothing changes. An explicit button beats a
 boot probe: the player presses it at the moment they finished soldering,
-which is exactly when the celebration lands. The probe sees the radio
-module, not the antenna (the spiral solders on separately and is invisible
-to software), so Jagen can also be toggled off again for a mid-assembly
-badge. Probing is receive-only and safe; the module must simply never
-transmit without its antenna. A wrongly enabled Jagen is harmless either
-way: a quiet hunt screen, and a hunter_id the LoRa bridge never attributes
-anything to.
+which is exactly when the celebration lands. A constructed software driver
+does not count: the SX1262 itself must answer. The separate radiating element
+has no electrical detect signal, so the badge cannot distinguish that final
+solder joint from the attached kit. Probing is receive-only and safe; the
+module must simply never transmit without its antenna.
 
 **Upgrading is purely additive.** A verzamelaar who installs an antenna
 gains the Hunt track and loses nothing — not creatures, not bond, not food.

@@ -57,15 +57,19 @@ def badge_id():
 
 
 def has_lora():
-    """True when a LoRa radio is configured (antenna installed).
+    """True when a physical LoRa radio answers on the badge's SPI bus.
 
-    Desktop has no radio to find, so FOXHUNT_FAKE_LORA stands in for one — it
-    is the only way to get past WORD JAGER's antenna check in the emulator.
+    MicroPythonOS constructs the driver even when the plug-in radio is absent,
+    so the object existing is not evidence of an antenna kit. getPacketType()
+    is a receive-only SPI probe: a real SX1262 returns one of its two modem
+    types, while an open bus returns 0xFF or raises. Desktop has no radio to
+    find, so FOXHUNT_FAKE_LORA (set by run_on_mac.sh --lora) stands in for one.
     """
     try:
         from mpos import LoRaManager
 
-        if LoRaManager.radioChip is not None:
+        radio = LoRaManager.radioChip
+        if radio is not None and radio.getPacketType() in (0, 1):
             return True
     except Exception:
         pass

@@ -34,7 +34,9 @@ board layer handles the hardware differences.
   "geen antenne gevonden" — a `hunter_id` can never be minted.
   `scripts/run_on_mac.sh --lora` fakes one, through `FOXHUNT_FAKE_LORA` (the
   emulator is the unix MicroPython port, which has `os.getenv`; the badge's
-  ESP32 port does not, so these overrides cannot exist on hardware).
+  ESP32 port does not, so these overrides cannot exist on hardware). A normal
+  `run_on_mac.sh` launch explicitly clears that internal override: only the
+  `--lora` persona may pass the emulator's antenna check.
   It also swaps in a SECOND fake MAC via `FOXHUNT_BADGE_ID`, because `badge_id`
   is the account key: on one MAC the jager and the verzamelaar would be one
   account, and the second registration would meet the first as "BADGE AL

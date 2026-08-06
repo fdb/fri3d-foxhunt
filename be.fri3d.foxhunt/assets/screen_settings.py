@@ -253,7 +253,8 @@ class SettingsActivity(Activity):
         if self._wj_busy:
             return
         if not registrar.has_lora():
-            # the probe sees the radio module; a friendly no, nothing changes
+            # A driver object alone is insufficient: the physical radio must
+            # answer the SPI probe. A friendly no leaves the profile unchanged.
             sound.play("error")
             self._wj.set_text("geen antenne gevonden")
             return
