@@ -50,14 +50,26 @@ def set_muted(on):
     _muted = bool(on)
 
 
+# The output handle, cached for the same reason as _muted: play() runs inside
+# 50 ms game loops, and rescanning get_outputs() with a getattr per output to
+# re-answer "is there a buzzer?" costs the same every time — outputs register
+# at boot and never change while the app runs. False caches "there is none"
+# (desktop), so the scan happens exactly once either way.
+_output = None
+
+
 def _buzzer_output():
-    try:
-        for out in AudioManager.get_outputs():
-            if getattr(out, "kind", None) == "buzzer":
-                return out
-    except Exception:
-        pass
-    return None
+    global _output
+    if _output is None:
+        _output = False
+        try:
+            for out in AudioManager.get_outputs():
+                if getattr(out, "kind", None) == "buzzer":
+                    _output = out
+                    break
+        except Exception:
+            pass
+    return _output or None
 
 
 def play(event):
