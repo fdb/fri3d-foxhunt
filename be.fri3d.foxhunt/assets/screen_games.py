@@ -48,6 +48,8 @@ class GameActivity(Activity):
         self.timer = None
         self._over = False
         self._grabbed = False
+        self._wired_keys = False
+        self._wired_tap = False
         self.score = 0
         st, ok, self.pet_msg = store.do_play(self.fox_id, self.kost, self.fav)
         self.naam = (st or {}).get("bijnaam") or self.c["naam"]
@@ -113,6 +115,16 @@ class GameActivity(Activity):
         self._bonus += 1
         self.set_score(self.score + 1)
 
+    # ── input, wired once per activity ──────────────────────────────────
+    # NOG EEN KEER rebuilds the round on the SAME screen object, and clean()
+    # deletes the children while leaving the screen's own event callbacks
+    # alone. Wiring them again in build() therefore STACKS a second copy on
+    # every retry, and that is not cosmetic: one tap flipped VANGEN's beast
+    # twice (so it never turned), and one joystick tilt played a DANSEN step
+    # twice — which spent the right answer and then failed the next one, so
+    # every round after the first died on its first correct move.
+    # The handlers are bound methods reading live activity state, so one
+    # registration covers every round the activity ever plays.
     def grab_keys(self, s, on_key):
         """Give the playfield itself the joystick/keyboard focus.
 
@@ -121,13 +133,24 @@ class GameActivity(Activity):
         through ui.focusable() — a gold halo around the whole screen is exactly
         the wrong feedback. DANSEN also grabs the playfield because each stick
         direction is a dance move, not focus navigation.
-        Released again in game_over()."""
-        s.add_event_cb(on_key, lv.EVENT.KEY, None)
+        The group membership IS released in game_over(), so unlike the
+        callback it has to be taken again every round."""
+        if not self._wired_keys:
+            s.add_event_cb(on_key, lv.EVENT.KEY, None)
+            self._wired_keys = True
         g = lv.group_get_default()
         if g:
             g.add_obj(s)
             lv.group_focus_obj(s)
             self._grabbed = True
+
+    def tap_to(self, s, fn):
+        """Make the whole playfield tappable, once (see grab_keys)."""
+        if self._wired_tap:
+            return
+        s.add_flag(lv.obj.FLAG.CLICKABLE)
+        s.add_event_cb(lambda e: fn(), lv.EVENT.CLICKED, None)
+        self._wired_tap = True
 
     # ── the end card ────────────────────────────────────────────────────
     def game_over(self, kop, retry=True):
@@ -255,8 +278,7 @@ class VliegActivity(GameActivity):
     TICK_MS = 50
 
     def build(self, s):
-        s.add_flag(lv.obj.FLAG.CLICKABLE)
-        s.add_event_cb(lambda e: self._flap(), lv.EVENT.CLICKED, None)
+        self.tap_to(s, self._flap)
         self.grab_keys(s, self._key)
         self.clouds = []
         for i, (rows, pal, scale, sp) in enumerate(_SKY):
@@ -478,8 +500,7 @@ class VangActivity(GameActivity):
     TICK_MS = 50
 
     def build(self, s):
-        s.add_flag(lv.obj.FLAG.CLICKABLE)
-        s.add_event_cb(lambda e: self._turn(), lv.EVENT.CLICKED, None)
+        self.tap_to(s, self._turn)
         self.grab_keys(s, self._key)
         ui.box(s, 0, _HORIZON - 22, 320, 240 - _HORIZON + 22, _FIELD)
         for rows, pal, scale, x, base in _FIELD_ART:
