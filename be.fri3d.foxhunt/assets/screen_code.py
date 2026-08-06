@@ -87,10 +87,19 @@ class CodeActivity(Activity):
 
     def onPause(self, screen):
         super().onPause(screen)
-        # A verdict that lands while we're away is dropped (see _on_verdict),
-        # so don't leave the keypad locked waiting for one that never applies.
+        # A verdict that lands while we're away still banks the catch (see
+        # _on_verdict) — only its theatre is dropped. Don't leave the keypad
+        # locked waiting for a reply whose screen side already happened.
         self.waiting = False
         self._set_status("idle")
+
+    def onResume(self, screen):
+        super().onResume(screen)
+        # State may have moved while we were away: a verdict that landed
+        # mid-pause cleared the entry without touching widgets (it cannot know
+        # whether they still exist). Redraw from the one source of truth.
+        self.dots.set_text((self.entry + "____")[:CODE_LEN])
+        self._draw_reveal()
 
     def _set_status(self, state):
         text, colour = STATUS[state]
@@ -145,35 +154,43 @@ class CodeActivity(Activity):
         RADIO.submit_code(self.fox_id, self.entry, self._on_verdict)
 
     def _on_verdict(self, result):
-        # The reply can land after the player has already left this screen.
-        if not self.has_foreground():
-            return
         self.waiting = False
         if result == "ok":
+            # Bank the catch FIRST, foreground or not. The code is one-time
+            # and the network burnt it the moment it said ok — a player who
+            # stepped out during the round trip must not lose the beest to a
+            # verdict nobody was looking at (retyping would only get "used").
+            pakket = None
             if store.is_caught(self.fox_id):
                 # zelf gevonden: re-finding a known creature is an upgrade,
                 # not a dud (GAME_DESIGN.md) — sightings, stamp and pakket
                 # instead of a re-add that would change nothing
                 pakket = store.zelf_gevonden(self.fox_id)
-                # Fireworks owns the looping legendary fanfare so its sound
-                # starts in sync with the visuals, including on a re-find.
-                if self.c["rarity"] != "leg":
-                    sound.play("caught")
-                self.startActivity(
-                    Intent(
-                        activity_class=WinActivity,
-                        extras={"fox_id": self.fox_id, "pakket": pakket},
-                    )
-                )
+            else:
+                store.add_caught(self.fox_id)
+            # The keypad resets NOW, not on return: coming back from the win
+            # screen must land on an empty code, not a full one whose next
+            # tap re-submits it and answers "code al gebruikt".
+            self.entry = ""
+            if not self.has_foreground():
+                # The screen (and possibly its widgets) is gone; the catch is
+                # safe above, only the theatre is skipped.
                 return
-            store.add_caught(self.fox_id)
+            self.dots.set_text("____")
+            self._draw_reveal()
+            self._set_status("idle")
             # Legendary catches get their fanfare from the win screen itself
-            # (celebrate.Fireworks), so it loops in sync with the visuals.
+            # (celebrate.Fireworks), so it loops in sync with the visuals —
+            # including on a re-find.
             if self.c["rarity"] != "leg":
                 sound.play("caught")
-            self.startActivity(
-                Intent(activity_class=WinActivity, extras={"fox_id": self.fox_id})
-            )
+            extras = {"fox_id": self.fox_id}
+            if pakket is not None:
+                extras["pakket"] = pakket
+            self.startActivity(Intent(activity_class=WinActivity, extras=extras))
+            return
+        # wrong/used: pure feedback, nothing to bank — a late one just drops.
+        if not self.has_foreground():
             return
         sound.play("error")
         self._set_status(result)
