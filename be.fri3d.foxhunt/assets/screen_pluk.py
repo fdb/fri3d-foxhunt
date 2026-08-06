@@ -41,7 +41,7 @@ class PlukActivity(Activity):
         super().onResume(screen)
         # debug switch (instellingen -> debug): pluk on ANY wifi network,
         # for walking-around tests before the camp's hotspots exist
-        RADIO.any_ssid = bool(store.settings().get("pluk_any"))
+        RADIO.any_ssid = store.debug_cheat("pluk_any")
         self.timer = lv.timer_create(self._tick, 700, None)
 
     def onPause(self, screen):

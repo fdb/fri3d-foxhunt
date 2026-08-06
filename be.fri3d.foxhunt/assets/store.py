@@ -3,9 +3,10 @@
 #
 #   "caught"   : list of caught creature ids
 #   "beast"    : dict {str(id): pet-state} — care stats per caught creature
-#   "origins"  : dict {str(id): "vangst"|"spoor"|"pluk"|"start"} — how a
-#                creature arrived (own find / vonk-geluk / wild pluk encounter
-#                / startbeest); feeds the dossier lineage
+#   "origins"  : dict {str(id): "vangst"|"spoor"|"pluk"|"start"|"bezoek"|
+#                "debug"} — how a creature arrived (own find / vonk-geluk /
+#                wild pluk encounter / startbeest / random visitor / debug
+#                toggle); feeds the dossier lineage
 #   "zelf"     : list of ids stamped zelf gevonden (re-found at the fox)
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
@@ -112,6 +113,12 @@ def reset_all():
         if v:
             e.put_dict(k, v)
     e.commit()
+    # Session state resets too: the 1111 test code must not stay armed into
+    # the next player's game — ALLES WISSEN hands the badge on without an
+    # app restart, so the module flag survives unless somebody disarms it.
+    import debug_unlock
+
+    debug_unlock.disable_debug_code()
 
 
 # App settings (the instellingen screen).
@@ -121,8 +128,6 @@ def reset_all():
 _DEFAULT_SETTINGS = {
     "geluid": True,
     "led": 30,
-    "pluk_any": False,
-    "nooit_moe": False,
 }
 
 
@@ -137,6 +142,22 @@ def set_setting(key, value):
     s = prefs.get_dict("settings", {})
     s[key] = value
     prefs.edit().put_dict("settings", s).commit()
+
+
+def debug_cheat(name):
+    """Debug-screen cheats ("pluk_any", "nooit_moe"). Their own key, NOT part
+    of settings: settings survive ALLES WISSEN (_KEEP_ON_RESET) because volume
+    and brightness belong to the badge, but an armed cheat belongs to the
+    player who armed it — hiding in the one preserved key handed the next
+    player free play and pluk-anywhere. This key is wiped by default."""
+    return bool(SharedPreferences(_APP).get_dict("debug", {}).get(name))
+
+
+def set_debug_cheat(name, value):
+    prefs = SharedPreferences(_APP)
+    d = prefs.get_dict("debug", {})
+    d[name] = bool(value)
+    prefs.edit().put_dict("debug", d).commit()
 
 
 def flag(name):
@@ -217,13 +238,23 @@ def restore_caught(ids):
 
 
 def remove_caught(cid):
-    """Forget a catch and its pet state (debug/test support)."""
+    """Forget a catch completely (debug/test support): pet state, origin and
+    the zelf-gevonden stamp too — a debug re-add must start from nothing, not
+    inherit a gold dossier stamp from the catch it replaced."""
     prefs = SharedPreferences(_APP)
     ids = prefs.get_list("caught", [])
     e = prefs.edit()
     if cid in ids:
         ids.remove(cid)
         e.put_list("caught", ids)
+    zelf = prefs.get_list("zelf", [])
+    if cid in zelf:
+        zelf.remove(cid)
+        e.put_list("zelf", zelf)
+    origins = prefs.get_dict("origins", {})
+    if str(cid) in origins:
+        del origins[str(cid)]
+        e.put_dict("origins", origins)
     e.remove_dict_item("beast", str(cid))
     e.commit()
 
@@ -345,7 +376,7 @@ def play_cost(cost, state=None):
     reward, and like every debug path it never leaves the badge."""
     return (
         0
-        if (state is not None and pet.finished(state)) or settings().get("nooit_moe")
+        if (state is not None and pet.finished(state)) or debug_cheat("nooit_moe")
         else cost
     )
 

@@ -54,8 +54,8 @@ class DebugActivity(Activity):
             body,
             "PLUK OP ELKE WIFI",
             "thuis-testen",
-            bool(store.settings().get("pluk_any")),
-            lambda: self._toggle_setting("pluk_any", self.pluk_toggle, self.pluk_label),
+            store.debug_cheat("pluk_any"),
+            lambda: self._toggle_cheat("pluk_any", self.pluk_toggle, self.pluk_label),
         )
 
         # a beestenschool game costs energy, and a tired creature refuses —
@@ -65,8 +65,8 @@ class DebugActivity(Activity):
             body,
             "ONVERMOEIBAAR",
             "spelen kost geen energie",
-            bool(store.settings().get("nooit_moe")),
-            lambda: self._toggle_setting("nooit_moe", self.moe_toggle, self.moe_label),
+            store.debug_cheat("nooit_moe"),
+            lambda: self._toggle_cheat("nooit_moe", self.moe_toggle, self.moe_label),
         )
 
         visit = ui.panel(body, 0, 0, 308, 34, ui.CARD)
@@ -161,10 +161,12 @@ class DebugActivity(Activity):
         label.set_text(on_text if enabled else off_text)
         label.set_style_text_color(ui.hexc(ui.CREAM if enabled else ui.INK), 0)
 
-    def _toggle_setting(self, key, button, label):
+    def _toggle_cheat(self, key, button, label):
+        # store.debug_cheat, not a setting: settings survive ALLES WISSEN,
+        # and an armed cheat must not outlive the player who armed it.
         sound.play("tap")
-        enabled = not store.settings().get(key)
-        store.set_setting(key, enabled)
+        enabled = not store.debug_cheat(key)
+        store.set_debug_cheat(key, enabled)
         self._paint_toggle(
             button, label, enabled, on_text="ACTIEF", off_text="NIET ACTIEF"
         )
@@ -195,5 +197,7 @@ class DebugActivity(Activity):
         if caught:
             store.remove_caught(cid)
         else:
-            store.add_caught(cid)
+            # "debug", not the default "vangst": the dossier's lineage must
+            # not claim a toggled-on creature was found in the field.
+            store.add_caught(cid, origin="debug")
         self._paint_toggle(button, label, not caught)
