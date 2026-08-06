@@ -570,9 +570,14 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
                 buf[o : o + rowbytes] = line
     canvas.set_buffer(buf, w, h, lv.COLOR_FORMAT.ARGB8888)
     canvas.set_style_bg_opa(lv.OPA.TRANSP, 0)
-    # NB: lv.canvas.set_buffer() roots the buffer C-side (same as the built-in
-    # space_invaders app), so we don't keep a Python ref — and native widgets
-    # have no __dict__ to hang one on anyway.
+    # lv.canvas.set_buffer() does NOT root the buffer: the binding passes the
+    # raw pointer through and LVGL stores it without copying, so a local
+    # bytearray is garbage the moment this returns — the canvas then blits
+    # whatever the GC reuses the block for. Conservative stack scanning keeps
+    # it alive just long enough to survive casual testing, which is how the
+    # old "roots it C-side" claim went unnoticed. Anchor it to the widget,
+    # exactly like sprite_img anchors its dsc data.
+    _keep(canvas, buf)
     return canvas
 
 
@@ -630,7 +635,11 @@ def _frame_bytes(name, frame):
 def _upscale(src, scale):
     """16x16 BGRA bytes blown up by integer pixel replication: every source
     pixel becomes an exact scale x scale block."""
-    if _upscale_fast:
+    # The viper twin hardcodes the 16x16 frame size and does not bounds-check,
+    # so a short buffer would be read 1024 bytes past its end silently; the
+    # pure-Python path merely produces a wrong-sized image. Only hand it
+    # exactly what it assumes.
+    if _upscale_fast and len(src) == _FRAME_BYTES:
         return _upscale_fast(src, scale)
     srow = _IMG_SRC * 4
     drow = srow * scale
@@ -717,9 +726,12 @@ _ANIM_FRAME_MS = 180  # sprite-sheet playback: ~5.5 fps reads as pixel art
 
 
 def animate_sprite(img, name, scale, ms=_ANIM_FRAME_MS, flip_x=False):
-    """Cycle a sprite_img through its sheet frames, forever. Every frame is
-    pre-scaled up front and anchored to the widget, so a tick is one set_src —
-    no allocation, no rescale.
+    """Cycle a sprite_img through its sheet frames, forever. Frames are scaled
+    LAZILY, on their first showing, and cached on the widget: eager pre-scaling
+    allocated every frame before the screen drew anything — at the legendary
+    win screen's scale 8 that was 10 x 64 KB in one burst, a MemoryError risk
+    at the game's single biggest payoff moment. Spread over the first cycle,
+    the GC gets a turn between frames; after one loop a tick is one set_src.
 
     An lv.anim_t rather than an lv.timer for the same reason as
     companion._twinkle: LVGL kills an animation when its var is deleted, so
@@ -729,15 +741,23 @@ def animate_sprite(img, name, scale, ms=_ANIM_FRAME_MS, flip_x=False):
     n = frames(name)
     if n < 2:
         return
-    seq = [_sprite_dsc(name, f, scale, flip_x) for f in range(n)]
-    _keep(img, seq)
+    cache = {}  # frame index -> (dsc, data); anchored below, filled on demand
+    _keep(img, cache)
+
+    def _show(f):
+        d = cache.get(f)
+        if d is None:
+            d = _sprite_dsc(name, f, scale, flip_x)
+            cache[f] = d
+        img.set_src(d[0])
+
     a = lv.anim_t()
     a.init()
     a.set_var(img)
     a.set_values(0, n)
     a.set_duration(n * ms)
     a.set_repeat_count(lv.ANIM_REPEAT_INFINITE)
-    a.set_custom_exec_cb(lambda _a, v: img.set_src(seq[v % n][0]))
+    a.set_custom_exec_cb(lambda _a, v: _show(v % n))
     a.start()
 
 
