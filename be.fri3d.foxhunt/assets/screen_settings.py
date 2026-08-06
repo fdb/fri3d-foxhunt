@@ -266,7 +266,15 @@ class SettingsActivity(Activity):
     def _wj_done(self, st):
         self._wj_busy = False
         if st.get("ok") and st.get("hunter_id"):
+            # Bank the minted id no matter where the player wandered off to —
+            # the server has allocated it, and it repeats the same id on a
+            # retry, so dropping it here would only desync badge and server.
             store.update_profile(hunter_id=st["hunter_id"])
+        if not self.has_foreground():
+            # The reply outlived the screen: every widget here is a dangling
+            # reference (screen teardown cleans them), so no text, no sound.
+            return
+        if st.get("ok") and st.get("hunter_id"):
             sound.play("caught")
             self._wj.set_text(st["hunter_id"] + " - veel jachtplezier!")
         else:
