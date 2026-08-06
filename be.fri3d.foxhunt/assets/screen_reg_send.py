@@ -411,15 +411,15 @@ class RegSendActivity(Activity):
         if not self.has_foreground() or not st["done"]:
             return
         if not st["ok"]:
+            # NOT the shared register-error screen. That one's LATER button
+            # reports "registered" and its text promises the profile is kept —
+            # both lies here: the fork is still unsettled, and walking out of
+            # an unsettled fork clears the half-built profile (onDestroy). And
+            # its checklist would say "Cloud-server: geen antwoord" when the
+            # cloud answered fine — the 409 that raised this fork proves it;
+            # only the PATCH was refused.
             sound.play("error")
-            self._build_error(
-                {
-                    "cloud": "fail",
-                    "bridge": "fail",
-                    "hunter": "fail",
-                    "error": st.get("error") or "E-01",
-                }
-            )
+            self._build_overwrite_error(st.get("error") or "E-01")
             return
         # The account is this badge's now. Its hunter id and its catches stay:
         # both are keyed to the badge, and there is no second account to move
@@ -434,6 +434,47 @@ class RegSendActivity(Activity):
         self.p = store.profile() or self.p
         sound.play("caught")
         self._build_done({"hunter_id": self._exists.get("hunter_id"), "bridge": "skip"})
+
+    # ---- state: the overwrite was refused ---------------------------------
+    # A dead end inside the fork, so both ways out stay inside it: retry the
+    # overwrite, or step back to the question. Deliberately NO "later" — the
+    # fork is unsettled, and the only honest way to leave it is the system
+    # back gesture, which walks back into onboarding without claiming anyone
+    # got registered.
+    def _build_overwrite_error(self, code):
+        s = self.screen
+        s.clean()
+        s.set_style_bg_color(ui.hexc(ERR_BG), 0)
+        ui.banner(s, "OVERSCHRIJVEN MISLUKT", ui.TERRA, right=code)
+
+        panel = ui.panel(s, ui.PAD, 48, 304, 68, bg=ERR_PANEL, border=ui.TERRA)
+        art.icon(panel, "st_bad", 2).set_pos(8, 24)
+        ui.label(
+            panel,
+            "De server nam de nieuwe naam niet aan. Er is niets veranderd - "
+            "het account staat er nog precies zo.",
+            34,
+            8,
+            ui.INK,
+            ui.font_small(),
+            w=258,
+        )
+
+        retry = ui.box(s, ui.PAD, 140, 148, 32, ui.GREEN, radius=ui.RADIUS)
+        retry.set_style_border_width(ui.BORDER, 0)
+        retry.set_style_border_color(ui.hexc(ui.INK), 0)
+        rl = ui.label(
+            retry, "OPNIEUW", 0, 0, ui.CREAM, ui.font_title(), w=144, center=True
+        )
+        rl.align(lv.ALIGN.CENTER, 0, 0)
+        ui.focusable(retry, on_click=self._overwrite)
+
+        back = ui.box(s, 164, 140, 148, 32, ui.CARD, radius=ui.RADIUS)
+        back.set_style_border_width(ui.BORDER, 0)
+        back.set_style_border_color(ui.hexc(ui.INK), 0)
+        bl = ui.label(back, "TERUG", 0, 0, ui.INK, ui.font_title(), w=144, center=True)
+        bl.align(lv.ALIGN.CENTER, 0, 0)
+        ui.focusable(back, on_click=lambda: self._build_exists(self._exists))
 
     # ---- state: error -----------------------------------------------------
     def _build_error(self, st):
@@ -487,11 +528,16 @@ class RegSendActivity(Activity):
         sound.play("tap")
         if self._starter is not None:
             # The reveal rides between "ingeschreven" and home: START opens
-            # it, VERDER there closes the whole onboarding chain.
+            # it, VERDER there closes the whole onboarding chain. Clear the
+            # id at launch: a player who back-swipes out of the reveal lands
+            # here again, and START must then finish the chain instead of
+            # replaying a reveal for a beest that is already banked.
+            starter = self._starter
+            self._starter = None
             self.startActivityForResult(
                 Intent(
                     activity_class=StarterActivity,
-                    extras={"fox_id": self._starter},
+                    extras={"fox_id": starter},
                 ),
                 self._starter_done,
             )
