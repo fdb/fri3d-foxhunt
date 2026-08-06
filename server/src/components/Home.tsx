@@ -379,9 +379,9 @@ export const Home = () => (
             caption="VANGEN — je beest draaft heen en weer, tik om te keren en vang de hapjes."
           />
           <Shot
-            src="simon"
-            alt="Simon: vier gekleurde vlakken"
-            caption="SIMON — volg de kleuren en de lampjes op je badge."
+            src="dansen"
+            alt="Het dansspel: de Vos doet een reeks pasjes voor"
+            caption="DANSEN — kijk naar je beest en doe de pasjes na."
           />
         </div>
         <p class="note">

@@ -1,4 +1,4 @@
-# screen_games.py — the beestenschool mini-games: VLIEGEN, VANGEN, SIMON.
+# screen_games.py — the beestenschool mini-games: VLIEGEN, VANGEN, DANSEN.
 #
 # Every game is the same contract: the school gates and launches it with
 # {fox_id, kost, fav}; the game pays the energy and banks the band through
@@ -7,8 +7,8 @@
 # card shows the score and the creature's reaction, and offers another round
 # only if the energy is really there.
 #
-# Controls are one-finger on purpose: tap to flap, tap to turn, tap a pad.
-# No gesture needs explaining to a seven-year-old.
+# Controls use the badge where it fits: taps for VLIEGEN and VANGEN, the
+# four-way joystick for DANSEN. No gesture needs explaining to a seven-year-old.
 
 import random
 
@@ -85,8 +85,8 @@ class GameActivity(Activity):
         The board pushes a key to whatever the default group has focused, so a
         game that wants to be steered has to BE that object. Added bare, never
         through ui.focusable() — a gold halo around the whole screen is exactly
-        the wrong feedback. SIMON doesn't call this: its four pads are real
-        focusable widgets and the normal focus walk is the right control.
+        the wrong feedback. DANSEN also grabs the playfield because each stick
+        direction is a dance move, not focus navigation.
         Released again in game_over()."""
         s.add_event_cb(on_key, lv.EVENT.KEY, None)
         g = lv.group_get_default()
@@ -524,29 +524,52 @@ class VangActivity(GameActivity):
                     return
 
 
-# ════ SIMON — vier vlakken, volg de volgorde (en de LEDs) ════════════════
-# (base colour, flash colour) per pad, mirroring the simon icon's palette
-_PADS = (
-    (0xD6483A, 0xF08A7A),
-    (0xE8B23A, 0xF6D88A),
-    (0x5A9A3C, 0x9ACE7A),
-    (0x7F93A6, 0xB8C8D6),
+# ════ DANSEN — het beest doet pasjes voor, de speler doet ze na ══════════
+# (name, dx, dy, colour), in joystick-direction order. The same index drives
+# movement, sound and LEDs, so every cue agrees.
+_DANCE_MOVES = (
+    ("LINKS", -64, 0, 0xF08A7A),
+    ("OP", 0, -52, 0xF6D88A),
+    ("NEER", 0, 52, 0x9ACE7A),
+    ("RECHTS", 64, 0, 0xB8C8D6),
 )
+_DANCE_X = 136
+_DANCE_Y = 104
 _WIN_ROUNDS = 8
 
 
-class SimonActivity(GameActivity):
-    TITLE = "SIMON"
+class DansActivity(GameActivity):
+    TITLE = "DANSEN"
     TICK_MS = 100
 
     def build(self, s):
-        self.pads = []
-        for i, (base, flash) in enumerate(_PADS):
-            x = 20 + (i % 2) * 150
-            y = 36 + (i // 2) * 100
-            pad = ui.panel(s, x, y, 130, 92, base)
-            ui.focusable(pad, on_click=lambda k=i: self._press(k), focus_border=True)
-            self.pads.append(pad)
+        self.grab_keys(s, self._key)
+        stage = ui.panel(s, 20, 32, 280, 190, ui.SURFACE_SOFT)
+        # A quiet tiled floor makes the creature's four moves easy to read
+        # without turning them back into Simon buttons.
+        for row in range(3):
+            for col in range(3):
+                ui.box(
+                    stage,
+                    24 + col * 76,
+                    20 + row * 54,
+                    72,
+                    50,
+                    0xE8DFC8 if (row + col) % 2 else 0xF2EAD7,
+                )
+        self.hint_l = ui.label(
+            stage,
+            "kijk naar de pasjes",
+            0,
+            5,
+            ui.MYSTERY,
+            ui.font_small(),
+            w=276,
+            center=True,
+        )
+        self.spot = ui.box(s, _DANCE_X - 4, _DANCE_Y - 4, 56, 56, ui.CREAM)
+        self.beast = art.creature_panel(s, self.c, 3, animate=True)
+        self.beast.set_pos(_DANCE_X, _DANCE_Y)
         self.seq = []
         self.state = "new"
         self.t = 0
@@ -554,42 +577,59 @@ class SimonActivity(GameActivity):
         self.inp = 0
         self._dim_t = 0
 
-    def _light(self, i, on):
-        base, flash = _PADS[i]
-        self.pads[i].set_style_bg_color(ui.hexc(flash if on else base), 0)
+    def _pose(self, i=None):
+        if i is None:
+            self.spot.set_pos(_DANCE_X - 4, _DANCE_Y - 4)
+            self.spot.set_style_bg_color(ui.hexc(ui.CREAM), 0)
+            self.beast.set_pos(_DANCE_X, _DANCE_Y)
+            leds.off()
+            return
+        name, dx, dy, colour = _DANCE_MOVES[i]
+        self.spot.set_pos(_DANCE_X + dx - 4, _DANCE_Y + dy - 4)
+        self.spot.set_style_bg_color(ui.hexc(colour), 0)
+        self.beast.set_pos(_DANCE_X + dx, _DANCE_Y + dy)
         try:
-            if on:
-                rgb = ((flash >> 16) & 0xFF, (flash >> 8) & 0xFF, flash & 0xFF)
-                leds.write([rgb] * 5)
-            else:
-                leds.off()
+            rgb = ((colour >> 16) & 0xFF, (colour >> 8) & 0xFF, colour & 0xFF)
+            leds.write([rgb] * 5)
         except Exception:
             pass
+
+    def _key(self, e):
+        keys = {
+            lv.KEY.LEFT: 0,
+            lv.KEY.UP: 1,
+            lv.KEY.DOWN: 2,
+            lv.KEY.RIGHT: 3,
+        }
+        i = keys.get(e.get_key())
+        if i is not None:
+            self._press(i)
 
     def step(self):
         if self._dim_t:
             self._dim_t -= 1
             if self._dim_t == 0:
-                for i in range(4):
-                    self._light(i, False)
+                self._pose()
         if self.state == "new":
             self.seq.append(random.randrange(4))
             self.show_i = 0
             self.t = 0
             self.state = "show"
+            self.hint_l.set_text("kijk naar de pasjes")
         elif self.state == "show":
-            # 500 ms per step: 350 lit, 150 dark, then the next one
+            # 500 ms per step: 300 ms posed, 200 ms centred, then the next one.
             ph = self.t % 5
             if ph == 0:
-                self._light(self.seq[self.show_i], True)
+                self._pose(self.seq[self.show_i])
                 sound.play("sim%d" % self.seq[self.show_i])
             elif ph == 3:
-                self._light(self.seq[self.show_i], False)
+                self._pose()
             elif ph == 4:
                 self.show_i += 1
                 if self.show_i >= len(self.seq):
                     self.state = "wait"
                     self.inp = 0
+                    self.hint_l.set_text("doe ze na met de stick!")
             self.t += 1
         elif self.state == "pause":
             self.t += 1
@@ -599,7 +639,7 @@ class SimonActivity(GameActivity):
     def _press(self, i):
         if self._over or self.state != "wait":
             return
-        self._light(i, True)
+        self._pose(i)
         self._dim_t = 2
         sound.play("sim%d" % i)
         if i != self.seq[self.inp]:

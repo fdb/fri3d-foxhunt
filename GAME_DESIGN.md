@@ -235,11 +235,12 @@ Mini-games close the economy. The chain is:
   tap-farming (play needs energy, energy needs food, food needs walking).
 
 The beestenschool's three launch games cover the badge's inputs with nothing
-to explain — every control is one finger: **VLIEGEN** (tap to flap, dodge
-the branches), **VANGEN** (the creature trots left and right, tap to turn,
-catch the falling hapjes), **SIMON** (four pads, buzzer notes, the LEDs play
-along). Costs are 2/1/1 energy segments; each creature favours one game for
-extra band. DOOLHOF (tilt maze) waits on the IMU spike.
+to explain: **VLIEGEN** (tap to flap, dodge the branches), **VANGEN** (the
+creature trots left and right, tap to turn, catch the falling hapjes),
+**DANSEN** (the creature demonstrates a sequence of directional moves for the
+player to repeat with the joystick; buzzer notes and LEDs play along). Costs
+are 2/1/1 energy segments; each creature favours one game for extra band.
+DOOLHOF (tilt maze) waits on the IMU spike.
 
 The companion stars in exactly one game moment: the tutorial, before the
 player owns any creature. After that the active creature stars, because

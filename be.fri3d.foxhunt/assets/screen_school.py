@@ -19,15 +19,15 @@ import store
 import pet
 from creatures import by_id
 from screen_feed import FeedActivity
-from screen_games import VliegActivity, VangActivity, SimonActivity
+from screen_games import VliegActivity, VangActivity, DansActivity
 
 # (game id, icon, naam, energy cost in segments, subtitle)
 GAMES = (
     ("vlieg", "vlieg", "VLIEGEN", 2, "ontwijk de takken"),
     ("vang", "bes", "VANGEN", 1, "vang de hapjes"),
-    ("simon", "simon", "SIMON", 1, "volg de LEDs"),
+    ("dans", "dans", "DANSEN", 1, "doe de pasjes na"),
 )
-_GAME_ACT = {"vlieg": VliegActivity, "vang": VangActivity, "simon": SimonActivity}
+_GAME_ACT = {"vlieg": VliegActivity, "vang": VangActivity, "dans": DansActivity}
 
 
 def favourite_game(cid):
