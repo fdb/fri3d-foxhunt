@@ -583,10 +583,11 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
 
 # ── Baked artwork: one atlas for every 16x16 sprite ─────────────────────────
 # scripts/bake_sprites.sh packs artwork/**/16px PNGs into assets/sprites.bin
-# (raw BGRA frames, 1 KB each) + the generated atlas.py index — one LittleFS
-# file instead of forty. A sprite is named by its artwork-relative path
-# ("animals/vos.png"); a sheet (width N*16) is N consecutive frames. Only
-# screen-sized art (the title banner) is still a real PNG on disk.
+# (256-byte frames of palette indices, expanded here against atlas.PALETTE)
+# + the generated atlas.py index — one LittleFS file instead of forty. A
+# sprite is named by its artwork-relative path ("animals/vos.png"); a sheet
+# (width N*16) is N consecutive frames. Only screen-sized art (the title
+# banner) is still a real PNG on disk.
 import atlas
 
 try:
@@ -601,9 +602,11 @@ _SPRITE_BIN = __file__.rsplit("/", 1)[0] + "/sprites.bin"
 TITLE_SRC = "M:apps/be.fri3d.foxhunt/assets/title-screen/title-screen.png"
 _IMG_SRC = 16
 _FRAME_BYTES = _IMG_SRC * _IMG_SRC * 4
+_IDX_BYTES = _IMG_SRC * _IMG_SRC  # on disk: one atlas.PALETTE index per pixel
 
-# (name, frame) -> the raw 1 KB atlas frame. Bounded by the roster; saves the
-# file seek on re-reads and feeds every scaled copy below.
+# (name, frame) -> the frame expanded to 1 KB of BGRA. Bounded by the roster;
+# saves the file seek and the palette expansion on re-reads and feeds every
+# scaled copy below.
 _frame_cache = {}
 
 # Scaled pixel buffers live exactly as long as the widget that shows them: an
@@ -626,8 +629,15 @@ def _frame_bytes(name, frame):
     if data is None:
         base, count = atlas.SPRITES[name]
         with open(_SPRITE_BIN, "rb") as f:
-            f.seek((base + frame % count) * _FRAME_BYTES)
-            data = f.read(_FRAME_BYTES)
+            f.seek((base + frame % count) * _IDX_BYTES)
+            idx = f.read(_IDX_BYTES)
+        out = bytearray(_FRAME_BYTES)
+        pal = atlas.PALETTE
+        for i in range(_IDX_BYTES):
+            c = idx[i] * 4
+            o = i * 4
+            out[o : o + 4] = pal[c : c + 4]
+        data = bytes(out)
         _frame_cache[key] = data
     return data
 
