@@ -398,13 +398,14 @@ export const Home = () => (
         <h2>Verzorgen — het gedeelde spel</h2>
         <p class="intro">
           Of je nu jaagt of verzamelt: hier komt alles samen. Elk beest heeft
-          een band met jou, en een humeur, energie en honger die meebewegen.
+          een band met jou, en energie die meebeweegt: spelen kost energie,
+          eten vult ze weer aan.
         </p>
         <div class="shots">
           <Shot
             src="beest"
-            alt="Beestscherm met band, humeur, energie en honger"
-            caption="Band, humeur, energie en honger — plus de knoppen om te voeren, aaien, spelen."
+            alt="Beestscherm met band en energie"
+            caption="Band en energie — plus de knoppen om te voeren, aaien, spelen."
           />
           <Shot
             src="voeren"
@@ -421,7 +422,7 @@ export const Home = () => (
           <h3>Beesten gaan nooit dood</h3>
           <p>
             Ze lopen niet weg en je verliest nooit wat je hebt opgebouwd. Een
-            hongerig beest is een uitnodiging, geen straf. Speel je een dag niet
+            moe beest is een uitnodiging, geen straf. Speel je een dag niet
             mee, dan staat alles er gewoon nog — geen strafpunten, geen verloren
             reeks, geen boos berichtje.
           </p>

@@ -33,8 +33,8 @@ from where players spend their time, not from a locked role choice.
 
 ## Positive care philosophy
 
-Creatures have temporary needs such as hunger and energy. These may rise
-or fall over time and give players a reason to interact. A hungry creature is an
+Creatures have one temporary need: energy. It drains over time and with
+play, and eating refills it — a reason to interact. A tired creature is an
 invitation to feed it, not a punishment for staying away.
 
 Permanent progress is safe:
@@ -52,15 +52,20 @@ Creatures may playfully refuse an unsuitable action—a full creature need not
 eat and a tired creature may not want to play—but an unsuccessful choice should
 not subtract permanent progress.
 
-**Hunger is pull, not push — that is why a big roster is never a chore.** A
-hungry creature loses nothing: bond never decays, and hunger's only teeth are
-that a tired creature will not play. So the player feeds the one creature they
-are about to play with, at the moment they want to play; the other twenty wait
-patiently, unharmed. Food demand scales with how many creatures you *play*
-with, not how many you *own*. Guard this structurally: no roster-wide hunger
-indicators (red badges on the home grid, "5 beesten hebben honger!"
+**Need is pull, not push — that is why a big roster is never a chore.** A
+tired creature loses nothing: bond never decays, and low energy's only teeth
+are that a tired creature will not play. So the player feeds the one creature
+they are about to play with, at the moment they want to play; the other twenty
+wait patiently, unharmed. Food demand scales with how many creatures you
+*play* with, not how many you *own*. Guard this structurally: no roster-wide
+need indicators (red badges on the home grid, "5 beesten zijn moe!"
 notifications) and no need-stats in public score — either would turn the
 collection into a feeding shift.
+
+Energy is deliberately the ONLY living need. It used to sit beside hunger,
+and the two gates could deadlock: a creature "not hungry" (so feeding
+refused) yet too tired to play had no move left. One meter closes that loop
+by construction — eating refills exactly the stat that play spends.
 
 The same philosophy extends to the exchange economy: there is no exchange UI
 at all. A snuffel *is* the exchange — both badges automatically share a
@@ -866,7 +871,7 @@ and exchange. Weekend-wide goals encourage cooperation, for example:
 The creature lineage trees ("who introduced whom") make a lovely communal
 visualisation for the scoreboard screen.
 
-Current hunger and energy should not affect public score. Neither should
+Current energy should not affect public score. Neither should
 raw taps or unlimited step totals.
 
 ## Roles and navigation
@@ -1017,7 +1022,7 @@ enough delight to carry the social economy?
   each with their own bond.
 - ~~Should the main gatherer fantasy emphasise one deep relationship or a
   broad sanctuary collection?~~ → Resolved by *What bond buys*: both, in
-  series. Breadth is free to hold (hunger is pull, no upkeep); depth has a
+  series. Breadth is free to hold (need is pull, no upkeep); depth has a
   finish line (de foto), so the fantasy is a sanctuary of *finished*
   friendships, built one beste vriend at a time.
 - ~~How many mentor invitations may a strong gatherer create?~~

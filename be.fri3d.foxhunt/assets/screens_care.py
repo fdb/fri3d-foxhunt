@@ -33,10 +33,7 @@ _ACTS = (
     ("ball", "SPEEL", "spelen"),
     ("book", "DOSSIER", "dossier"),
 )
-_SEG = (
-    ("energy", "Energie", ui.GREEN),
-    ("hunger", "Honger", ui.TERRA),
-)
+_SEG = (("energy", "Energie", ui.GREEN),)
 # rarity tag on the portrait card; "norm" gets none. Dark variants of the home
 # grid's rarity frame colours (rare=terra, leg=gold), for text on the light card.
 _RARITY_TAG = {
@@ -279,9 +276,9 @@ class DossierActivity(Activity):
 # ═════════════════════════ screen_feed ═════════════════════════
 # screen_feed.py — VOEREN: feed a caught creature a hapje FROM THE VOORRAAD.
 #
-# A stage with the creature + ENERGIE/HONGER bars, and a 3-food picker below
-# showing what the pantry actually holds. Food is the energy leg of the
-# chain — the favourite grants extra energie, band comes from spelen. An
+# A stage with the creature + ENERGIE bar, and a 3-food picker below
+# showing what the pantry actually holds. Food is the energy refill — the
+# favourite grants extra energie, band comes from spelen. An
 # empty jar stays visible ('ga plukken') instead of vanishing. Layout
 # follows the design (plukken.jsx PxVoer2).
 
@@ -315,14 +312,13 @@ class FeedActivity(Activity):
         sp.align(lv.ALIGN.BOTTOM_LEFT, 16, -2)
         self.bubble = ui.label(stage, "", 8, 8, ui.INK, ui.font_label(), w=140)
 
-        # ENERGIE / HONGER bars, top-right inside the stage
+        # ENERGIE bar, top-right inside the stage
         self.energy_cells = self._bar(stage, 8, "ENERGIE")
-        self.hunger_cells = self._bar(stage, 28, "HONGER")
         ui.label(
             stage,
             "voer vult energie",
             160,
-            50,
+            30,
             ui.TEXT_MUTED,
             ui.font_small(),
             w=136,
@@ -396,7 +392,6 @@ class FeedActivity(Activity):
         if st is None:
             return
         self._set_bar(self.energy_cells, pet.energy_segments(st["energy"]), ui.GREEN)
-        self._set_bar(self.hunger_cells, pet.segments(st["hunger"]), ui.TERRA)
         v = store.voorraad()
         self.total_l.set_text("%d voer" % store.voorraad_total())
         for food, (p, ic, cnt, sub, lab) in self.tiles.items():
