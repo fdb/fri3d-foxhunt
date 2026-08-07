@@ -171,9 +171,11 @@ as a citation of the original design bundle file `mascotte.jsx`.
   heads and accessories (16×16 RGBA, one PNG per Aseprite layer, filename ==
   the id in `companion.py`), `title-screen/` the 320×120 welcome banner.
   `scripts/bake_sprites.sh` packs every 16px-tall PNG into ONE atlas —
-  `assets/sprites.bin` (raw 16×16 BGRA frames, 1 KB each) plus the generated
-  index `assets/atlas.py` — because on LittleFS forty tiny files cost 4 KB and
-  ~0.28s of deploy each; other art (the title banner) is mirrored as PNG.
+  `assets/sprites.bin` (16×16 frames of 8-bit palette indices, 256 B each,
+  against the `PALETTE` in the generated index `assets/atlas.py`; `art.py`
+  expands to BGRA on first read and caches) — because on LittleFS forty tiny
+  files cost 4 KB and ~0.28s of deploy each; other art (the title banner) is
+  mirrored as PNG, palettized to the colours the RGB565 panel can show.
   Sprites keep their artwork-relative path as atlas key (`"animals/vos.png"`).
   Re-run the script after changing artwork; `--check` reports drift (CI). Both
   sides are committed, and everything the script generates belongs to it.
