@@ -19,7 +19,7 @@ from screen_profile import ProfileActivity
 from screen_settings import SettingsActivity
 from screen_snuffel import SnuffelActivity
 from screen_pluk import PlukActivity
-from screen_uitleg import UitlegActivity
+from screens_onboarding import UitlegActivity
 from screen_visitor import VisitorActivity
 import registrar
 

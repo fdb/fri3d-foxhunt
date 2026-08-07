@@ -13,8 +13,8 @@ import sound
 import store
 import companion
 from creatures import CREATURES, by_id
-from screen_companion import CompanionActivity
-from screen_register import RegisterActivity
+from screens_onboarding import CompanionActivity
+from screens_onboarding import RegisterActivity
 
 SCORE_BG = 0xF6E7CD
 SCORE_LABEL = 0x8A6A2E

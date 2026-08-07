@@ -21,7 +21,7 @@ import registrar
 import telemetry
 from creatures import by_id
 from screen_home import HomeActivity
-from screen_welcome import WelcomeActivity
+from screens_onboarding import WelcomeActivity
 
 _SPLASH_SCALE = 8  # 16px art -> 128px
 

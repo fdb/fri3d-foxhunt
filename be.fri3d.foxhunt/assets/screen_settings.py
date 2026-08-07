@@ -15,8 +15,8 @@ import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import registrar
 from screen_debug import DebugActivity
 from screen_wipe import WipeActivity
-from screen_uitleg import UitlegActivity
-from screen_reg_send import RegSendActivity
+from screens_onboarding import UitlegActivity
+from screens_onboarding import RegSendActivity
 
 TRACK_OFF = 0xE0D4B4  # switch track when off
 ROW_H, ROW_GAP = 26, 4
