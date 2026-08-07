@@ -151,6 +151,35 @@ identifiers and player-facing copy remain consistent.
 Retired words: **mascot** (say companion), **mascotte** (say maatje) — except
 as a citation of the original design bundle file `mascotte.jsx`.
 
+## Size budget
+The badge's whole user filesystem is a 7 MiB LittleFS partition, and a factory
+badge arrives with it nearly full: `roms/` alone holds ~3.8 MB and the OS the
+bulk of the rest. This app must fit in the scraps, so its flash footprint is a
+budget, not an afterthought. Two costs, and the second is the sneaky one:
+- **Payload**: what the bytes weigh. `.mpy` bytecode is the shipped form
+  (USB deploy always; the store `.mpk` via `scripts/build_mpk.sh`) — comments
+  and docstrings cost nothing on the badge, so never strip them for size.
+- **Blocks**: LittleFS bills 4 KB per FILE, so a 250-byte module costs the
+  same flash as a 4 KB one. This is why the sprites live in one atlas, and
+  why the screens live in four flow modules instead of 24 files:
+  `screens_onboarding` (welcome→…→starter + restore), `screens_care`
+  (beast/dossier/feed/school/games/boekje), `screens_hunt`
+  (hunt/code/win/snuffel/pluk/visitor), `screens_system`
+  (home/profiel/instellingen/debug/wipe) — plus the folds of sync→registrar,
+  debug_unlock→store and leds→sound (`import sound as leds` at call sites).
+**Refactors must keep this shape.** Do not re-split a flow module into
+per-screen files, and put a new screen INSIDE the flow module it belongs to —
+a new top-level file needs to justify its block. Two traps inside a merged
+module: section order is dependency order where module-level tables reference
+classes (screens_care: games before school), and repeated imports between
+sections are fine — but a bare name shared by two sections is not
+(screens_hunt: fox_radio owns `RADIO`, the pluk section says
+`pluk_radio.RADIO`). Art stays cheap by construction: the atlas is 8-bit
+indexed against one palette, mirrored PNGs are palettized to what the RGB565
+panel can show (both enforced by `bake_sprites.sh`). Current shape: 26 files
+(20 modules + assets), ~205 KB on flash; compare block counts before and
+after when touching the file layout.
+
 ## Conventions
 - **One SharedPreferences instance, one editor, per write path.** The mpos
   `SharedPreferences` snapshots the whole config file per instance, and
