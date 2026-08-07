@@ -1493,7 +1493,7 @@ import store
 import companion
 
 _AVATAR_BG = 0xCFE0EA
-_CELL_W, _CELL_H, _GAP = 99, 60, 5
+_CELL_W, _CELL_H, _CELL_GAP = 99, 60, 5
 _MAAND = (
     "jan",
     "feb",
@@ -1538,7 +1538,9 @@ class BoekjeActivity(Activity):
         self.setContentView(s)
 
     def _grid(self, s, vrienden):
-        grid = ui.row(s, 6, 34, 3 * _CELL_W + 2 * _GAP + 2, 200, gap=_GAP, wrap=True)
+        grid = ui.row(
+            s, 6, 34, 3 * _CELL_W + 2 * _CELL_GAP + 2, 200, gap=_CELL_GAP, wrap=True
+        )
         grid.add_flag(lv.obj.FLAG.SCROLLABLE)
         grid.set_scroll_dir(lv.DIR.VER)
         for f in vrienden:
