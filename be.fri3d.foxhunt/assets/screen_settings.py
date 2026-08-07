@@ -11,7 +11,7 @@ from mpos import Activity, Intent
 import ui
 import store
 import sound
-import leds
+import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import registrar
 from screen_debug import DebugActivity
 from screen_wipe import WipeActivity

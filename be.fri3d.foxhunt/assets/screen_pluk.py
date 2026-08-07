@@ -10,7 +10,7 @@ import lvgl as lv
 from mpos import Activity
 import ui
 import art
-import leds
+import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import sound
 import store
 import pluk_radio

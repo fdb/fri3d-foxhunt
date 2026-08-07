@@ -16,7 +16,7 @@
 #                hourly food reloads + one creature roll per spot/camp phase
 #   "visitor"  : {started, slot, pending, pending_slot, debug, debug_due,
 #                cooldown} — scheduled fallback meetings for verzamelaars
-#   "outbox"   : list of queued badge→server reports (sync.py drains it)
+#   "outbox"   : list of queued badge→server reports (registrar.flush drains it)
 #
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
 
@@ -130,9 +130,33 @@ def reset_all():
     # Session state resets too: the 1111 test code must not stay armed into
     # the next player's game — ALLES WISSEN hands the badge on without an
     # app restart, so the module flag survives unless somebody disarms it.
-    import debug_unlock
+    disable_debug_code()
 
-    debug_unlock.disable_debug_code()
+
+# ── Debug-code switch (formerly debug_unlock.py; merged for block economy) ──
+# The debug screen itself opens from settings (five taps on the badge id);
+# this is only the session-wide flag that screen makes the keypad honour.
+
+DEBUG_CODE = "1111"
+_debug_code_enabled = False
+
+
+def enable_debug_code():
+    global _debug_code_enabled
+    _debug_code_enabled = True
+
+
+def disable_debug_code():
+    global _debug_code_enabled
+    _debug_code_enabled = False
+
+
+def debug_code_enabled():
+    return _debug_code_enabled
+
+
+def accepts_debug_code(code):
+    return _debug_code_enabled and code == DEBUG_CODE
 
 
 # App settings (the instellingen screen).
@@ -474,7 +498,7 @@ def take_food(food):
 
 # ── outbox: badge→server reports, queued until WiFi actually works ──────────
 # Woods WiFi is spotty, so nothing badge→server ever blocks a screen: writers
-# enqueue, sync.flush() drains from natural moments (home resume). Survives
+# enqueue, registrar.flush() drains from natural moments (home resume). Survives
 # reboots; ALLES WISSEN wipes it with everything else player-owned.
 
 
@@ -484,7 +508,7 @@ def outbox():
 
 def enqueue_report(kind, data):
     """Queue a badge→server report. kind: "snuffel" | "pluk" | "visitor" |
-    "bonded" | "profile" — sync.py maps kinds to routes. Callers enqueue LAST
+    "bonded" | "profile" — registrar._ROUTES maps kinds to routes. Callers enqueue LAST
     in their write path (the one-instance-one-editor rule: this commits via its
     own instance)."""
     prefs = SharedPreferences(_APP)

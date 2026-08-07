@@ -110,50 +110,31 @@ class CompanionProfileSyncTest(unittest.TestCase):
         store.enqueue_report.assert_called_once_with("profile", {"name": "Vosje"})
         screen.finish.assert_called_once_with()
 
-    def test_profile_report_uses_auth_user_patch(self):
-        store = types.ModuleType("store")
-        registrar = types.ModuleType("registrar")
+    # The outbox drain (_ROUTES) lives in registrar.py since sync.py was
+    # merged into it for LittleFS block economy.
+    def _load_routes(self, name):
+        lvgl = types.ModuleType("lvgl")
         mpos = types.ModuleType("mpos")
         mpos.TaskManager = MagicMock()
-        modules = {"store": store, "registrar": registrar, "mpos": mpos}
         spec = importlib.util.spec_from_file_location(
-            "sync_under_test", ASSETS / "sync.py"
+            name, ASSETS / "registrar.py"
         )
-        sync = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, modules):
-            spec.loader.exec_module(sync)
+        registrar = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, {"lvgl": lvgl, "mpos": mpos}):
+            spec.loader.exec_module(registrar)
+        return registrar._ROUTES
 
-        self.assertEqual(sync._ROUTES["profile"], ("PATCH", "/api/v1/auth/user"))
+    def test_profile_report_uses_auth_user_patch(self):
+        routes = self._load_routes("registrar_profile_under_test")
+        self.assertEqual(routes["profile"], ("PATCH", "/api/v1/auth/user"))
 
     def test_pluk_report_uses_player_pluk_route(self):
-        store = types.ModuleType("store")
-        registrar = types.ModuleType("registrar")
-        mpos = types.ModuleType("mpos")
-        mpos.TaskManager = MagicMock()
-        modules = {"store": store, "registrar": registrar, "mpos": mpos}
-        spec = importlib.util.spec_from_file_location(
-            "sync_pluk_under_test", ASSETS / "sync.py"
-        )
-        sync = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, modules):
-            spec.loader.exec_module(sync)
-
-        self.assertEqual(sync._ROUTES["pluk"], ("POST", "/api/v1/player/pluk"))
+        routes = self._load_routes("registrar_pluk_under_test")
+        self.assertEqual(routes["pluk"], ("POST", "/api/v1/player/pluk"))
 
     def test_visitor_report_uses_player_visitor_route(self):
-        store = types.ModuleType("store")
-        registrar = types.ModuleType("registrar")
-        mpos = types.ModuleType("mpos")
-        mpos.TaskManager = MagicMock()
-        modules = {"store": store, "registrar": registrar, "mpos": mpos}
-        spec = importlib.util.spec_from_file_location(
-            "sync_visitor_under_test", ASSETS / "sync.py"
-        )
-        sync = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, modules):
-            spec.loader.exec_module(sync)
-
-        self.assertEqual(sync._ROUTES["visitor"], ("POST", "/api/v1/player/visitor"))
+        routes = self._load_routes("registrar_visitor_under_test")
+        self.assertEqual(routes["visitor"], ("POST", "/api/v1/player/visitor"))
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ import random
 import ui
 import art
 import sound
-import leds
+import sound as leds  # LED helpers live in sound.py (merged for block economy)
 
 # Vivid 8-hue rainbow reused everywhere — bg wash, halo, confetti, title, LEDs.
 RAINBOW = [

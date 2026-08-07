@@ -7,7 +7,7 @@ import sound
 import store
 import ui
 from creatures import CREATURES
-from debug_unlock import (
+from store import (
     DEBUG_CODE,
     debug_code_enabled,
     disable_debug_code,

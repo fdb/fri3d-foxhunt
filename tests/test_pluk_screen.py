@@ -15,7 +15,9 @@ class PlukScreenTest(unittest.TestCase):
     def setUpClass(cls):
         cls.store = MagicMock()
         cls.sound = MagicMock()
-        cls.leds = MagicMock()
+        # leds.py merged into sound.py: the app's `import sound as leds`
+        # resolves both names to one module, so one mock serves both.
+        cls.leds = cls.sound
 
         mpos = types.ModuleType("mpos")
         mpos.Activity = type("Activity", (), {})

@@ -198,7 +198,7 @@ class SnuffelActivity(Activity):
             # the meeting goes to the server through the outbox — grants a
             # vonk-geluk creature to the durable record so a restore hands
             # it back. Queued only: this mode is OFF camp WiFi by design;
-            # sync.flush drains it once the radio is back home.
+            # registrar.flush drains it once the radio is back home.
             store.enqueue_report(
                 "snuffel",
                 {"peer": peer.mac, "day": result["dag"], "creature_id": geluk},

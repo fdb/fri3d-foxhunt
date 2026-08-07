@@ -10,7 +10,7 @@ import lvgl as lv
 from mpos import Activity, Intent
 import ui
 import art
-import leds
+import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import sound
 from creatures import by_id
 from fox_radio import RADIO, rssi_to_bpm

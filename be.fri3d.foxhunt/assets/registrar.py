@@ -25,7 +25,7 @@ BASE_URL = "https://foxhunt.enigmeta.workers.dev"
 CONNECT_TIMEOUT = 10
 # Whole-request deadline. The connect timeout cannot help once the socket is
 # open: a server (or captive portal) that accepts and then stalls would hang
-# the awaiting task forever — sync._drain holds its one _busy slot across
+# the awaiting task forever — registrar._drain holds its one _busy slot across
 # this await, so a single stalled response used to wedge the outbox until
 # reboot. Generous on purpose: it only has to beat "forever".
 TOTAL_TIMEOUT = 30
@@ -670,3 +670,74 @@ class HttpRegistrar(Registrar):
 # Shared singleton — the send and restore screens talk to this. Swap in
 # FakeRegistrar() to work offline or to walk the error paths its flags describe.
 REGISTRAR = HttpRegistrar()
+
+
+# ── Outbox drain (formerly sync.py; merged for LittleFS block economy) ──────
+# Woods WiFi is spotty (GAME_DESIGN.md, "How a creature reaches the
+# profile"), so badge→server reports never block a screen: writers call
+# store.enqueue_report and forget; flush() drains what it can from natural
+# moments (the home screen's resume) and leaves the rest queued. Delivery
+# rules per report: 2xx = delivered; 4xx = the server refused it forever —
+# drop it, or the queue wedges behind one bad report; anything else (no
+# network, 5xx) = stop and let the next natural moment retry.
+
+_ROUTES = {
+    "snuffel": ("POST", "/api/v1/player/snuffel"),
+    "pluk": ("POST", "/api/v1/player/pluk"),
+    "visitor": ("POST", "/api/v1/player/visitor"),
+    "bonded": ("PATCH", "/api/v1/auth/user"),
+    "profile": ("PATCH", "/api/v1/auth/user"),
+}
+_busy = False
+
+
+def flush():
+    """Fire-and-forget: start a drain unless one is already running."""
+    global _busy
+    import store
+
+    if _busy or not store.outbox():
+        return
+    # Claim the slot only once the task is really scheduled: a create_task
+    # that raises would otherwise leave _busy stuck True with no drain
+    # running, killing sync for the session. Single-threaded event loop, so
+    # nothing runs between the two statements.
+    TaskManager.create_task(_drain())
+    _busy = True
+
+
+async def _drain():
+    global _busy
+    import store
+
+    try:
+        while True:
+            box = store.outbox()
+            if not box:
+                return
+            item = box[0]
+            route = _ROUTES.get(item.get("kind"))
+            if route is None:  # unknown kind: drop, never wedge the queue
+                store.outbox_pop()
+                continue
+            body = dict(item.get("data") or {})
+            body["badge_id"] = badge_id()
+            try:
+                status, _ = await _json_request(route[0], route[1], body)
+            except Exception:
+                return  # no network; the next natural moment retries
+            if status == 404:
+                # "unknown badge_id" is transient, not a refusal: it is the
+                # normal state while a registration the server never confirmed
+                # waits for resync. Popping here permanently lost every
+                # meeting and grant queued before the account existed — a
+                # restore then handed back only the startbeest. Keep the
+                # report; the wipe path can't wedge on this (reset_all clears
+                # the outbox with everything else).
+                return
+            if 200 <= status < 300 or 400 <= status < 500:
+                store.outbox_pop()
+            else:
+                return  # server trouble: keep the report, retry later
+    finally:
+        _busy = False

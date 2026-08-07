@@ -21,7 +21,7 @@ from screen_snuffel import SnuffelActivity
 from screen_pluk import PlukActivity
 from screen_uitleg import UitlegActivity
 from screen_visitor import VisitorActivity
-import sync
+import registrar
 
 _CELL_W, _CELL_H, _GAP = 74, 52, 4  # boek tiles
 _HAIR = 0xDCCFA9  # section hairline on paper
@@ -57,7 +57,7 @@ class HomeActivity(Activity):
         # Home is the natural WiFi moment: drain any queued badge→server
         # reports (snuffel/pluk grants, bonded counts). Fire-and-forget — a
         # dead network just leaves the outbox for the next resume.
-        sync.flush()
+        registrar.flush()
         self._start_visitor_poll()
         # Refresh caught state in place. Do NOT call setContentView again — it
         # appends a new screen to the stack and leaks the old one (11 canvas

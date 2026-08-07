@@ -14,7 +14,7 @@ import sound
 import store
 from creatures import by_id
 from fox_radio import RADIO
-from debug_unlock import accepts_debug_code
+from store import accepts_debug_code
 from screen_win import WinActivity
 
 # No confirm key: the 4th digit IS the submit, so an OK would only ever fire on
