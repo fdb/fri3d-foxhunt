@@ -677,7 +677,14 @@ _WIN_ROUNDS = 8
 # while showing the steps would read as eating it. If this round's steps never
 # visit that tile it simply stays for the next one, so a seeded hapje is always
 # eventually reachable, and a new one is only drawn once this one is taken.
-_DANCE_TREAT_ODDS = 5
+#
+# 20, not 5: the seed rolls once per turn and a full game is 8 turns, so 1-in-5
+# paid a hapje most rounds — DANSEN out-earned VLIEGEN (whose typical round
+# ends before its first hapje even scrolls in) several times over, and the
+# easiest game was the best forage. 1-in-20 lands a full game around the same
+# expected payout as a decent VLIEGEN run: a treat is a nice surprise, not the
+# reason to pick this game.
+_DANCE_TREAT_ODDS = 20
 
 
 class DansActivity(GameActivity):
