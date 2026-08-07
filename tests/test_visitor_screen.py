@@ -1,43 +1,22 @@
-import importlib.util
-import sys
 import types
 import unittest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-
-ASSETS = Path(__file__).parents[1] / "be.fri3d.foxhunt" / "assets"
+from hunt_loader import load_screens_hunt
 
 
 class VisitorScreenTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.store = MagicMock()
-        cls.sound = MagicMock()
-
-        mpos = types.ModuleType("mpos")
-        mpos.Activity = type("Activity", (), {})
-
         creatures = types.ModuleType("creatures")
         creatures.by_id = MagicMock(
             return_value={"id": 2, "naam": "Kat", "rarity": "norm"}
         )
-
-        modules = {
-            "lvgl": MagicMock(),
-            "mpos": mpos,
-            "art": MagicMock(),
-            "sound": cls.sound,
-            "store": cls.store,
-            "ui": MagicMock(),
-            "creatures": creatures,
-        }
-        spec = importlib.util.spec_from_file_location(
-            "screen_visitor_under_test", ASSETS / "screen_visitor.py"
+        cls.module, stubs = load_screens_hunt(
+            "screens_hunt_visitor_under_test", creatures=creatures
         )
-        cls.module = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, modules):
-            spec.loader.exec_module(cls.module)
+        cls.store = stubs["store"]
+        cls.sound = stubs["sound"]
 
     def setUp(self):
         self.store.reset_mock()

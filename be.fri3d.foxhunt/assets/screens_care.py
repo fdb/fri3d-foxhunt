@@ -1,3 +1,442 @@
+# screens_care.py — everything you do WITH a caught beest, one module.
+#
+# beast (the hub) -> dossier / feed / school -> games, plus the boekje
+# (vriendenboek). Six screens merged into one file for LittleFS block
+# economy (see CLAUDE.md, "Size budget"); each section keeps its original
+# header, repeated imports between sections are harmless. Section order
+# is dependency order, not flow order: the school section builds its
+# _GAME_ACT table at module level, so the games section must come first.
+
+
+# ═════════════════════════ screen_beast ═════════════════════════
+# screen_beast.py — BEEST-PAGINA: the hub for a caught creature.
+#
+# Portrait card with nickname on the left; Band hearts + Energie/Honger
+# segment meters + found facts on the right; a 4-button action bar (VOER / AAI /
+# SPEEL / DOSSIER). A finished friend (bond maxed) trades its meters for the
+# beste-vriend star and refuses food gently — play stays, free forever.
+# Layout follows the design (detail.jsx PxDetail).
+
+import lvgl as lv
+from mpos import Activity, Intent
+import ui
+import art
+import sound
+import store
+import pet
+from creatures import by_id
+
+# action-bar buttons: (icon, label, kind)
+_ACTS = (
+    ("food", "VOER", "feed"),
+    ("paw", "AAI", "aaien"),
+    ("ball", "SPEEL", "spelen"),
+    ("book", "DOSSIER", "dossier"),
+)
+_SEG = (
+    ("energy", "Energie", ui.GREEN),
+    ("hunger", "Honger", ui.TERRA),
+)
+# rarity tag on the portrait card; "norm" gets none. Dark variants of the home
+# grid's rarity frame colours (rare=terra, leg=gold), for text on the light card.
+_RARITY_TAG = {
+    "rare": ("Zeldzaam", ui.TERRA_D),
+    "leg": ("Legendarisch", ui.GOLD_D),
+}
+
+
+class BeastActivity(Activity):
+    def onCreate(self):
+        self.fox_id = self.getIntent().extras.get("fox_id", 0)
+        self.c = by_id(self.fox_id)
+        self._bubble_timer = None
+
+        s = ui.make_screen(ui.PAPER)
+        ui.banner(s, self.c["naam"], ui.GREEN)
+        # LV badge (own ref so it updates when band crosses a level)
+        self.lvtag = ui.label(
+            s, "", 270, 6, ui.CREAM, ui.font_small(), w=44, center=True
+        )
+
+        # ── portrait card ───────────────────────────────────────────────
+        rare = self.c["rarity"] != "norm"
+        card = ui.panel(s, 8, 32, 132, 150, ui.SURFACE_SOFT)
+        card.set_style_border_color(ui.hexc(ui.GOLD if rare else ui.GREEN_D), 0)
+        sp = art.creature_panel(card, self.c, 5, animate=True)
+        sp.align(lv.ALIGN.CENTER, 0, -12)
+        tag = _RARITY_TAG.get(self.c["rarity"])
+        if tag:
+            ui.label(card, tag[0], 0, 112, tag[1], ui.font_small(), w=128, center=True)
+        self.bubble = ui.label(card, "", 4, 2, ui.INK, ui.font_small(), w=124)
+        strip = ui.box(card, 0, 130, 128, 18, ui.GREEN)
+        self.nick = ui.label(
+            strip, "", 0, 1, ui.CREAM, ui.font_small(), w=128, center=True
+        )
+
+        # ── stats column (rebuilt on every refresh) ─────────────────────
+        self.stats = ui.box(s, 150, 34, 164, 148)
+
+        # ── action bar ──────────────────────────────────────────────────
+        bw = 73
+        bar = ui.row(s, 6, 198, 4 * bw + 3 * 5, 36, gap=5)
+        for ic, lab, kind in _ACTS:
+            b = ui.panel(bar, 0, 0, bw, 36, ui.CARD, border=ui.BORDER_REST)
+            art.icon(b, ic, 2).align(lv.ALIGN.TOP_MID, 0, 3)
+            ui.label(b, lab, 0, 22, ui.INK, ui.font_small(), w=bw, center=True)
+            ui.focusable(b, on_click=lambda k=kind: self._press(k), focus_border=True)
+
+        self.setContentView(s)
+        self._refresh()
+
+    def onResume(self, screen):
+        super().onResume(screen)
+        self._refresh()
+
+    def _refresh(self):
+        st = store.beast_state(self.fox_id)
+        if st is None:
+            return
+        self.lvtag.set_text("LV.%d" % pet.level(st["bond"]))
+        self.nick.set_text(st.get("bijnaam") or self.c["naam"])
+        self.stats.clean()
+        g = self.stats
+        ui.label(g, "Band", 0, 0, ui.INK, ui.font_small())
+        ui.heart_row(g, 0, 16, pet.hearts(st["bond"]), scale=2)
+        if pet.finished(st):
+            # a beste vriend has no needs — the meters make way for the star
+            art.draw_sprite(g, art.STAR, {"g": ui.GOLD}, 2).set_pos(0, 46)
+            ui.label(g, "Beste vriend!", 24, 48, ui.GOLD_D, ui.font_label())
+            ui.label(g, "speelt altijd mee", 24, 64, ui.TEXT_MUTED, ui.font_small())
+        else:
+            for i, (k, lab, col) in enumerate(_SEG):
+                shown = (
+                    pet.energy_segments(st[k]) if k == "energy" else pet.segments(st[k])
+                )
+                ui.seg_bar(g, 0, 44 + i * 22, lab, shown, col)
+        ui.label(
+            g,
+            "gevonden " + st.get("date", "?"),
+            0,
+            96,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=164,
+        )
+        ui.label(
+            g,
+            "%s . %dx gezien" % (st.get("place", "?"), st.get("sightings", 1)),
+            0,
+            112,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=164,
+        )
+
+    def _press(self, kind):
+        if kind == "feed":
+            st = store.beast_state(self.fox_id)
+            if st and pet.finished(st):
+                # no refusal screen for a beste vriend — just the fact
+                sound.play("tap")
+                self._flash("hoeft niet meer te eten")
+                return
+            sound.play("tap")
+            self.startActivity(
+                Intent(activity_class=FeedActivity, extras={"fox_id": self.fox_id})
+            )
+        elif kind == "dossier":
+            sound.play("tap")
+            self.startActivity(
+                Intent(activity_class=DossierActivity, extras={"fox_id": self.fox_id})
+            )
+        elif kind == "spelen":
+            # spelen is no longer a free inline tap: it opens the
+            # beestenschool, where a session costs energy and earns band
+            sound.play("tap")
+            self.startActivity(
+                Intent(activity_class=SchoolActivity, extras={"fox_id": self.fox_id})
+            )
+        else:  # aaien — inline care, always free (basic affection)
+            st, ok, msg = store.do_action(self.fox_id, kind)
+            sound.play("tap" if ok else "error")
+            self._flash(msg)
+            self._refresh()
+
+    def _flash(self, text):
+        self.bubble.set_text(text)
+        if self._bubble_timer:
+            self._bubble_timer.delete()
+        self._bubble_timer = lv.timer_create(self._clear_bubble, 1100, None)
+
+    def _clear_bubble(self, t):
+        t.delete()
+        self._bubble_timer = None
+        self.bubble.set_text("")
+
+    def onDestroy(self, screen):
+        super().onDestroy(screen)
+        # The flash timer must not outlive the screen: teardown deletes the
+        # bubble, and a surviving timer would set_text on freed memory —
+        # AAI, back-swipe within the 1.1s window, crash.
+        if self._bubble_timer:
+            self._bubble_timer.delete()
+            self._bubble_timer = None
+
+
+# ═════════════════════════ screen_dossier ═════════════════════════
+# screen_dossier.py — DOSSIER: the collection card for a caught creature.
+#
+# Header (portrait + name + nickname + LV + hearts), a 2-column facts grid, a
+# "WEETJE" fun-fact, and a bond-to-next-level progress bar. Static facts come
+# from creatures.py; the living bits from the pet state. Layout follows
+# the design (detail.jsx PxDossier).
+
+import lvgl as lv
+from mpos import Activity
+import ui
+import art
+import store
+import pet
+from creatures import by_id
+
+_RARITY = {"norm": "gewoon", "rare": "zeldzaam", "leg": "legendarisch"}
+
+
+class DossierActivity(Activity):
+    def onCreate(self):
+        self.fox_id = self.getIntent().extras.get("fox_id", 0)
+        c = by_id(self.fox_id)
+        st = store.beast_state(self.fox_id) or pet.default_state("?", "?", 0)
+        bond = st["bond"]
+
+        s = ui.make_screen(ui.PAPER)
+        ui.banner(s, "Dossier", ui.GREEN, right="#%02d" % (self.fox_id + 1))
+
+        # ── header ───────────────────────────────────────────────────────
+        port = ui.panel(s, 8, 32, 64, 64, ui.SURFACE_SOFT)
+        art.creature_panel(port, c, 3).align(lv.ALIGN.CENTER, 0, 0)
+        ui.label(s, c["naam"], 82, 34, ui.INK, ui.font_title(), w=164)
+        ui.label(
+            s,
+            'bijnaam "%s" . LV.%d' % (st.get("bijnaam") or c["naam"], pet.level(bond)),
+            82,
+            58,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=210,
+        )
+        ui.heart_row(s, 82, 76, pet.hearts(bond), scale=2)
+        if self.fox_id in store.zelf_ids():
+            # the zelf-gevonden stamp: the hunter visited this one at home
+            art.draw_sprite(s, art.STAR, {"g": ui.GOLD}, 1).set_pos(206, 76)
+            ui.label(s, "zelf gevonden", 220, 77, ui.GOLD_D, ui.font_small())
+
+        # ── facts grid ───────────────────────────────────────────────────
+        facts = (
+            ("soort", c["soort"]),
+            ("biotoop", c["biotoop"]),
+            ("zeldzaam", _RARITY.get(c["rarity"], "?")),
+            ("1e vangst", st.get("date", "?")),
+            ("plek", st.get("place", "?")),
+            ("gezien", "%d keer" % st.get("sightings", 1)),
+        )
+        grid = ui.panel(s, 8, 104, 304, 64, ui.CARD)
+        colw = 138
+        for i, (k, v) in enumerate(facts):
+            cx = 8 + (i % 2) * 150
+            cy = 6 + (i // 2) * 18
+            ui.label(grid, k, cx, cy, ui.MYSTERY, ui.font_small())
+            vl = ui.label(grid, v, cx, cy, ui.INK, ui.font_small(), w=colw)
+            vl.set_style_text_align(lv.TEXT_ALIGN.RIGHT, 0)
+
+        # ── leuk weetje ──────────────────────────────────────────────────
+        weet = ui.panel(s, 8, 172, 304, 40, 0xEEF4D6)
+        weet.set_style_border_color(ui.hexc(ui.GREEN), 0)
+        ui.label(weet, "WEETJE", 8, 4, ui.GREEN_D, ui.font_small())
+        ui.label(weet, c["weetje"], 64, 4, ui.INK, ui.font_small(), w=228)
+
+        # ── bond progress to next level ──────────────────────────────────
+        lvl = pet.level(bond)
+        if lvl >= pet.LEVEL_MAX:
+            ui.label(
+                s, "max level!", 8, 218, ui.GOLD_D, ui.font_small(), w=304, center=True
+            )
+        else:
+            pct = pet.level_pct(bond)
+            ui.label(s, "naar LV.%d" % (lvl + 1), 8, 218, ui.INK, ui.font_small())
+            track = ui.box(s, 76, 218, 196, 14, 0xD8C9A4)
+            track.set_style_border_width(2, 0)
+            track.set_style_border_color(ui.hexc(ui.INK), 0)
+            fill = ui.box(track, 0, 0, max(2, int(196 * pct / 100)), 14, ui.GOLD)
+            fill.align(lv.ALIGN.LEFT_MID, 0, 0)
+            ui.label(
+                s, "%d%%" % pct, 276, 218, 0x5E6B44, ui.font_small(), w=40, center=True
+            )
+
+        self.setContentView(s)
+
+
+# ═════════════════════════ screen_feed ═════════════════════════
+# screen_feed.py — VOEREN: feed a caught creature a hapje FROM THE VOORRAAD.
+#
+# A stage with the creature + ENERGIE/HONGER bars, and a 3-food picker below
+# showing what the pantry actually holds. Food is the energy leg of the
+# chain — the favourite grants extra energie, band comes from spelen. An
+# empty jar stays visible ('ga plukken') instead of vanishing. Layout
+# follows the design (plukken.jsx PxVoer2).
+
+import lvgl as lv
+from mpos import Activity
+import ui
+import art
+import sound
+import store
+import pet
+from creatures import by_id
+
+_FOODS = (("bes", "Bes"), ("noot", "Noot"), ("eikel", "Eikel"))
+
+
+class FeedActivity(Activity):
+    def onCreate(self):
+        self.fox_id = self.getIntent().extras.get("fox_id", 0)
+        self.c = by_id(self.fox_id)
+        self._bubble_timer = None
+
+        s = ui.make_screen(0xDFEEBF)
+        ui.banner(s, "Voeren " + self.c["naam"], ui.GREEN)
+        self.total_l = ui.label(
+            s, "", 240, 8, ui.CREAM, ui.font_small(), w=72, center=True
+        )
+
+        # ── stage ────────────────────────────────────────────────────────
+        stage = ui.panel(s, 8, 32, 304, 116, ui.SURFACE_TINT)
+        sp = art.creature_panel(stage, self.c, 6)
+        sp.align(lv.ALIGN.BOTTOM_LEFT, 16, -2)
+        self.bubble = ui.label(stage, "", 8, 8, ui.INK, ui.font_label(), w=140)
+
+        # ENERGIE / HONGER bars, top-right inside the stage
+        self.energy_cells = self._bar(stage, 8, "ENERGIE")
+        self.hunger_cells = self._bar(stage, 28, "HONGER")
+        ui.label(
+            stage,
+            "voer vult energie",
+            160,
+            50,
+            ui.TEXT_MUTED,
+            ui.font_small(),
+            w=136,
+            center=True,
+        )
+
+        # ── voorraad picker ─────────────────────────────────────────────
+        fw = 97
+        picker = ui.row(s, 8, 154, 3 * fw + 2 * ui.GAP_M, 50, gap=ui.GAP_M)
+        self.tiles = {}
+        for food, lab in _FOODS:
+            fav = food == self.c.get("favoriet")
+            p = ui.panel(
+                picker,
+                0,
+                0,
+                fw,
+                50,
+                ui.CARD,
+                border=(ui.GOLD if fav else ui.BORDER_REST),
+            )
+            ic = art.icon(p, food, 2)
+            ic.set_pos(18, 9)
+            cnt = ui.label(p, "", 40, 9, ui.INK, ui.font_title())
+            if fav:
+                art.draw_sprite(p, art.HEART, {"k": 0x7A1F12, "r": 0xE0463A}, 1).align(
+                    lv.ALIGN.TOP_RIGHT, -4, 4
+                )
+            sub = ui.label(
+                p, lab, 0, 32, ui.INK, ui.font_small(), w=fw - 4, center=True
+            )
+            ui.focusable(p, on_click=lambda f=food: self._feed(f), focus_border=True)
+            self.tiles[food] = (p, ic, cnt, sub, lab)
+
+        # ── hint ─────────────────────────────────────────────────────────
+        hint = ui.panel(s, 8, 212, 304, 22, ui.CREAM)
+        ui.label(
+            hint,
+            "favoriet = meer energie - band komt van spelen",
+            0,
+            3,
+            ui.INK,
+            ui.font_small(),
+            w=304,
+            center=True,
+        )
+
+        self.setContentView(s)
+        self._refresh()
+
+    def onResume(self, screen):
+        super().onResume(screen)
+        self._refresh()
+
+    def _bar(self, parent, y, text):
+        ui.label(parent, text, 160, y, ui.INK, ui.font_small())
+        cells = []
+        for i in range(5):
+            c = ui.box(parent, 224 + i * 15, y, 12, 11, ui.DORMANT)
+            c.set_style_border_width(ui.BORDER_THIN, 0)
+            c.set_style_border_color(ui.hexc(ui.INK), 0)
+            cells.append(c)
+        return cells
+
+    def _set_bar(self, cells, lit, color):
+        for i, c in enumerate(cells):
+            c.set_style_bg_color(ui.hexc(color if i < lit else ui.DORMANT), 0)
+
+    def _refresh(self):
+        st = store.beast_state(self.fox_id)
+        if st is None:
+            return
+        self._set_bar(self.energy_cells, pet.energy_segments(st["energy"]), ui.GREEN)
+        self._set_bar(self.hunger_cells, pet.segments(st["hunger"]), ui.TERRA)
+        v = store.voorraad()
+        self.total_l.set_text("%d voer" % store.voorraad_total())
+        for food, (p, ic, cnt, sub, lab) in self.tiles.items():
+            n = v.get(food, 0)
+            cnt.set_text(str(n))
+            p.set_style_bg_color(ui.hexc(ui.CARD if n else ui.DORMANT), 0)
+            ic.set_style_opa(lv.OPA.COVER if n else 115, 0)
+            sub.set_text(lab if n else "ga plukken")
+            sub.set_style_text_color(ui.hexc(ui.INK if n else ui.MYSTERY), 0)
+
+    def _feed(self, food):
+        st, ok, msg, is_fav = store.do_feed(self.fox_id, food)
+        if st is None:
+            return
+        sound.play("caught" if is_fav else "tap" if ok else "error")
+        self._refresh()
+        self._flash(msg)
+
+    def _flash(self, text):
+        self.bubble.set_text(text)
+        if self._bubble_timer:
+            self._bubble_timer.delete()
+        self._bubble_timer = lv.timer_create(self._clear, 1100, None)
+
+    def _clear(self, t):
+        t.delete()
+        self._bubble_timer = None
+        self.bubble.set_text("")
+
+    def onDestroy(self, screen):
+        super().onDestroy(screen)
+        # The flash timer must not outlive the screen: teardown deletes the
+        # bubble, and a surviving timer would set_text on freed memory —
+        # feed, back-swipe within the 1.1s window, crash.
+        if self._bubble_timer:
+            self._bubble_timer.delete()
+            self._bubble_timer = None
+
+
+# ═════════════════════════ screen_games ═════════════════════════
 # screen_games.py — the beestenschool mini-games: VLIEGEN, VANGEN, DANSEN.
 #
 # Every game is the same contract: the school gates and launches it with
@@ -830,3 +1269,328 @@ class DansActivity(GameActivity):
                 return
             self.state = "pause"
             self.t = 0
+
+
+# ═════════════════════════ screen_school ═════════════════════════
+# screen_school.py — BEESTENSCHOOL: pick a game, spend energy, earn band.
+#
+# Layout follows the design (plukken.jsx PxSchool / PxSchoolMoe). Spelen is
+# the bond leg of the economy chain: the tired state is the playful rate
+# limit ("eerst een hapje?"), never a punishment. Picking a game launches
+# the real mini-game (screen_games); the game itself pays the energy and
+# banks the band through store.do_play when the session starts.
+#
+# The design's third tile was DOOLHOF (tilt maze), but the IMU has no
+# spike yet — VANGEN (tap to turn, catch the falling rings) takes its
+# slot until it does.
+
+import lvgl as lv
+from mpos import Activity, Intent
+import ui
+import art
+import sound
+import store
+import pet
+from creatures import by_id
+
+# (game id, icon, naam, energy cost in segments, subtitle)
+GAMES = (
+    ("vlieg", "vlieg", "VLIEGEN", 2, "ontwijk de takken"),
+    ("vang", "ring", "VANGEN", 1, "vang de ringen"),
+    ("dans", "dans", "DANSEN", 1, "doe de pasjes na"),
+)
+_GAME_ACT = {"vlieg": VliegActivity, "vang": VangActivity, "dans": DansActivity}
+
+
+def favourite_game(cid):
+    """Each creature favours one game, stably, without a roster field —
+    flying beasts don't exist as data, so the id decides. A favourite grants
+    extra band (pet.play) and wears the gold frame."""
+    return GAMES[cid % len(GAMES)][0]
+
+
+class SchoolActivity(Activity):
+    def onCreate(self):
+        self.fox_id = self.getIntent().extras.get("fox_id", 0)
+        self.c = by_id(self.fox_id)
+        self._fresh = True
+        self.screen = ui.make_screen(ui.PAPER)
+        self._populate()
+        self.setContentView(self.screen)
+
+    def onResume(self, screen):
+        super().onResume(screen)
+        if self._fresh:
+            self._fresh = False
+            return
+        self._rebuild()
+
+    def _rebuild(self):
+        self.screen.clean()
+        self._populate()
+
+    def _populate(self):
+        s = self.screen
+        st = store.beast_state(self.fox_id)
+        if st is None:
+            return
+        # Show complete spendable units so one lit cell always pays for a
+        # one-energy game. Affordability still gates on exact energy points.
+        energie = st["energy"]
+        segs = pet.energy_segments(energie)
+        cheapest = min(g[3] for g in GAMES)
+        moe = energie < store.play_cost(cheapest, st) * pet.SEG
+        naam = st.get("bijnaam") or self.c["naam"]
+        fav = favourite_game(self.fox_id)
+
+        ui.banner(s, "BEESTENSCHOOL", ui.GREEN, right="energie %d/5" % segs)
+
+        # the playful refusal, when moe
+        note = "%s is moe - eerst een hapje?" % naam if moe else None
+        if note:
+            bub = ui.panel(s, 8, 30, 304, 24, ui.CREAM)
+            ui.label(bub, note, 0, 3, ui.INK, ui.font_label(), w=300, center=True)
+
+        # creature column
+        top = 58 if note else 34
+        stage = ui.panel(s, 8, top, 96, 112 - (top - 34), ui.SURFACE_SOFT)
+        sp = art.creature_panel(stage, self.c, 4, animate=not moe)
+        sp.align(lv.ALIGN.BOTTOM_MID, 0, -4)
+        if moe:
+            sp.set_style_opa(180, 0)
+        ui.label(s, naam, 8, 152, ui.INK, ui.font_label())
+        ui.label(s, "ENERGIE", 8, 170, ui.MYSTERY, ui.font_small())
+        for i in range(5):
+            cell = ui.box(
+                s,
+                8 + i * 17,
+                184,
+                14,
+                12,
+                (ui.TERRA if moe else ui.GREEN) if i < segs else ui.DORMANT,
+            )
+            cell.set_style_border_width(ui.BORDER_THIN, 0)
+            cell.set_style_border_color(ui.hexc(ui.INK), 0)
+        ui.label(
+            s,
+            "te weinig energie" if moe else "spelen geeft band",
+            8,
+            202,
+            ui.MYSTERY,
+            ui.font_small(),
+            w=96,
+        )
+
+        # game tiles
+        tile_h = 40 if note else 52
+        y = top
+        for gid, icon, gnaam, kost, sub in GAMES:
+            echte_kost = store.play_cost(kost, st)
+            kan = not moe and energie >= echte_kost * pet.SEG
+            is_fav = gid == fav
+            tile = ui.panel(
+                s,
+                112,
+                y,
+                200,
+                tile_h,
+                ui.CARD if kan else ui.DORMANT,
+                border=(ui.GOLD if (is_fav and kan) else ui.BORDER_REST),
+                bw=ui.BORDER,
+            )
+            ic = art.icon(tile, icon, 3)
+            ic.set_pos(6, (tile_h - 24) // 2 - 2)
+            if not kan:
+                ic.set_style_opa(115, 0)
+            ui.label(tile, gnaam, 38, 5, ui.INK if kan else ui.MYSTERY, ui.font_label())
+            if is_fav:
+                art.icon(tile, "spark", 1).set_pos(96, 7)
+                ui.label(tile, "favoriet", 106, 6, ui.GOLD_D, ui.font_small())
+            ui.label(tile, sub, 38, tile_h - 18, ui.MYSTERY, ui.font_small())
+            ui.label(
+                tile,
+                "gratis" if echte_kost == 0 else "-%d" % echte_kost,
+                150,
+                4,
+                ui.TERRA if kan else ui.MYSTERY,
+                ui.font_label(),
+                w=44,
+                center=True,
+            )
+            ui.label(
+                tile,
+                "energie" if echte_kost else "spelen",
+                150,
+                20,
+                ui.MYSTERY,
+                ui.font_small(),
+                w=44,
+                center=True,
+            )
+            if kan:
+                ui.focusable(
+                    tile,
+                    on_click=lambda g=gid, k=kost, f=is_fav: self._play(g, k, f),
+                    focus_border=True,
+                )
+            else:
+                ui.focusable(tile, focus_border=True)  # navigable, inert
+            y += tile_h + ui.GAP_M
+
+        # bottom right: the way out of moe, or the standing hint
+        if moe:
+            btn = ui.panel(s, 112, 208, 200, 26, ui.GREEN)
+            ui.label(
+                btn, "EERST VOEREN", 0, 5, ui.CREAM, ui.font_label(), w=196, center=True
+            )
+            ui.focusable(btn, on_click=self._feed)
+        else:
+            hint = ui.panel(s, 112, 208, 200, 26, ui.CREAM)
+            ui.label(
+                hint,
+                "kies een spel",
+                0,
+                5,
+                ui.INK,
+                ui.font_small(),
+                w=196,
+                center=True,
+            )
+
+    def _play(self, game, kost, is_fav):
+        # launch the real game; it pays the energy and banks the band
+        # (store.do_play) itself, and shows the score + reaction on its end
+        # card. Returning here rebuilds, so the meters are already fresh.
+        sound.play("tap")
+        self.startActivity(
+            Intent(
+                activity_class=_GAME_ACT[game],
+                extras={"fox_id": self.fox_id, "kost": kost, "fav": is_fav},
+            )
+        )
+
+    def _feed(self):
+        sound.play("tap")
+        self.startActivity(
+            Intent(activity_class=FeedActivity, extras={"fox_id": self.fox_id})
+        )
+
+
+# ═════════════════════════ screen_boekje ═════════════════════════
+# screen_boekje.py — VRIENDENBOEKJE: one page per first-ever meeting.
+#
+# The permanent layer under the daily vonk: never decays, grows all weekend.
+# Every kid knows the friend-book ritual — meetings as memories, never as
+# "collecting people". Layout follows the design (verzamelen.jsx PxBoekje /
+# PxBoekjeLeeg).
+
+import lvgl as lv
+from mpos import Activity
+import ui
+import art
+import sound
+import store
+import companion
+
+_AVATAR_BG = 0xCFE0EA
+_CELL_W, _CELL_H, _GAP = 99, 60, 5
+_MAAND = (
+    "jan",
+    "feb",
+    "mrt",
+    "apr",
+    "mei",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "okt",
+    "nov",
+    "dec",
+)
+
+
+def _dag_label(dag):
+    """'2026-08-04' -> '4 aug' — the full ISO date doesn't fit the card and
+    the year is always this year anyway."""
+    try:
+        _, m, d = dag.split("-")
+        return "%d %s" % (int(d), _MAAND[int(m) - 1])
+    except (ValueError, IndexError):
+        return dag
+
+
+class BoekjeActivity(Activity):
+    def onCreate(self):
+        vrienden = store.vrienden()
+        s = ui.make_screen(ui.PAPER)
+        n = len(vrienden)
+        ui.banner(
+            s,
+            "VRIENDENBOEKJE",
+            ui.GREEN,
+            right="%d %s" % (n, "maatje" if n == 1 else "maatjes"),
+        )
+        if vrienden:
+            self._grid(s, vrienden)
+        else:
+            self._empty(s)
+        self.setContentView(s)
+
+    def _grid(self, s, vrienden):
+        grid = ui.row(s, 6, 34, 3 * _CELL_W + 2 * _GAP + 2, 200, gap=_GAP, wrap=True)
+        grid.add_flag(lv.obj.FLAG.SCROLLABLE)
+        grid.set_scroll_dir(lv.DIR.VER)
+        for f in vrienden:
+            card = ui.panel(grid, 0, 0, _CELL_W, _CELL_H, ui.CARD)
+            head, accs, bg = companion.decode(f.get("code", ""))
+            ava = ui.box(card, 3, 7, 40, 40, companion.BGS[bg])
+            # 48px companion in a 40px opening: transparent margin falls off
+            # the edges, the face stays centred (same crop as the home header)
+            companion.draw(ava, head, accs, 3, x=-4, y=-4)
+            ui.label(card, f.get("naam", "?"), 49, 12, ui.INK, ui.font_label())
+            ui.label(
+                card, _dag_label(f.get("dag", "")), 49, 30, ui.MYSTERY, ui.font_small()
+            )
+            ui.focusable(card, focus_border=True)  # navigable, inert
+
+    def _empty(self, s):
+        p = ui.panel(s, 20, 48, 280, 140, ui.CARD)
+        art.icon(p, "spark", 2).set_pos(16, 14)
+        art.icon(p, "spark", 2).set_pos(248, 26)
+        art.icon(p, "boek", 5).align(lv.ALIGN.TOP_MID, 0, 14)
+        ui.label(
+            p, "Nog niemand ontmoet", 0, 66, ui.INK, ui.font_title(), w=276, center=True
+        )
+        ui.label(
+            p,
+            "elke nieuwe snuffel geeft je",
+            0,
+            96,
+            ui.MYSTERY,
+            ui.font_small(),
+            w=276,
+            center=True,
+        )
+        ui.label(
+            p,
+            "een pagina in dit boekje",
+            0,
+            110,
+            ui.MYSTERY,
+            ui.font_small(),
+            w=276,
+            center=True,
+        )
+        btn = ui.panel(s, 20, 200, 280, 32, ui.GREEN)
+        art.icon(btn, "snuf", 1).set_pos(70, 6)
+        ui.label(
+            btn, "GA SNUFFELEN", 0, 8, ui.CREAM, ui.font_label(), w=276, center=True
+        )
+        ui.focusable(btn, on_click=self._terug)
+
+    def _terug(self):
+        # the boekje is only reachable from the snuffelscherm, so back IS
+        # "ga snuffelen" — no circular import needed
+        sound.play("tap")
+        self.finish()

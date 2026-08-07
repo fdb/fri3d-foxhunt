@@ -1,50 +1,20 @@
-import importlib.util
-import sys
-import types
 import unittest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-
-ASSETS = Path(__file__).parents[1] / "be.fri3d.foxhunt" / "assets"
-sys.path.insert(0, str(ASSETS))
+from hunt_loader import load_screens_hunt
 
 
 class PlukScreenTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.store = MagicMock()
-        cls.sound = MagicMock()
+        cls.module, stubs = load_screens_hunt("screens_hunt_pluk_under_test")
+        cls.store = stubs["store"]
+        cls.sound = stubs["sound"]
         # leds.py merged into sound.py: the app's `import sound as leds`
         # resolves both names to one module, so one mock serves both.
         cls.leds = cls.sound
-
-        mpos = types.ModuleType("mpos")
-        mpos.Activity = type("Activity", (), {})
-
-        pluk_radio = types.ModuleType("pluk_radio")
-        pluk_radio.RADIO = MagicMock()
-        pluk_radio.SSID = "fri3d-badge"
-        pluk_radio.PLUK_LEVEL = 4
-        pluk_radio.yield_for = MagicMock(return_value={"bes": 2, "noot": 0})
-        cls.pluk_radio = pluk_radio
-
-        modules = {
-            "lvgl": MagicMock(),
-            "mpos": mpos,
-            "ui": MagicMock(),
-            "art": MagicMock(),
-            "leds": cls.leds,
-            "sound": cls.sound,
-            "store": cls.store,
-            "pluk_radio": pluk_radio,
-        }
-        spec = importlib.util.spec_from_file_location(
-            "screen_pluk_under_test", ASSETS / "screen_pluk.py"
-        )
-        cls.module = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, modules):
-            spec.loader.exec_module(cls.module)
+        cls.pluk_radio = stubs["pluk_radio"]
+        cls.pluk_radio.yield_for = MagicMock(return_value={"bes": 2, "noot": 0})
 
     def setUp(self):
         self.store.reset_mock()

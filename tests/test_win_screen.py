@@ -1,17 +1,12 @@
-import importlib.util
-import sys
 import types
 import unittest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-
-ASSETS = Path(__file__).parents[1] / "be.fri3d.foxhunt" / "assets"
+from hunt_loader import load_screens_hunt
 
 
 class WinScreenTest(unittest.TestCase):
     def _load(self, creature, extras):
-        lvgl = MagicMock()
         ui = MagicMock()
         screen = MagicMock()
         ui.make_screen.return_value = screen
@@ -25,6 +20,7 @@ class WinScreenTest(unittest.TestCase):
 
         mpos = types.ModuleType("mpos")
         mpos.Activity = Activity
+        mpos.Intent = type("Intent", (), {})
         mpos.ui = MagicMock()
 
         creatures = types.ModuleType("creatures")
@@ -34,22 +30,14 @@ class WinScreenTest(unittest.TestCase):
         celebrate.Fireworks = MagicMock()
         celebrate.Stardust = MagicMock()
 
-        modules = {
-            "lvgl": lvgl,
-            "mpos": mpos,
-            "mpos.ui": mpos.ui,
-            "ui": ui,
-            "art": MagicMock(),
-            "creatures": creatures,
-            "celebrate": celebrate,
-        }
-        spec = importlib.util.spec_from_file_location(
-            "screen_win_under_test", ASSETS / "screen_win.py"
+        module, _ = load_screens_hunt(
+            "screens_hunt_win_under_test",
+            mpos=mpos,
+            **{"mpos.ui": mpos.ui},
+            ui=ui,
+            creatures=creatures,
+            celebrate=celebrate,
         )
-        module = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, modules):
-            spec.loader.exec_module(module)
-
         return module, celebrate, screen
 
     def test_legendary_refind_keeps_legendary_payoff_and_package(self):
