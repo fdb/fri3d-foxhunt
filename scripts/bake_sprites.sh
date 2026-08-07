@@ -28,6 +28,7 @@
 #   scripts/bake_sprites.sh            # (re-)bake everything, prune orphans
 #   scripts/bake_sprites.sh --check    # report drift, change nothing
 #                                      # (exit 1 if out of date — CI)
+import io
 import sys
 from pathlib import Path
 
@@ -78,6 +79,37 @@ def frames(im):
     ]
 
 
+def shrink_png(im, original):
+    """Re-encode a mirrored PNG as a palette PNG, lossless for the badge.
+
+    The panel is RGB565: it truncates every channel to 5/6 bits at scan-out,
+    so rounding each pixel to its 565 representative changes nothing the
+    badge can show — and it collapses anti-aliasing gradients to a handful
+    of colours (the title banner: 2368 -> 61, 44 KB -> 12 KB). Falls back
+    to the original bytes when the result has too many colours for a
+    palette or would not actually be smaller (the desktop emulator shows
+    the same file, so it too renders the 565-rounded image — which is what
+    the badge always showed)."""
+    rgba = im.convert("RGBA")
+    rounded = [
+        ((r >> 3) * 255 // 31, (g >> 2) * 255 // 63, (b >> 3) * 255 // 31, a)
+        for r, g, b, a in rgba.getdata()
+    ]
+    colours = sorted(set(rounded))
+    if len(colours) > 256:
+        return original
+    # Index against the exact colour set — Image.convert("P", ADAPTIVE) is
+    # median-cut and merges colours even when they all fit the palette.
+    index = {c: i for i, c in enumerate(colours)}
+    pal = Image.new("P", rgba.size)
+    pal.putdata([index[c] for c in rounded])
+    pal.putpalette([v for c in colours for v in c], rawmode="RGBA")
+    buf = io.BytesIO()
+    pal.save(buf, "PNG", optimize=True)
+    data = buf.getvalue()
+    return data if len(data) < len(original) else original
+
+
 def bake():
     """Compute every output in memory: ({relpath under assets: bytes},
     [sprites skipped as unaddressable])."""
@@ -102,7 +134,7 @@ def bake():
                 for f in fr:
                     blob += f
             else:
-                mirror[rel] = png.read_bytes()
+                mirror[rel] = shrink_png(im, png.read_bytes())
     out = dict(mirror)
     out[BIN.name] = bytes(blob)
     out[INDEX.name] = (INDEX_HEADER + "".join(index_lines) + "}\n").encode()
