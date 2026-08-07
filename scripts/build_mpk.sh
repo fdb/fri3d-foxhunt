@@ -22,6 +22,13 @@ cd "$(dirname "$0")/.."
 #   - art_fast.mpy carries xtensawin native code. On any non-ESP32-S3 device
 #     its import fails, which art.py already catches (desktop fallback).
 #
+# STRIPPED harder than the USB deploy: -O3, not -O2. The only difference is
+# the line-number table — the deploy keeps it because a badge on your desk
+# should give line-numbered tracebacks, but a store install lands on badges
+# whose free space we cannot control, and there size wins (~6% smaller).
+# A field traceback from a store install still names module + function,
+# just not the line.
+#
 # The zip recipe matches bundle_apps.sh byte-for-byte where it matters:
 # stored (-0) because that is the proven streaming-unzip path, no extra
 # attributes (-X), fixed mtimes and sorted entries so the same tree always
@@ -48,7 +55,7 @@ cp -R "$APP_SRC" "$STAGE"
 find "$STAGE" -name '__pycache__' -type d -prune -exec rm -rf {} +
 find "$STAGE" -name '.DS_Store' -delete
 while IFS= read -r f; do
-    "$MPY_CROSS" -s "${f#"$STAGE/"}" -O2 -march=xtensawin -o "${f%.py}.mpy" "$f"
+    "$MPY_CROSS" -s "${f#"$STAGE/"}" -O3 -march=xtensawin -o "${f%.py}.mpy" "$f"
     rm "$f"
 done < <(find "$STAGE" -name '*.py' -type f)
 
