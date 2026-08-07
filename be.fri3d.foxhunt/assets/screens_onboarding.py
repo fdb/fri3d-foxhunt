@@ -4,8 +4,10 @@
 # restore (herstel mijn account). Seven screens merged into one file for
 # LittleFS block economy (see CLAUDE.md, "Size budget"); each section
 # below keeps its original header. Repeated imports between sections are
-# harmless (sys.modules lookups); shared style constants (STRIP_BG,
-# ERR_*, GOLD_INK) are identical duplicates kept with their screens.
+# harmless (sys.modules lookups). Style constants stay with their screens,
+# but a later section must NOT rebind an earlier section's bare name — it
+# prefixes its own copy instead (RESTORE_*, STARTER_*), because the module
+# namespace is flat and the later binding silently wins at runtime.
 
 
 # ═════════════════════════ screen_welcome ═════════════════════════
@@ -1285,11 +1287,11 @@ import registrar
 from registrar import REGISTRAR
 
 ASK_BG = 0xDFEEBF  # same green wash as the send screen: same moment in the flow
-STRIP_BG = 0xEFE7D0
-ERR_BG = 0xF2E3CD
-ERR_PANEL = 0xFBE4D6
-ERR_FOOT_BG = 0xF9F1E2
-ERR_FOOT_TX = 0x8A6A4E
+RESTORE_STRIP_BG = 0xEFE7D0
+RESTORE_ERR_BG = 0xF2E3CD
+RESTORE_ERR_PANEL = 0xFBE4D6
+RESTORE_ERR_FOOT_BG = 0xF9F1E2
+RESTORE_ERR_FOOT_TX = 0x8A6A4E
 
 # no-luck copy, keyed by what went wrong. "unknown" is not an error — the badge
 # is simply new — so it gets the softer banner and points at registration.
@@ -1333,7 +1335,7 @@ class RestoreActivity(Activity):
             w=256,
         )
 
-        strip = ui.panel(s, ui.PAD, 96, 304, 22, bg=STRIP_BG)
+        strip = ui.panel(s, ui.PAD, 96, 304, 22, bg=RESTORE_STRIP_BG)
         ui.label(strip, "BADGE ID", 6, 3, ui.MYSTERY, ui.font_small())
         ui.label(strip, self.badge, 64, 3, ui.INK, ui.font_small())
 
@@ -1397,7 +1399,7 @@ class RestoreActivity(Activity):
             center=True,
         )
 
-        strip = ui.panel(s, 80, 148, 160, 22, bg=STRIP_BG)
+        strip = ui.panel(s, 80, 148, 160, 22, bg=RESTORE_STRIP_BG)
         art.icon(strip, "ant", 1).set_pos(6, 6)
         ui.label(strip, "JAGER ID", 20, 3, ui.MYSTERY, ui.font_small())
         ui.label(strip, st.get("hunter_id") or "volgt", 82, 3, ui.INK, ui.font_small())
@@ -1440,7 +1442,7 @@ class RestoreActivity(Activity):
     def _build_no_luck(self, code):
         s = self.screen
         s.clean()
-        s.set_style_bg_color(ui.hexc(ERR_BG), 0)
+        s.set_style_bg_color(ui.hexc(RESTORE_ERR_BG), 0)
         text, detail = _NO_LUCK[code]
         unknown = code == "unknown"
         if unknown:
@@ -1448,7 +1450,7 @@ class RestoreActivity(Activity):
         else:
             ui.banner(s, "HERSTEL MISLUKT", ui.TERRA, right=code)
 
-        panel = ui.panel(s, ui.PAD, 44, 304, 60, bg=ERR_PANEL, border=ui.TERRA)
+        panel = ui.panel(s, ui.PAD, 44, 304, 60, bg=RESTORE_ERR_PANEL, border=ui.TERRA)
         art.icon(panel, "st_bad" if not unknown else "st_wait", 2).set_pos(8, 20)
         ui.label(panel, text, 34, 5, ui.INK, ui.font_small(), w=258)
 
@@ -1475,13 +1477,13 @@ class RestoreActivity(Activity):
         bl.align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(back, on_click=self._back)
 
-        foot = ui.panel(s, ui.PAD, 216, 304, 20, bg=ERR_FOOT_BG)
+        foot = ui.panel(s, ui.PAD, 216, 304, 20, bg=RESTORE_ERR_FOOT_BG)
         ui.label(
             foot,
             "%s - badge %s" % (detail, self.badge[-5:]),
             0,
             2,
-            ERR_FOOT_TX,
+            RESTORE_ERR_FOOT_TX,
             ui.font_small(),
             w=300,
             center=True,
@@ -1537,7 +1539,7 @@ from creatures import by_id
 
 BG = 0x20301C
 TEXT_SOFT = 0xBCD0A4
-GOLD_INK = 0x3A2A0C
+STARTER_GOLD_INK = 0x3A2A0C
 
 
 class StarterActivity(Activity):
@@ -1565,7 +1567,9 @@ class StarterActivity(Activity):
         btn = ui.box(s, 84, 202, 152, 26, ui.GOLD, radius=3)
         btn.set_style_border_width(2, 0)
         btn.set_style_border_color(ui.hexc(ui.INK), 0)
-        bl = ui.label(btn, text, 0, 0, GOLD_INK, ui.font_title(), w=152, center=True)
+        bl = ui.label(
+            btn, text, 0, 0, STARTER_GOLD_INK, ui.font_title(), w=152, center=True
+        )
         bl.align(lv.ALIGN.CENTER, 0, 0)
         ui.focusable(btn, on_click=cb)
 
