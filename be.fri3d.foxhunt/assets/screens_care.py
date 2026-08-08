@@ -542,15 +542,20 @@ class GameActivity(Activity):
                     self.toast_l.set_text("")
             self.step()
 
-    def take_treat(self):
+    def take_treat(self, food=None):
         """Collect a hapje found mid-game: bank it, say so, score it.
 
         `store.add_food` writes through its OWN SharedPreferences instance, so
         it may only ever run where nothing else holds an editor. Here that is
         true at any moment: the play session was committed back in onCreate and
         no game keeps a pending write, so banking on the spot is safe — and it
-        means a player who walks out mid-round still keeps what they caught."""
-        food = random.choice(store.FOODS)
+        means a player who walks out mid-round still keeps what they caught.
+
+        `food` is the hapje actually on screen and caught (each game stores it
+        on the falling item): naming the toast with a fresh pick would show
+        different fruit from the icon the player just grabbed."""
+        if food is None:
+            food = random.choice(store.FOODS)
         store.add_food(food)
         sound.play("caught")
         self.toast_l.set_text("+1 %s!" % food)
@@ -832,9 +837,11 @@ class VliegActivity(GameActivity):
             self._treat_in -= 1
             if self._treat_in <= 0 and self.treats:
                 self._treat_in = random.randrange(*_VLIEG_TREAT)
-                t = art.icon(s, random.choice(store.FOODS), 2)
+                _f = random.choice(store.FOODS)
+                t = art.icon(s, _f, 2)
                 t.set_pos(320 + 5, gap_y - _TREAT_PX // 2)
                 self.obs[-1]["treat"] = t
+                self.obs[-1]["treat_food"] = _f
         for o in self.obs[:]:
             o["x"] -= 3.0
             x = int(o["x"])
@@ -855,7 +862,7 @@ class VliegActivity(GameActivity):
                 ):
                     t.delete()
                     o["treat"] = None
-                    self.take_treat()
+                    self.take_treat(o.pop("treat_food", None))
             if not o["passed"] and x + 26 < _BIRD_X:
                 o["passed"] = True
                 self.set_score(self.score + 1)
@@ -1055,15 +1062,24 @@ class VangActivity(GameActivity):
             if self._treat_in <= 0 and self.treats:
                 # worth 0 marks the hapje: it pays a pantry item, not points
                 self._treat_in = random.randrange(*_VANG_TREAT)
-                w, worth = art.icon(self.screen, random.choice(store.FOODS), 3), 0
+                _f = random.choice(store.FOODS)
+                w, worth = art.icon(self.screen, _f, 3), 0
             else:
                 kind = _ring_kind()
                 w = art.draw_sprite(self.screen, art.RING, art.RING_PALS[kind], 3)
                 worth = kind + 1
+                _f = None
             x = self._drop_x(vy)
             w.set_pos(x, _DROP_Y)
             self.items.append(
-                {"w": w, "x": x, "y": float(_DROP_Y), "vy": vy, "worth": worth}
+                {
+                    "w": w,
+                    "x": x,
+                    "y": float(_DROP_Y),
+                    "vy": vy,
+                    "worth": worth,
+                    "food": _f,
+                }
             )
         for it in self.items[:]:
             it["y"] += it["vy"]
@@ -1080,7 +1096,7 @@ class VangActivity(GameActivity):
                     sound.play("tap")
                     self.set_score(self.score + it["worth"])
                 else:
-                    self.take_treat()
+                    self.take_treat(it["food"])
             elif it["y"] > _GONE_Y:
                 it["w"].delete()
                 self.items.remove(it)
@@ -1160,6 +1176,7 @@ class DansActivity(GameActivity):
         self._dim_t = 0
         self.treat = None
         self.treat_i = None
+        self.treat_food = None
 
     def _seed_treat(self):
         if not self.treats or self.treat is not None:
@@ -1168,7 +1185,8 @@ class DansActivity(GameActivity):
             return
         self.treat_i = random.randrange(4)
         dx, dy, _ = _DANCE_MOVES[self.treat_i]
-        self.treat = art.icon(self.screen, random.choice(store.FOODS), 2)
+        self.treat_food = random.choice(store.FOODS)
+        self.treat = art.icon(self.screen, self.treat_food, 2)
         self.treat.set_pos(_DANCE_X + dx + 16, _DANCE_Y + dy + 16)
         self.beast.move_foreground()  # the beast steps ON the hapje, not under it
 
@@ -1254,7 +1272,8 @@ class DansActivity(GameActivity):
             self.treat.delete()
             self.treat = None
             self.treat_i = None
-            self.take_treat()
+            self.take_treat(self.treat_food)
+            self.treat_food = None
         self.inp += 1
         if self.inp >= len(self.seq):
             self.set_score(len(self.seq) + self._bonus)
