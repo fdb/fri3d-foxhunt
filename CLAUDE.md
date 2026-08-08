@@ -151,6 +151,71 @@ identifiers and player-facing copy remain consistent.
 Retired words: **mascot** (say companion), **mascotte** (say maatje) — except
 as a citation of the original design bundle file `mascotte.jsx`.
 
+## Where things live
+Screens are merged into four 1.2-1.7k-line flow modules (see Size budget), so a
+filename never names a screen. Find the symbol below and grep for it; don't skim
+a whole module. Badge paths are under `be.fri3d.foxhunt/assets/`.
+
+**Screens** — every one is an `Activity`; the Dutch word is what the UI says.
+
+| Screen / thing the player sees | Module → symbol |
+| --- | --- |
+| welkom banner, herstel-link | `screens_onboarding` → `WelcomeActivity` |
+| uitleg (jager vs verzamelaar) | `screens_onboarding` → `UitlegActivity` |
+| naam typen (keyboard) | `screens_onboarding` → `RegisterActivity` |
+| maatje bouwen (kop/accessoires/achtergrond) | `screens_onboarding` → `CompanionActivity` |
+| inschrijven, "BADGE AL BEKEND" fork, resync | `screens_onboarding` → `RegSendActivity` (`_build_exists`) |
+| herstel van de server | `screens_onboarding` → `RestoreActivity` |
+| startbeest | `screens_onboarding` → `StarterActivity` |
+| home (kaarten, buren, bezoeker-poll) | `screens_system` → `HomeActivity` |
+| profiel, score | `screens_system` → `ProfileActivity` |
+| instellingen (schakelaars, LED/geluid, WORD JAGER, `version @ commit`) | `screens_system` → `SettingsActivity`, `_Toggle`, `_build_info` |
+| debug (5× tik op badge-id) | `screens_system` → `DebugActivity` |
+| ALLES WISSEN | `screens_system` → `WipeActivity` |
+| beest (stats, acties) | `screens_care` → `BeastActivity` |
+| dossier | `screens_care` → `DossierActivity` |
+| voeren | `screens_care` → `FeedActivity` |
+| school (spel kiezen, favoriet) | `screens_care` → `SchoolActivity`, `GAMES`, `favourite_game` |
+| **VLIEGEN** | `screens_care` → `VliegActivity` |
+| **VANGEN** | `screens_care` → `VangActivity` |
+| **DANSEN** | `screens_care` → `DansActivity` |
+| shared game scaffolding (tick loop, scenery, treats) | `screens_care` → `GameActivity`, `_scenery` |
+| boekje (roster-grid) | `screens_care` → `BoekjeActivity` |
+| jacht / kompas | `screens_hunt` → `HuntActivity` |
+| viercijferige code intypen | `screens_hunt` → `CodeActivity` |
+| gevangen! (win + vuurwerk) | `screens_hunt` → `WinActivity` |
+| snuffelen (badge↔badge), vonk-payoff | `screens_hunt` → `SnuffelActivity`, `VonkActivity` |
+| plukken (wifi-BSSID) | `screens_hunt` → `PlukActivity` |
+| bezoeker | `screens_hunt` → `VisitorActivity` |
+
+**Logic, art, radios** — one concern per file.
+
+| Concern | File |
+| --- | --- |
+| app entry: onboarding-vs-home routing, launch resync | `foxhunt.py` (`FoxhuntActivity`) |
+| ALL persistence — profiel, vangsten, voorraad, vlaggen, outbox, bezoekers, vonk-log, pluk-fase, debug-ontgrendeling | `store.py` |
+| care math (bond/energy/hunger, decay, feed, play) — pure, no LVGL | `pet.py` |
+| roster: namen, tiers, art-keys, starter | `creatures.py` |
+| maatje: shortcode encode/decode, `HEADS`/`ACCS`/`BGS`, `draw` | `companion.py` |
+| sprites, atlas, icons, `creature_panel`, animatie | `art.py` (+ generated `atlas.py`, viper blit `art_fast.py`) |
+| kleuren, fonts, `box`/`panel`/`row`/`banner`/`seg_bar`, focus | `ui.py` |
+| server HTTP, `badge_id`, `has_lora`, `adopt`, `resync`, outbox flush | `registrar.py` |
+| geluid **and** LEDs | `sound.py` (call sites do `import sound as leds`) |
+| ESP-NOW peer discovery (snuffel transport) | `snuffel_link.py` |
+| wifi scan (pluk transport) | `pluk_radio.py` |
+| LoRa vos-ontvangst — stub | `fox_radio.py` |
+| vuurwerk / stardust animaties | `celebrate.py` |
+
+**Server** (`server/src/`): `routes/auth.ts` = `/api/v1/auth/{register,starter,hunter,user}`;
+`routes/player.ts` = `/api/v1/player/{found,snuffel,pluk,visitor}`; `routes/pages.tsx` =
+`/`, `/scores`, `/debug/*` (rendered via `components/{Layout,Home,Companion}.tsx`);
+`lib/` = badge ports and helpers (`creatures.ts`, `companion.ts`, `companion-art.ts`
+generated, `starter.ts`, `events.ts`, `validate.ts`).
+
+**Not where you'd guess:** there is no `sync.py` (in `registrar.py`), no `leds.py`
+(in `sound.py`), no `debug_unlock.py` (in `store.py`), no `visitors.py` (logic in
+`store.py`, screen in `screens_hunt`), and no per-screen file at all.
+
 ## Size budget
 The badge's whole user filesystem is a 7 MiB LittleFS partition, and a factory
 badge arrives with it nearly full: `roms/` alone holds ~3.8 MB and the OS the
