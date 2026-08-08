@@ -11,6 +11,8 @@
 
 import lvgl as lv
 import random
+import time
+from collections import deque
 from creatures import CREATURES
 import lora
 
@@ -31,28 +33,90 @@ def rssi_to_bpm(rssi):
 
     A plain offset, no scaling — it puts the whole usable dBm span inside a
     believable pulse and keeps the number monotonic with proximity, so a
-    rising heart rate always means you are getting warmer.
+    rising heart rate always means you are getting warmer. Unlike level
+    below, this stays on the fixed span: bpm is meant to read as an absolute
+    "how far into range are you", not a relative "warmer than a moment ago".
     """
     return rssi + 255
 
 
-def rssi_to_level(rssi):
-    """0..5 discrete hot/cold for the LEDs — the same reading, coarsened."""
-    lvl = int(round((rssi - RSSI_FAR) * 5 / (RSSI_NEAR - RSSI_FAR)))
-    return max(0, min(5, lvl))
+# ── 5-LED / mirror level: auto-ranged, ported from lora_rssi_meter.py ───────
+#
+# A fixed -40..-120 span (the old rssi_to_level) treats every hunt the same,
+# but a fox in the open and one behind a wall sit at completely different
+# absolute RSSI — so a fixed span either pins one hunt's LEDs at 5 the whole
+# way, or never lights them for the other. lora_rssi_meter.py's terminal bar
+# solves this by auto-scaling to whatever's actually been heard recently
+# (its window_range()/scale()) rather than a fixed span; this is that same
+# logic, per fox, driving the 5 LEDs instead of a terminal bar. bpm above is
+# deliberately NOT changed to match — it stays the plain, fixed-span reading.
+LEVEL_WINDOW_MS = 8000  # shorter than the meter's 20s default: a hunt is
+                         # tens of seconds, not minutes, and an 8s-old sample
+                         # from a different approach shouldn't still be
+                         # setting today's range
+RANGE_PAD_DB = 1.0       # same padding as the meter, either side of observed
+MIN_SPAN_DB = 4.0        # same floor — never auto-range narrower than this
+LEVEL_GAMMA = 2.0         # same power-law default: expands peaks, so the
+                          # last stretch into a fox reads as clearly hotter
+
+
+def _clamp01(x):
+    return max(0.0, min(1.0, x))
+
+
+class _LevelTracker:
+    """One per fox: the sliding window behind its 5-LED level. Direct port
+    of lora_rssi_meter.py's window_range() + scale(), swapping wall-clock
+    seconds for ticks_ms (no RTC needed) and a terminal bar's width for the
+    5 LEDs."""
+
+    def __init__(self):
+        self._samples = deque((), 128)  # (ticks_ms, rssi), pruned to the window
+
+    def push(self, rssi):
+        now = time.ticks_ms()
+        self._samples.append((now, rssi))
+        while self._samples and time.ticks_diff(now, self._samples[0][0]) > LEVEL_WINDOW_MS:
+            self._samples.popleft()
+
+        lo, hi = self._range()
+        frac = _clamp01((rssi - lo) / (hi - lo)) ** LEVEL_GAMMA
+        return round(frac * 5)
+
+    def _range(self):
+        lo = min(r for _, r in self._samples) - RANGE_PAD_DB
+        hi = max(r for _, r in self._samples) + RANGE_PAD_DB
+        if hi - lo < MIN_SPAN_DB:
+            mid = (hi + lo) / 2.0
+            lo, hi = mid - MIN_SPAN_DB / 2.0, mid + MIN_SPAN_DB / 2.0
+        return lo, hi
 
 
 class FoxReading:
     # NB: no "found" flag — RSSI can't tell you you've physically reached the
     # box. The player decides when to enter the code. We only report signal.
-    def __init__(self, fox_id, rssi, bearing=None):
+    def __init__(self, fox_id, rssi, level, bearing=None):
         self.fox_id = fox_id
-        self.rssi = rssi  # dBm, the one measured value
-        self.level = rssi_to_level(rssi)  # 0..5 hot/cold -> the 5 LEDs
+        self.rssi = rssi  # dBm, the one measured value — feeds bpm, untouched
+        self.level = level  # 0..5 hot/cold -> the 5 LEDs, auto-ranged (above)
         self.bearing = bearing  # degrees; present but UI ignores it (classic ARDF)
 
 
 class FoxRadio:
+    def __init__(self):
+        self._level_trackers = {}  # fox_id -> _LevelTracker
+
+    def _level(self, fox_id, rssi):
+        t = self._level_trackers.get(fox_id)
+        if t is None:
+            t = self._level_trackers[fox_id] = _LevelTracker()
+        return t.push(rssi)
+
+    def _reset_level(self, fox_id):
+        """Drop fox_id's window. Called from start() so a fresh hunt isn't
+        still influenced by the tail of a previous approach."""
+        self._level_trackers.pop(fox_id, None)
+
     def active_foxes(self):
         raise NotImplementedError
 
@@ -123,6 +187,7 @@ class FakeFoxRadio(FoxRadio):
     ROUND_TRIP_MS = 500  # what asking the network "costs", faked
 
     def __init__(self):
+        super().__init__()
         self._strength = {}
         self._used = set()  # burnt one-time codes; the real server owns this
 
@@ -142,6 +207,7 @@ class FakeFoxRadio(FoxRadio):
 
     def start(self, fox_id):
         self._strength[fox_id] = 0.12
+        self._reset_level(fox_id)
 
     def bump(self, fox_id, delta):
         s = self._strength.get(fox_id, 0.12) + delta
@@ -152,14 +218,18 @@ class FakeFoxRadio(FoxRadio):
         s += random.uniform(-0.04, 0.10)  # drift up, with jitter
         s = max(0.0, min(1.0, s))
         self._strength[fox_id] = s
-        return FoxReading(fox_id, int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR))))
+        rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
+        return FoxReading(fox_id, rssi, self._level(fox_id, rssi))
 
     def peek(self, fox_id):
         # No drift: reading() simulates walking toward the fox, and the home
         # row samples every awake fox on every resume — through reading(),
-        # ~30 visits home pinned all the heat bars at maximum forever.
+        # ~30 visits home pinned all the heat bars at maximum forever. The
+        # level tracker still sees this rssi (harmless — same value repeated
+        # barely moves an auto-ranged window), just never a NEW one.
         s = self._strength.get(fox_id, 0.12)
-        return FoxReading(fox_id, int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR))))
+        rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
+        return FoxReading(fox_id, rssi, self._level(fox_id, rssi))
 
     def submit_code(self, fox_id, code, on_result):
         # A one-shot timer stands in for the round trip; the verdict is decided
@@ -206,7 +276,7 @@ class LoraFoxRadio(FoxRadio):
         return sorted(c for c in lora.LINK.active_chars() if c in ids)
 
     def start(self, fox_id):
-        pass  # continuous RX already covers every fox at once; nothing to arm
+        self._reset_level(fox_id)  # continuous RX already runs; just a fresh window
 
     def poll(self):
         lora.LINK.poll()
@@ -223,7 +293,9 @@ class LoraFoxRadio(FoxRadio):
 
     def _reading(self, fox_id):
         rssi = lora.LINK.last_rssi(fox_id)
-        return FoxReading(fox_id, RSSI_FAR if rssi is None else rssi)
+        if rssi is None:
+            rssi = RSSI_FAR
+        return FoxReading(fox_id, rssi, self._level(fox_id, rssi))
 
     def submit_code(self, fox_id, code, on_result):
         otc = lora.code_to_otc(code)

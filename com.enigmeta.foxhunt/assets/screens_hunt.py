@@ -89,7 +89,7 @@ class HuntActivity(Activity):
     def onResume(self, screen):
         super().onResume(screen)
         RADIO.start(self.fox_id)  # restart cold on every entry / return
-        self.timer = lv.timer_create(self._tick, 250, None)
+        self.timer = lv.timer_create(self._tick, 150, None)
 
     def onPause(self, screen):
         super().onPause(screen)
