@@ -1,14 +1,23 @@
 # fox_radio.py — the STUB boundary for the real LoRa / ARDF backend.
 #
-# Someone else writes the real direction-finding. We program against this
-# interface and ship a FakeFoxRadio that drives the whole UI on desktop.
-# When the real radio lands, implement FoxRadio and swap the RADIO singleton.
+# fox_radio.RADIO is what every screen codes against (see FoxRadio below).
+# Two implementations: FakeFoxRadio, which drives the whole UI on desktop
+# with no hardware, and LoraFoxRadio, the real thing — hunter side only
+# (foxhunt-spec.md §6.2). LoraFoxRadio is a thin adapter: all SX1262 driving,
+# the wire format, and the OTC codec live in lora.py; this file only maps
+# that link onto the contract below. See lora.py's header for why there is
+# no thread anywhere in that path, and FoxRadio.poll() below for why it's
+# screens, not this module, that decide when the radio gets serviced.
 
 import lvgl as lv
 import random
 from creatures import CREATURES
+import lora
 
-# Which beacons are transmitting right now (drives awake/dormant on home).
+# Which beacons are transmitting right now (drives awake/dormant on home) —
+# FakeFoxRadio only; LoraFoxRadio answers this from what it has actually
+# heard (lora.LINK.active_chars()), since there is no compiled-in list of
+# what's deployed on real hardware.
 _AWAKE = (0, 1, 2, 12, 17, 19)
 
 # The dBm span the hunt is played over: on top of the box, and the far edge of
@@ -69,6 +78,16 @@ class FoxRadio:
         but keeps sibling modules in sys.modules, so this singleton survives
         everything short of a power cycle.
         """
+        pass
+
+    def poll(self):
+        """Pump one round of incoming-message handling. A no-op for a radio
+        with nothing to poll (the fake), but for the real one this MUST be
+        called from a screen's own tick, before that tick touches any
+        widget — see lora.py's module header for why the ordering matters,
+        not just the calling. Screens that show live signal (HuntActivity)
+        or that are waiting on a network verdict (CodeActivity) call this;
+        a screen that only reads cached values on resume doesn't need to."""
         pass
 
     def reading(self, fox_id):
@@ -166,5 +185,75 @@ class FakeFoxRadio(FoxRadio):
         return "wrong"
 
 
-# Shared singleton — all screens talk to the same radio.
-RADIO = FakeFoxRadio()
+def _hunter_id():
+    """HID for CODE_ENTRY (spec §2.2): 1-9999, minted at registration and
+    stored on the profile. Imported lazily — store reaches back into the
+    radio module indirectly through other screens, and this keeps that path
+    acyclic (same trick registrar.py uses for its own `import store`)."""
+    import store
+
+    p = store.profile()
+    return None if p is None else p.get("hunter_id")
+
+
+class LoraFoxRadio(FoxRadio):
+    """The real thing, hunter side only. Every method here just reads
+    lora.LINK's cache or hands it work — see lora.py for the SX1262 driving,
+    the wire format, and the CODE_ENTRY retry/timeout state machine."""
+
+    def active_foxes(self):
+        ids = {c["id"] for c in CREATURES}
+        return sorted(c for c in lora.LINK.active_chars() if c in ids)
+
+    def start(self, fox_id):
+        pass  # continuous RX already covers every fox at once; nothing to arm
+
+    def poll(self):
+        lora.LINK.poll()
+
+    def reading(self, fox_id):
+        return self._reading(fox_id)
+
+    def peek(self, fox_id):
+        # There's only one live RSSI value either way — reading() doesn't
+        # simulate a walk here, it's a real measurement — so peek() and
+        # reading() are the same call. Unlike FakeFoxRadio, looking at the
+        # home screen can't accidentally walk anything toward "found".
+        return self._reading(fox_id)
+
+    def _reading(self, fox_id):
+        rssi = lora.LINK.last_rssi(fox_id)
+        return FoxReading(fox_id, RSSI_FAR if rssi is None else rssi)
+
+    def submit_code(self, fox_id, code, on_result):
+        otc = lora.code_to_otc(code)
+        if otc is None:
+            lora.defer(1, lambda: on_result("wrong"))
+            return
+
+        hid = _hunter_id()
+        if hid is None:
+            # No minted hunter_id — e.g. a verzamelaar (WiFi-only) somehow
+            # reached the keypad, or registration hasn't landed yet. Nothing
+            # to prove a claim with.
+            lora.defer(1, lambda: on_result("wrong"))
+            return
+
+        fid = lora.LINK.last_fid(fox_id)
+        if fid is None or not lora.LINK.ready:
+            # Never heard this fox beacon (or the radio isn't up yet) — we
+            # don't know its SEQ (§2.1) and can't address a CODE_ENTRY at it.
+            # A hunter standing close enough to read a code off its display
+            # will have heard it beacon too, outside its own deaf TX burst
+            # (§4.4), so this is effectively the "walk closer" case.
+            lora.defer(1, lambda: on_result("wrong"))
+            return
+
+        lora.LINK.submit_code(fid, hid, otc, on_result)
+
+
+# Shared singleton — all screens talk to the same radio. LoraFoxRadio is
+# used whenever lora.py found a fitted radio chip at import time (see that
+# file's LINK.start()); otherwise this falls back to the fake, same as
+# desktop always has.
+RADIO = LoraFoxRadio() if lora.LINK.available else FakeFoxRadio()

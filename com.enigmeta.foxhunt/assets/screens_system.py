@@ -74,6 +74,8 @@ class HomeActivity(Activity):
 
     def onResume(self, screen):
         super().onResume(screen)
+
+        RADIO.poll();
         # The profile can vanish under us: instellingen -> ALLES WISSEN erases
         # it. Leave before repopulating — _populate reads the profile as a dict
         # and would fail on None — and the router below (foxhunt.py) opens the

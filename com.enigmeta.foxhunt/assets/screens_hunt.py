@@ -99,6 +99,13 @@ class HuntActivity(Activity):
         leds.off()
 
     def _tick(self, t):
+        # Service the radio FIRST, before any widget update below: on real
+        # hardware this is the one place that reads the SX1262 over SPI, and
+        # doing it ahead of the rest of this tick — rather than off some
+        # independent timer — is what keeps it from ever landing mid-flush
+        # against the display's own SPI traffic (see lora.py). A no-op on
+        # desktop (FakeFoxRadio.poll is inherited and does nothing).
+        RADIO.poll()
         if not self.has_foreground():
             return
         r = RADIO.reading(self.fox_id)
@@ -173,6 +180,10 @@ class CodeActivity(Activity):
         self.c = by_id(self.fox_id)
         self.entry = ""
         self.waiting = False  # a verdict is in flight; the keypad is dead
+        # Polls the radio while a claim is outstanding (see _submit /
+        # _on_verdict) -- RADIO.poll() is a no-op on desktop (FakeFoxRadio),
+        # so this timer only ever does real work with hardware fitted.
+        self.timer = None
 
         s = ui.make_screen(0xDFEEBF)
         ui.banner(s, "VOER DE CODE IN", ui.GREEN)
@@ -225,6 +236,11 @@ class CodeActivity(Activity):
         # locked waiting for a reply whose screen side already happened.
         self.waiting = False
         self._set_status("idle")
+        # The poll timer, unlike the keypad lock above, is NOT torn down
+        # here: a claim in flight needs its replies pumped through however
+        # long that takes, on- or off-screen, or the "still banks the catch"
+        # promise above is just wrong on real hardware. It's stopped only in
+        # _on_verdict, once there's nothing left to poll for.
 
     def onResume(self, screen):
         super().onResume(screen)
@@ -287,9 +303,24 @@ class CodeActivity(Activity):
             return
         self.waiting = True
         self._set_status("checking")
+        # Start polling before submitting: on real hardware the reply can in
+        # principle arrive within a couple of poll periods (§5.1 happy path
+        # is 1-3 s), so the timer needs to already be running to catch it.
+        if self.timer is None:
+            self.timer = lv.timer_create(self._tick, 100, None)
         RADIO.submit_code(self.fox_id, self.entry, self._on_verdict)
 
+    def _tick(self, t):
+        # Same discipline as HuntActivity._tick: service the radio first,
+        # before anything else this tick might do. There's no widget work
+        # here either way -- the verdict, when it lands, comes back through
+        # _on_verdict, not through anything read here.
+        RADIO.poll()
+
     def _on_verdict(self, result):
+        if self.timer:
+            self.timer.delete()
+            self.timer = None
         self.waiting = False
         if result == "ok":
             # Bank the catch FIRST, foreground or not. The code is one-time
