@@ -1,8 +1,14 @@
 # sound.py — tiny feedback layer: buzzer (RTTTL) + NeoPixels (merged leds.py).
 #
-# RTTTL = Nokia ringtone strings, so no audio assets are needed. On the badge a
-# "buzzer" output is registered (pin 38) and these play; on desktop there is no
-# buzzer output, so play() silently no-ops. One swap point to add WAV later.
+# RTTTL = Nokia ringtone strings, so no audio assets are needed. Both targets
+# register a "buzzer" output and play them: the badge drives pin 38 with PWM,
+# the emulator renders the tune to a WAV in /tmp and hands it to afplay. Either
+# way AudioManager does it on its own thread, so play() returns immediately.
+# One swap point to add WAV later.
+#
+# (Desktop playback needs a MicroPythonOS with the stream_wav.py native-emitter
+# guard — without it every beep raised SyntaxError inside its thread, which is
+# where the "desktop has no buzzer" note this replaced came from.)
 
 from mpos import AudioManager
 
@@ -53,8 +59,8 @@ def set_muted(on):
 # The output handle, cached for the same reason as _muted: play() runs inside
 # 50 ms game loops, and rescanning get_outputs() with a getattr per output to
 # re-answer "is there a buzzer?" costs the same every time — outputs register
-# at boot and never change while the app runs. False caches "there is none"
-# (desktop), so the scan happens exactly once either way.
+# at boot and never change while the app runs. False caches "there is none",
+# so the scan happens exactly once either way.
 _output = None
 
 
@@ -85,7 +91,7 @@ def play(event):
     if muted():  # muted from the instellingen screen
         return
     out = _buzzer_output()
-    if not out:  # desktop: no buzzer -> stay silent
+    if not out:  # a board with no buzzer registered -> stay silent
         return
     try:
         _last = AudioManager.rtttl_player(tune, output=out, volume=60)
