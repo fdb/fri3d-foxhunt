@@ -480,8 +480,20 @@ def voorraad_total():
 
 
 def add_food(food, n=1):
+    return add_foods((food,) * n)
+
+
+def add_foods(picks):
+    """Bank a whole handful of hapjes in ONE write.
+
+    Every commit rewrites config.json to flash, and that is the expensive half
+    of banking a hapje — not the counting, not the parsing. The mini-games
+    therefore collect a round's worth and hand the list over at a moment the
+    player is not mid-jump (see GameActivity.take_treat); a commit per hapje
+    stalled the 50 ms game tick long enough to see."""
     v = voorraad()
-    v[food] = v.get(food, 0) + n
+    for food in picks:
+        v[food] = v.get(food, 0) + 1
     SharedPreferences(_APP).edit().put_dict("voorraad", v).commit()
     return v
 

@@ -496,6 +496,7 @@ class GameActivity(Activity):
         # every reward, hapjes included. (The debug free-play switch rides
         # the same gate, so it stops farming food too.)
         self.treats = store.play_cost(self.kost, st) > 0
+        self._pocket = []  # hapjes caught this round, banked by bank_treats()
         self.screen = ui.make_screen(self.BG)
         self._build_chrome()
         self.build(self.screen)
@@ -533,6 +534,7 @@ class GameActivity(Activity):
             self.timer.delete()
             self.timer = None
         leds.off()
+        self.bank_treats()
 
     def _tick(self, t):
         if self.has_foreground() and not self._over:
@@ -543,25 +545,37 @@ class GameActivity(Activity):
             self.step()
 
     def take_treat(self, food=None):
-        """Collect a hapje found mid-game: bank it, say so, score it.
+        """Collect a hapje found mid-game: pocket it, say so, score it.
 
-        `store.add_food` writes through its OWN SharedPreferences instance, so
-        it may only ever run where nothing else holds an editor. Here that is
-        true at any moment: the play session was committed back in onCreate and
-        no game keeps a pending write, so banking on the spot is safe — and it
-        means a player who walks out mid-round still keeps what they caught.
+        Pocketed, not banked. Writing it straight through cost a full
+        config.json rewrite to flash INSIDE the 50 ms tick, and the player felt
+        the game stop for it — the one hitch in a round that is otherwise
+        smooth. So a round's catches ride in `_pocket` and `bank_treats()`
+        commits them all in one write, from game_over() and onPause(): the two
+        moments the game is not animating anything. Walking out mid-round still
+        keeps them (onPause is guaranteed on finish and on any activity pushed
+        on top); only a power cut mid-round now loses them, which is the trade.
 
         `food` is the hapje actually on screen and caught (each game stores it
         on the falling item): naming the toast with a fresh pick would show
         different fruit from the icon the player just grabbed."""
         if food is None:
             food = random.choice(store.FOODS)
-        store.add_food(food)
+        self._pocket.append(food)
         sound.play("caught")
         self.toast_l.set_text("+1 %s!" % food)
         self._toast_t = max(8, 2000 // self.TICK_MS)
         self._bonus += 1
         self.set_score(self.score + 1)
+
+    def bank_treats(self):
+        """Commit the pocket. `store.add_foods` writes through its OWN
+        SharedPreferences instance, so it may only run where nothing else holds
+        an editor — true at both call sites: the play session was committed
+        back in onCreate and no game keeps a pending write."""
+        if self._pocket:
+            store.add_foods(self._pocket)
+            self._pocket = []
 
     # ── input, wired once per activity ──────────────────────────────────
     # NOG EEN KEER rebuilds the round on the SAME screen object, and clean()
@@ -604,6 +618,7 @@ class GameActivity(Activity):
     def game_over(self, kop, retry=True):
         self._over = True
         leds.off()
+        self.bank_treats()  # the round is done animating — the write is free here
         # Hand the joystick back BEFORE the card exists: with nothing focused,
         # the group focuses the first button the card registers. Keep the grab
         # and NOG EEN KEER / TERUG are unreachable without the touchscreen.
