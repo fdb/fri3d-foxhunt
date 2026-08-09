@@ -463,6 +463,33 @@ import store
 import pet
 from creatures import by_id
 
+# LVGL redraws the screen on a timer of its own — LV_DEF_REFR_PERIOD, 33 ms —
+# and that period has no relation to a game's TICK_MS. The two beat against
+# each other: a rendered frame lands between two ticks, repeats the position
+# the last frame already showed, and the frame after it moves double. That is
+# the hitch you feel several times a second while a game is running, and it is
+# nothing to do with background work — measured on VANGEN, the beast's movement
+# per RENDERED frame was
+#     -4 -4  0 -4  0 -4 -4 -4  0  4  0  4  4  4  0 ...
+# and with the refresh period set to the tick it becomes
+#     -4 -4 -4 -4 -4 -4  4  4  4  4  4  4  4 -4 -4 ...
+# — exactly one step per frame, always. The game still ticks at TICK_MS; only
+# the display cadence moves, so no game logic and no difficulty changes. It
+# also draws about a fifth less: the refreshes it drops were the ones that had
+# nothing new to show.
+_LV_REFR_DEFAULT_MS = 33  # LV_DEF_REFR_PERIOD in the firmware's lv_conf.h
+
+
+def _set_refr_period(ms):
+    """Best effort. display.get_refr_timer() is plain LVGL 9, but the app runs
+    on badge firmware older than this checkout (same reason sound.py sticks to
+    the oldest mpos.lights calls) — a build without it just keeps its own
+    cadence and the game plays exactly as it did before."""
+    try:
+        lv.display_get_default().get_refr_timer().set_period(ms)
+    except Exception:
+        pass
+
 
 class GameActivity(Activity):
     """Shared scaffolding: banner + score, the play-session economy, the
@@ -527,12 +554,16 @@ class GameActivity(Activity):
     def onResume(self, screen):
         super().onResume(screen)
         self.timer = lv.timer_create(self._tick, self.TICK_MS, None)
+        _set_refr_period(self.TICK_MS)
 
     def onPause(self, screen):
         super().onPause(screen)
         if self.timer:
             self.timer.delete()
             self.timer = None
+        # The refresh period is the display's, not ours: hand it back or the
+        # whole OS keeps whichever game's cadence was on screen last.
+        _set_refr_period(_LV_REFR_DEFAULT_MS)
         leds.off()
         self.bank_treats()
 
