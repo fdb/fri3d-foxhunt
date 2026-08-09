@@ -546,6 +546,15 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
     # destination pixel — the 16px gear at scale 2 alone is ~1000 of them.
     buf = bytearray(w * h * 4)  # zeroed = fully transparent
     rowbytes = w * 4
+    # One scaled pixel-block per COLOUR, not per pixel. This used to build
+    # bytes(...) and then px * scale inside the inner loop — two throwaway
+    # objects for every opaque pixel, on a path the games call about once a
+    # second (every falling ring, every hapje, every heart redraw). Measured at
+    # 13.5 KB of garbage per call, which is most of what fills the badge's heap
+    # during a round and buys the ~1 s collect that follows. A sprite has two to
+    # four colours, so this is a handful of allocations instead of hundreds; the
+    # bytes written are identical.
+    blocks = {}
     for y, row in enumerate(rows):
         line = bytearray(rowbytes)
         opaque = False
@@ -560,9 +569,15 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
             if col is None:
                 continue
             opaque = True
-            px = bytes(((col) & 0xFF, (col >> 8) & 0xFF, (col >> 16) & 0xFF, 0xFF))
+            blk = blocks.get(col)
+            if blk is None:
+                blk = (
+                    bytes(((col) & 0xFF, (col >> 8) & 0xFF, (col >> 16) & 0xFF, 0xFF))
+                    * scale
+                )
+                blocks[col] = blk
             o = x * scale * 4
-            line[o : o + 4 * scale] = px * scale
+            line[o : o + 4 * scale] = blk
         if opaque:
             base = y * scale * rowbytes
             for dy in range(scale):

@@ -451,6 +451,7 @@ class FeedActivity(Activity):
 # game counts its own interval and starts the next one the moment it pays out,
 # so playing longer is exactly what earns more.
 
+import gc
 import random
 
 import lvgl as lv
@@ -480,6 +481,25 @@ from creatures import by_id
 _LV_REFR_DEFAULT_MS = 33  # LV_DEF_REFR_PERIOD in the firmware's lv_conf.h
 
 
+def _collect():
+    """Take the garbage collector's pause where it cannot hurt.
+
+    The badge's heap lives in octal PSRAM and is megabytes wide, so a mark-sweep
+    over it costs about a SECOND — and MicroPython runs one whenever the heap
+    fills, which during a round means in mid-flight. That is the second-long
+    freeze every ~45 s: not a timer, not an updater (both update services check
+    once every 24 h), just a constant allocation rate meeting a fixed heap.
+    Measured: the OS alone allocates ~8 KB/s, VLIEGEN ~21 KB/s, VANGEN ~50 KB/s.
+
+    So collect deliberately, at the two moments a game is not animating
+    anything — the same two `bank_treats()` already trusts with a flash write.
+    A round then starts with the whole heap in front of it and the automatic
+    collect never comes due while the player is flying. The pause is not
+    removed, it is moved: onto the screen change, where the OS is already
+    swapping screens, instead of into the middle of a jump."""
+    gc.collect()
+
+
 def _set_refr_period(ms):
     """Best effort. display.get_refr_timer() is plain LVGL 9, but the app runs
     on badge firmware older than this checkout (same reason sound.py sticks to
@@ -501,6 +521,8 @@ class GameActivity(Activity):
     TICK_MS = 50
 
     def onCreate(self):
+        # Before anything is built: the whole heap in front of the round.
+        _collect()
         x = self.getIntent().extras
         self.fox_id = x.get("fox_id", 0)
         self.kost = x.get("kost", 1)
@@ -650,6 +672,9 @@ class GameActivity(Activity):
         self._over = True
         leds.off()
         self.bank_treats()  # the round is done animating — the write is free here
+        # ...and so is the collect, which is why it rides along. NOG EEN KEER
+        # then rebuilds on a clean heap without paying for it again.
+        _collect()
         # Hand the joystick back BEFORE the card exists: with nothing focused,
         # the group focuses the first button the card registers. Keep the grab
         # and NOG EEN KEER / TERUG are unreachable without the touchscreen.
