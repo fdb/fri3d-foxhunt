@@ -495,8 +495,9 @@ def _collect():
     anything — the same two `bank_treats()` already trusts with a flash write.
     A round then starts with the whole heap in front of it and the automatic
     collect never comes due while the player is flying. The pause is not
-    removed, it is moved: onto the screen change, where the OS is already
-    swapping screens, instead of into the middle of a jump."""
+    removed, it is moved: out of the middle of a jump and onto a screen the
+    player is reading (see `_collect_after_render`) or a screen change the OS
+    is making anyway (`onCreate`, before anything is built)."""
     gc.collect()
 
 
@@ -529,6 +530,7 @@ class GameActivity(Activity):
         self.fav = x.get("fav", False)
         self.c = by_id(self.fox_id)
         self.timer = None
+        self._gc_timer = None
         self._over = False
         self._grabbed = False
         self._wired_keys = False
@@ -583,11 +585,40 @@ class GameActivity(Activity):
         if self.timer:
             self.timer.delete()
             self.timer = None
+        if self._gc_timer:  # walked out before it fired; onCreate will collect
+            self._gc_timer.delete()
+            self._gc_timer = None
         # The refresh period is the display's, not ours: hand it back or the
         # whole OS keeps whichever game's cadence was on screen last.
         _set_refr_period(_LV_REFR_DEFAULT_MS)
         leds.off()
         self.bank_treats()
+
+    def _collect_after_render(self):
+        """Take the collector's second while the player is READING the card.
+
+        Collecting inline froze the badge for about a second between the crash
+        and the "AUW!" — the one moment the player is waiting to be told what
+        happened, so it read as the game hanging on the hit. Moving the call to
+        the end of game_over() would not have helped either: building the card
+        only creates widgets, and LVGL does not draw until its next refresh, so
+        an inline collect still holds the card back.
+
+        Hence a one-shot timer. onResume locked the refresh period to TICK_MS,
+        so twice that is certainly at least one refresh: the card is on the
+        glass before the pause starts, and the pause lands in the seconds the
+        player spends reading their score. Walking out first (TERUG, or the
+        back swipe) cancels it in onPause — the next round's onCreate collects
+        anyway, so nothing is lost by skipping it."""
+        if self._gc_timer is None:
+            self._gc_timer = lv.timer_create(self._do_collect, self.TICK_MS * 2, None)
+            self._gc_timer.set_repeat_count(1)
+
+    def _do_collect(self, _t):
+        # LVGL deletes a one-shot timer once it has run, so drop our handle
+        # BEFORE collecting: onPause must not delete it a second time.
+        self._gc_timer = None
+        _collect()
 
     def _tick(self, t):
         if self.has_foreground() and not self._over:
@@ -672,9 +703,6 @@ class GameActivity(Activity):
         self._over = True
         leds.off()
         self.bank_treats()  # the round is done animating — the write is free here
-        # ...and so is the collect, which is why it rides along. NOG EEN KEER
-        # then rebuilds on a clean heap without paying for it again.
-        _collect()
         # Hand the joystick back BEFORE the card exists: with nothing focused,
         # the group focuses the first button the card registers. Keep the grab
         # and NOG EEN KEER / TERUG are unreachable without the touchscreen.
@@ -723,6 +751,9 @@ class GameActivity(Activity):
         terug = ui.panel(card, 4 + bw + 6, 96, bw, 30, ui.CARD)
         ui.label(terug, "TERUG", 0, 7, ui.INK, ui.font_label(), w=bw - 4, center=True)
         ui.focusable(terug, on_click=self._terug)
+        # Card complete. Arm the collect for just after it is drawn, so NOG EEN
+        # KEER rebuilds on a clean heap without paying for it again.
+        self._collect_after_render()
 
     def _again(self):
         st = store.beast_state(self.fox_id)
@@ -731,6 +762,14 @@ class GameActivity(Activity):
             self.note_l.set_text("te moe - eerst een hapje!")
             return
         sound.play("tap")
+        # A tap inside game_over's ~100 ms arming window would otherwise leave
+        # that collect to land in the middle of the new round — the exact thing
+        # all of this exists to prevent. Take it here instead: the screen is
+        # about to be rebuilt anyway, so the pause costs nothing visible.
+        if self._gc_timer:
+            self._gc_timer.delete()
+            self._gc_timer = None
+            _collect()
         st, ok, self.pet_msg = store.do_play(self.fox_id, self.kost, self.fav)
         self.treats = store.play_cost(self.kost, st) > 0  # same gate as onCreate
         self._over = False

@@ -149,10 +149,16 @@ to "is anything slow?" measurement — no code was slow and nothing blocked.
   cadence: BOTH update services (`com.micropythonos.osupdate`,
   `com.micropythonos.appstore`) check once every **24 h**, connectivity every
   8 s, the status bar between 1 and 15 s. `GameActivity._collect()` therefore
-  forces the collect where a game is not animating — before `onCreate` builds,
-  and in `game_over` beside the `bank_treats()` write that already trusts that
-  moment. Keep new game code allocating as little as possible per tick, and
-  keep those two collect points.
+  forces the collect where a game is not animating: before `onCreate` builds
+  anything, and — via `_collect_after_render()` — once the game-over card is on
+  the glass, so the second is spent while the player reads their score. That
+  second one CANNOT be a plain call at the end of `game_over()`: building the
+  card only creates widgets, LVGL does not draw until its next refresh, so an
+  inline collect holds the card back and the freeze lands between the crash and
+  "AUW!". It is a one-shot `lv.timer` at twice the refresh period, cancelled in
+  `onPause` and taken inline by `_again()` (a fast NOG EEN KEER would otherwise
+  drop it into the new round). Keep new game code allocating as little as
+  possible per tick, and keep those collect points.
 - **MicroPython boxes every float on the heap.** `x -= 1.6` in a 20 Hz loop is
   an allocation 20 times a second, per object. VLIEGEN's five parallax clouds
   cost 160 B/tick that way. Fixed-point ints (cloud x is px `<< _SUB`) allocate
