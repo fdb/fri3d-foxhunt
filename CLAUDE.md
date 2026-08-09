@@ -142,6 +142,23 @@ to "is anything slow?" measurement — no code was slow and nothing blocked.
   test: a gap between beats IS a stall of the whole LVGL thread (render, timer,
   asyncio holding the GIL, gc), and `gc.mem_free()` at each beat tells a gc
   pause apart from the rest.
+- **A second-long freeze on a loose ~45 s cycle is the garbage collector.** The
+  badge's heap is megabytes of octal PSRAM, so one mark-sweep costs about a
+  second, and MicroPython runs one when the heap fills — which is why it lands
+  mid-round and never at a fixed point in it. Nothing on the badge runs on that
+  cadence: BOTH update services (`com.micropythonos.osupdate`,
+  `com.micropythonos.appstore`) check once every **24 h**, connectivity every
+  8 s, the status bar between 1 and 15 s. `GameActivity._collect()` therefore
+  forces the collect where a game is not animating — before `onCreate` builds,
+  and in `game_over` beside the `bank_treats()` write that already trusts that
+  moment. Keep new game code allocating as little as possible per tick, and
+  keep those two collect points.
+- **MicroPython boxes every float on the heap.** `x -= 1.6` in a 20 Hz loop is
+  an allocation 20 times a second, per object. VLIEGEN's five parallax clouds
+  cost 160 B/tick that way. Fixed-point ints (cloud x is px `<< _SUB`) allocate
+  nothing; use them wherever the value is background or already whole (a branch
+  always moved exactly 3 px). Keep floats only where the fraction IS the game
+  feel — the bird's 0.9 gravity and -6.5 flap.
 - **Do not blame background work without measuring it.** `sound.play` is 0 ms
   (the RTTTL player is async), `store` writes are already out of the tick
   (`bank_treats`), home's poll and outbox flush stop on pause, and the OS
