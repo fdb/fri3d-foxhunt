@@ -766,13 +766,21 @@ _BIRD_X = 50
 # three channels at once — far clouds are smaller, paler and slower — because
 # speed alone is barely legible on a 320px screen. The branches scroll at 3.0,
 # so even the fastest cloud stays visibly behind the play field.
+# Cloud x is kept in SIXTEENTHS of a pixel, and the speeds with it (8 = 0.5 px
+# per tick, 26 = 1.625). Not premature cleverness: MicroPython boxes every
+# float on the heap, so the five `c["x"] -= c["sp"]` in _drift allocated 160
+# bytes EVERY tick — 3.2 KB/s, the largest single source of garbage in the
+# game, and garbage is what buys the collector's pause (see _collect). Small
+# ints allocate nothing at all. The clouds are background parallax, so the only
+# visible consequence is the fastest layer drifting at 1.625 px instead of 1.6.
 _SKY = (
-    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 0.5),
-    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 0.5),
-    (art.CLOUD, {"w": 0xECF2D6, "s": 0xDFE9C2}, 2, 1.0),
-    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 1.6),
-    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 1.6),
+    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 8),
+    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 8),
+    (art.CLOUD, {"w": 0xECF2D6, "s": 0xDFE9C2}, 2, 16),
+    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 26),
+    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 26),
 )
+_SUB = 4  # cloud x is px << _SUB
 _SKY_TOP = 32  # clear of the 26px banner, which is drawn before the clouds
 _SKY_BOT = 148
 
@@ -808,7 +816,13 @@ class VliegActivity(GameActivity):
             y = random.randrange(_SKY_TOP, _SKY_BOT)
             w = _scenery(s, rows, pal, scale, x, y)
             self.clouds.append(
-                {"w": w, "x": float(x), "px": len(rows[0]) * scale, "sp": sp, "ix": x}
+                {
+                    "w": w,
+                    "x": x << _SUB,
+                    "px": (len(rows[0]) * scale) << _SUB,
+                    "sp": sp,
+                    "ix": x,
+                }
             )
         self.bird = art.creature_panel(s, self.c, 2, flip_x=True)
         self._y = 110.0
@@ -864,9 +878,9 @@ class VliegActivity(GameActivity):
         for c in self.clouds:
             c["x"] -= c["sp"]
             if c["x"] < -c["px"]:
-                c["x"] = 320.0 + random.randrange(0, 48)
+                c["x"] = (320 + random.randrange(0, 48)) << _SUB
                 c["w"].set_y(random.randrange(_SKY_TOP, _SKY_BOT))
-            x = int(c["x"])
+            x = c["x"] >> _SUB
             if x != c["ix"]:
                 c["ix"] = x
                 c["w"].set_x(x)
@@ -899,7 +913,12 @@ class VliegActivity(GameActivity):
                         240 - gap_y - _GAP // 2,
                         lv.BORDER_SIDE.TOP,
                     ),
-                    "x": 320.0,
+                    # A branch scrolls exactly 3 px per tick, so an int is not
+                    # an approximation of the float it replaces — it is the
+                    # same number without a heap allocation per obstacle per
+                    # tick. (The bird keeps its floats: 0.9 gravity and a -6.5
+                    # flap are genuinely fractional and that IS the game feel.)
+                    "x": 320,
                     "gap": gap_y,
                     "passed": False,
                     "treat": None,
@@ -914,8 +933,8 @@ class VliegActivity(GameActivity):
                 self.obs[-1]["treat"] = t
                 self.obs[-1]["treat_food"] = _f
         for o in self.obs[:]:
-            o["x"] -= 3.0
-            x = int(o["x"])
+            o["x"] -= 3
+            x = o["x"]
             o["top"].set_x(x)
             o["bot"].set_x(x)
             t = o["treat"]
