@@ -125,6 +125,37 @@ straight into `AppManager.download_and_install_package`, which unzips it as it
 downloads — seconds, not minutes. It `shutil.rmtree`s the app dir first, so a
 store install is a clean replace and needs none of the above.
 
+## Frame pacing — why a game stutters
+A moving game screen is judged by what the DISPLAY shows per frame, never by
+whether the tick fired on time. Both of the stutters found so far are invisible
+to "is anything slow?" measurement — no code was slow and nothing blocked.
+- **The tick must match the display refresh.** LVGL redraws on its own timer
+  (`LV_DEF_REFR_PERIOD`, 33 ms) and 33 has no rhythm in common with a 50 ms
+  `TICK_MS`: frames land between ticks, repeat the last position and then move
+  double. `GameActivity.onResume` therefore sets the refresh period to its own
+  `TICK_MS` and `onPause` hands it back — the period is the display's, not a
+  game's. Keep any new animated screen on that rule, and never leave the OS
+  running at a game's cadence.
+- **Measure the frame, not the tick.** Sample the moving thing at
+  `lv.EVENT.REFR_START` and print the per-frame delta. `-4 -4 0 -4 0 -4` is a
+  stutter; `-4 -4 -4 -4` is not. A 1 ms `lv.timer` heartbeat is the companion
+  test: a gap between beats IS a stall of the whole LVGL thread (render, timer,
+  asyncio holding the GIL, gc), and `gc.mem_free()` at each beat tells a gc
+  pause apart from the rest.
+- **Do not blame background work without measuring it.** `sound.play` is 0 ms
+  (the RTTTL player is async), `store` writes are already out of the tick
+  (`bank_treats`), home's poll and outbox flush stop on pause, and the OS
+  status-bar timers never showed up in a gap.
+- **The two targets have opposite render costs, so tune against the right one.**
+  The emulator's `sdl_tx_color` uploads the WHOLE texture and presents once per
+  invalidated region (costs quantise to ~17 ms — vsync), so it bills the NUMBER
+  of scattered movers. The badge renders into a 28800-byte partial buffer and
+  DMAs over SPI, so it bills AREA. An emulator win is not automatically a badge
+  win.
+- **The emulator's LVGL clock runs ~1.79x fast** — a 1000 ms `lv.timer` fires
+  after ~560 ms of real time. Every game therefore plays about 1.8x too quick on
+  desktop. Judge game FEEL on the badge; the emulator is for correctness.
+
 ## Formatting
 - `scripts/format.sh` formats all Python (Ruff via `uvx`) and JSON (stdlib
   `json.tool` via `uv`) — both Astral-runner-based, nothing installed into the
