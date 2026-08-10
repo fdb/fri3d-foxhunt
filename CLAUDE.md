@@ -9,8 +9,23 @@
 ## Run & verify (same source, both targets)
 The identical app runs on the Fri3d 2026 badge and the macOS SDL emulator; the
 board layer handles the hardware differences.
-- The app is symlinked into a local MicroPythonOS checkout's `apps/`.
-- Run: `cd /Users/fdb/Source/MicroPythonOS && ./scripts/run_desktop.sh be.fri3d.foxhunt`
+- **Two MicroPythonOS checkouts exist, and both are load-bearing.** They are not
+  copies of each other. `~/MicroPythonOS` is the small prebuilt package
+  (`internal_filesystem`, `lvgl_micropython`, `scripts` — no git) that
+  `run_on_mac.sh` downloads by itself and treats as `MPOS_DIR`; it holds the
+  emulator's save. `~/Source/MicroPythonOS` is the full clone, kept for exactly
+  one thing the package lacks — the **mpy-cross** that `deploy_to_badge.sh` and
+  `build_mpk.sh` hardcode, which must come from the same checkout as the
+  firmware so the bytecode versions match. Deleting the package costs a
+  re-download; deleting the clone breaks every badge deploy.
+- The app is symlinked into BOTH checkouts' `internal_filesystem/apps/`, so
+  both can launch — which is the trap, because their `internal_filesystem/`
+  trees are separate. Only the package has `data/be.fri3d.foxhunt`.
+- Run: `scripts/run_on_mac.sh` (add `--lora` for the jager persona). Use it and
+  not a bare `run_desktop.sh`: it is the only path that points the save at the
+  right persona slot before launching. A run out of `~/Source/MicroPythonOS`
+  finds no save and no persona, so it replays onboarding and registers the
+  default fake MAC against prod.
 - Headless smoke test: run it redirected to a log file and grep the log for
   `Traceback` / `Error`. Home rendering with no traceback means imports + that
   screen build cleanly (other screens build when navigated to).
@@ -23,11 +38,22 @@ board layer handles the hardware differences.
   are not harmless: each one holds the app's data symlink, so the next
   `run_on_mac.sh --lora` swaps the persona under a still-running verzamelaar,
   and a screenshot can come from the wrong process. Two processes per launch —
-  the SDL binary and the shell that started it:
-  `pkill -f lvgl_micropy; pkill -f run_desktop.sh`. Verify with
-  `ps aux | grep -E 'lvgl_micropy|run_desktop' | grep -v grep`; if anything
-  survives, force it: `pkill -9 -f lvgl_micropy`. Do this at the END of every
-  task that ran the emulator, not only when a run misbehaves.
+  the SDL binary and the shell that started it. Do this at the END of every
+  task that ran the emulator, not only when a run misbehaves. Two traps, both
+  measured rather than guessed:
+  - **SIGTERM is often not enough.** A plain `pkill -f lvgl_micropy` regularly
+    leaves the binary running with its wrapper already dead. Always verify
+    (`pgrep -fl lvgl_micropy_macOS`) and force what survives: `kill -9 <pid>`.
+    An emulator whose `ps -o ppid` is **1** is a true orphan — its launcher is
+    gone and nothing will ever clean it up.
+  - **`pkill -f` is machine-wide and matches whole command lines, so it is not
+    safe to fire blindly.** More than one session runs here, and a driver
+    script (`docs/emulator-testing.md`, the gcprobe recipes) owns its emulator
+    and kills it itself — a blanket pkill destroys an in-flight measurement.
+    It also matches any *other* process whose command line merely contains the
+    pattern: a monitoring loop watching for `lvgl_micropy` kills itself. Check
+    `pgrep -fl` first, kill the PIDs you started, and reach for a pattern only
+    when the survivors are confirmed parentless.
 - **The emulator's profile is throwaway.** Whatever sits in
   `<MicroPythonOS>/internal_filesystem/prefs/be.fri3d.foxhunt/config.json` is
   test data — no real account, no real catches. Overwrite it with `{}` to
@@ -134,6 +160,36 @@ End users never touch this path. The app store streams a `.mpk` over WiFi
 straight into `AppManager.download_and_install_package`, which unzips it as it
 downloads — seconds, not minutes. It `shutil.rmtree`s the app dir first, so a
 store install is a clean replace and needs none of the above.
+
+## Talking to the badge over serial (ad-hoc, not deploy)
+`deploy_to_badge.sh` owns the raw REPL carefully. Ad-hoc `mpremote` for
+measurement wedges the badge easily, and a wedge only clears with a physical
+power-cycle. A wedge shows as `could not enter raw repl` or `response:
+b'R\x01'`; keep pushing and LittleFS throws `OSError: (-258,
+'ESP_ERR_INVALID_ARG')` from `shared_preferences`, which also needs a
+power-cycle. `machine.reset()` and `mpremote reset` do not reliably clear
+either. Rules:
+- **One serial client at a time.** Never run two `mpremote` commands at once.
+- **Never poll the badge in a loop.** An `until ... mpremote ...; do` loop opens
+  a fresh raw REPL each pass and wedges fast. Wait on-device in one command, or
+  wait host-side without touching the port, then run one command.
+- **Stop background pollers before the next command.** A `run_in_background` or
+  `Monitor` that connects to the badge holds the port; `TaskStop` it first.
+- **When wedged, stop and ask for a power-cycle.** Retrying deepens the wedge.
+- **A blocking `exec` starves the OS loop, so it cannot start or drive the app.**
+  `AppManager.start_app` and `startActivity` run on the asyncio/LVGL loop; an
+  `exec` that then calls `time.sleep` blocks that loop, so the app never starts
+  and `screens_care` never enters `sys.modules`. Use a blocking self-contained
+  script (`fs cp` it, then one `exec "import it"`, all sleeps on-device) ONLY
+  for things with no live foreground app: idle-heap rate, a pure function's cost.
+- **To measure a RUNNING game, a human drives it.** The player opens the game
+  through the UI and starts a round; only then does a short, non-blocking probe
+  attach — an `lv.timer` sampler (`gcprobe.start`) created by one quick `exec`
+  that returns at once and samples in the background, read back later by a second
+  quick `exec`. Never a blocking sleep-loop against a live game.
+- **When the REPL keeps wedging, skip serial entirely: use an on-screen HUD.**
+  Draw `gc.mem_free()` and a collect counter in a corner behind the debug cheat,
+  deploy, and read the numbers off the glass while playing.
 
 ## Frame pacing — why a game stutters
 A moving game screen is judged by what the DISPLAY shows per frame, never by
