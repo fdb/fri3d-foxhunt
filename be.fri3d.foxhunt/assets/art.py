@@ -517,6 +517,12 @@ def icon(parent, name, scale=2):
     return draw_sprite(parent, ic["rows"], ic["pal"], scale)
 
 
+def icon_buf(name, scale=2):
+    """icon()'s pixel buffer without the widget — for a pool (see sprite_buf)."""
+    ic = ICONS[name]
+    return sprite_buf(ic["rows"], ic["pal"], scale)
+
+
 # ── Tones: how a creature is flattened when it must not be recognisable ─────
 # A tone is (fill, outline); outline None means the whole shape is one flat
 # colour. Which tone reads depends entirely on what it sits on, hence three.
@@ -528,18 +534,22 @@ GHOST = (0x41342A, 0x4E4136)  # barely-there shape on the DARK code panel: a
 MASK = (0xFFF7E6, None)  # flat white: typing progress, still not the art
 
 
-def draw_sprite(parent, rows, palette, scale, tint=None):
-    """Draw a pixel sprite onto a fresh transparent canvas, each source pixel
-    as a scale x scale block. Returns the lv.canvas widget.
+def sprite_buf(rows, palette, scale, tint=None):
+    """The pixel work of draw_sprite WITHOUT the widget: returns
+    (bytearray, w, h) in ARGB8888, ready for lv.canvas.set_buffer.
 
-    tint is a tone (see above) that flattens every opaque pixel: outline pixels
-    ('k') take the tone's outline colour, everything else its fill. None draws
-    the sprite in its real palette."""
+    Split out because the buffer is the expensive half and the reusable half.
+    A 24x24 sprite is 2.3 KB of bytearray plus a throwaway line buffer per
+    row, and a game that builds one per falling ring throws all of it away a
+    second later — measured at 763 B of garbage per VANGEN tick, the largest
+    single source in any game. The art does not change between spawns, so a
+    game bakes its handful of buffers once in build() and gives a POOL of
+    canvases something to point at (see screens_care._SpritePool). Nothing
+    writes to a buffer after this returns, so sharing one between canvases is
+    safe."""
     fill, edge = tint if tint else (None, None)
     w = len(rows[0]) * scale
     h = len(rows) * scale
-    canvas = lv.canvas(parent)
-    canvas.set_size(w, h)
     # Pixels go straight into the ARGB8888 buffer (memory order B,G,R,A —
     # same as the atlas frames): one scaled line built per source row, then
     # block-copied per scale row. set_px would cost a Python->C call per
@@ -583,6 +593,14 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
             for dy in range(scale):
                 o = base + dy * rowbytes
                 buf[o : o + rowbytes] = line
+    return buf, w, h
+
+
+def canvas_for(parent, buf, w, h):
+    """A transparent canvas showing `buf`. The buffer may be shared with other
+    canvases and reused across spawns — see sprite_buf."""
+    canvas = lv.canvas(parent)
+    canvas.set_size(w, h)
     canvas.set_buffer(buf, w, h, lv.COLOR_FORMAT.ARGB8888)
     canvas.set_style_bg_opa(lv.OPA.TRANSP, 0)
     # lv.canvas.set_buffer() does NOT root the buffer: the binding passes the
@@ -591,9 +609,26 @@ def draw_sprite(parent, rows, palette, scale, tint=None):
     # whatever the GC reuses the block for. Conservative stack scanning keeps
     # it alive just long enough to survive casual testing, which is how the
     # old "roots it C-side" claim went unnoticed. Anchor it to the widget,
-    # exactly like sprite_img anchors its dsc data.
+    # exactly like sprite_img anchors its dsc data. (A pooled canvas whose
+    # buffer is swapped later must keep its own reference; the pool holds
+    # every buffer it can show, so that one is covered.)
     _keep(canvas, buf)
     return canvas
+
+
+def draw_sprite(parent, rows, palette, scale, tint=None):
+    """Draw a pixel sprite onto a fresh transparent canvas, each source pixel
+    as a scale x scale block. Returns the lv.canvas widget.
+
+    tint is a tone (see above) that flattens every opaque pixel: outline pixels
+    ('k') take the tone's outline colour, everything else its fill. None draws
+    the sprite in its real palette.
+
+    One sprite, one buffer, one widget — right for anything built once with the
+    screen. Something that respawns during a round wants sprite_buf +
+    canvas_for instead, so the buffer is baked once and the widget recycled."""
+    buf, w, h = sprite_buf(rows, palette, scale, tint)
+    return canvas_for(parent, buf, w, h)
 
 
 # ── Baked artwork: one atlas for every 16x16 sprite ─────────────────────────

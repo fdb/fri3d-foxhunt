@@ -796,6 +796,56 @@ def _scenery(parent, rows, pal, scale, x, y):
     return w
 
 
+class _SpritePool:
+    """A fixed set of canvases that take turns being whatever is on screen.
+
+    The N64 rule, and the one that matters most here: nothing a round needs is
+    allocated while the round is running. Every buffer the pool can ever show
+    is baked once in build(), every widget is created once, and a spawn is
+    then three calls that allocate nothing — point a canvas at a buffer, place
+    it, unhide it. Before this, VANGEN built a fresh 24x24x4 bytearray per
+    falling ring and deleted it on the catch: 763 B of garbage per tick with
+    11 KB spikes on the spawn tick, which is both what fills the heap and what
+    makes that one frame late.
+
+    `bufs` maps a key (ring metal, food name) to art.sprite_buf's
+    (bytearray, w, h). Sizes may differ between keys; set_buffer takes the new
+    one. The pool holds every buffer, so a canvas whose buffer was swapped
+    still has it rooted (art.canvas_for only anchors the one it was born with).
+
+    Sizing is the caller's job and must be an upper bound on how many can be on
+    screen at once: take() returning None means the game silently drops a
+    spawn, which is a difficulty change, not a rendering glitch."""
+
+    def __init__(self, parent, bufs, n):
+        self.bufs = bufs
+        buf, w, h = next(iter(bufs.values()))
+        self.w = []
+        for _ in range(n):
+            c = art.canvas_for(parent, buf, w, h)
+            c.add_flag(lv.obj.FLAG.HIDDEN)
+            c.remove_flag(lv.obj.FLAG.CLICKABLE)  # taps belong to the playfield
+            self.w.append(c)
+        self.free = list(range(n))
+
+    def take(self, key, x, y):
+        """Show `key` at (x, y). Returns (slot, widget), or None if all out."""
+        if not self.free:
+            return None
+        slot = self.free.pop()
+        c = self.w[slot]
+        buf, w, h = self.bufs[key]
+        c.set_size(w, h)
+        c.set_buffer(buf, w, h, lv.COLOR_FORMAT.ARGB8888)
+        c.set_pos(x, y)
+        c.remove_flag(lv.obj.FLAG.HIDDEN)
+        return slot, c
+
+    def give(self, slot):
+        self.w[slot].add_flag(lv.obj.FLAG.HIDDEN)
+        self.free.append(slot)
+
+
 # ════ VLIEGEN — flappy: tik om te fladderen, ontwijk de takken ═══════════
 _BRANCH = 0x8A5F2C
 _GAP = 84  # opening between branch pair
@@ -1043,13 +1093,32 @@ _CAMP_ART = (
 # The playfield, named — the spawner does reachability maths off these numbers,
 # so a hand-tuned literal moving out from under it would silently make the game
 # unfair again.
-_RUN = 4.0  # beast px per tick; it never stops, it only turns
-_CX_MIN, _CX_MAX = 6.0, 282.0  # how far the beast can run
+#
+# Anything that MOVES is kept in hundredths of a pixel, `_FP` to the pixel, and
+# so are its speeds: the beast's x, a falling item's y and its vy. MicroPython
+# boxes every float on the heap, so `it["y"] += it["vy"]` was an allocation per
+# item per tick and `self._cx += _RUN * self._dir` two more — measured together
+# at ~350 B/tick, the whole of what was left after the sprite buffers were
+# baked. Small ints allocate nothing.
+# Hundredths, not a power-of-two shift: every number this game was tuned with
+# is exact at 1/100 (4.0 -> 400, 2.5 -> 250, 0.08 -> 8, 6.0 -> 600), and `// 100`
+# costs the same as `>> 8`. The sky in VLIEGEN pays for that lesson — in
+# sixteenths its 1.6 px cloud had to become 1.625.
+_FP = 100
+_RUN_PX = 4  # beast px per tick; it never stops, it only turns
+_CX_MIN_PX, _CX_MAX_PX = 6, 282  # how far the beast can run
+_CX_START_PX = 144  # where it stands when the round starts
+_RUN = _RUN_PX * _FP  # the same three in hundredths, so the tick never converts
+_CX_MIN, _CX_MAX = _CX_MIN_PX * _FP, _CX_MAX_PX * _FP
+_CX_START = _CX_START_PX * _FP
 _BEAST_Y = 196  # top of the beast: where a falling item is caught
 _ITEM_PX = 24  # an 8x8 icon at scale 3 — ring and hapje are the same size
 _DROP_Y = 30  # where an item appears
 _CATCH_Y = _BEAST_Y - _ITEM_PX  # item y at which its bottom meets the beast
 _GONE_Y = 232  # past here the item is missed
+# the two the fall maths needs in hundredths, so the tick never converts
+_DROP_YF = _DROP_Y * _FP
+_CATCH_YF = _CATCH_Y * _FP
 # The catch window: cx may be anywhere in (item.x - 32, item.x + 24), so the
 # beast aims at item.x - _AIM and a target cx wants an item at cx + _AIM.
 _AIM = 4
@@ -1063,6 +1132,15 @@ _RING_ODDS = (70, 22, 8)
 # interval is redrawn each time instead, and it is short enough that an ordinary
 # round still meets one.
 _VANG_TREAT = (30, 61)
+
+# How many items can share the sky. The spawner runs every max(16, 30 - caught)
+# ticks and an item lives (_GONE_Y - _DROP_Y) / vy of them, so the busiest the
+# air ever gets is about three and a half; six is the pool with headroom, and
+# headroom is not optional — a pool that runs dry drops a spawn, which the
+# player reads as the game going easy on them.
+_MAX_ITEMS = 6
+_HEART_LIT = {"k": 0x7A1F12, "r": 0xE0463A}
+_HEART_DIM = {"k": 0xB0A07E, "r": 0xECE0C2}
 
 
 def _ring_kind():
@@ -1089,10 +1167,10 @@ class VangActivity(GameActivity):
         for rows, pal, scale, x, base in _CAMP_ART:
             _scenery(s, rows, pal, scale, x, base - len(rows) * scale)
         self.beast = art.creature_panel(s, self.c, 2)
-        self._cx = 144.0
+        self._cx = _CX_START  # hundredths of a pixel — see _FP
         self._dir = 1
-        self.beast.set_pos(int(self._cx), _BEAST_Y)
-        self.items = []  # {"w", "x", "y", "vy", "worth"}
+        self.beast.set_pos(_CX_START_PX, _BEAST_Y)
+        self.items = []  # {"w", "slot", "x", "y", "vy", "worth"}
         self._spawn_t = 10
         self._missed = 0
         # Difficulty rides the number of CATCHES, never the score: a gold ring
@@ -1100,7 +1178,31 @@ class VangActivity(GameActivity):
         # as the player is actually playing it.
         self._caught = 0
         self._treat_in = random.randrange(*_VANG_TREAT)
+        # Everything that can fall, baked once. Three ring metals plus one per
+        # hapje: seven small buffers built here instead of one per spawn thrown
+        # away a second later.
+        bufs = {}
+        for k in range(3):
+            bufs[k] = art.sprite_buf(art.RING, art.RING_PALS[k], 3)
+        for f in store.FOODS:
+            bufs[f] = art.icon_buf(f, 3)
+        self.pool = _SpritePool(s, bufs, _MAX_ITEMS)
         self.hearts_box = ui.box(s, 8, 30, 66, 18)
+        # The hearts are three widgets for the whole round, swapped between two
+        # baked palettes. _hearts() used to clean the box and draw three fresh
+        # sprites on every miss — three buffers plus three widgets, at the one
+        # moment the player is already being told bad news.
+        self._heart_buf = (
+            art.sprite_buf(art.HEART, _HEART_LIT, 2),
+            art.sprite_buf(art.HEART, _HEART_DIM, 2),
+        )
+        buf, hw, hh = self._heart_buf[0]
+        self.heart_w = []
+        for i in range(3):
+            c = art.canvas_for(self.hearts_box, buf, hw, hh)
+            c.set_pos(i * 22, 0)
+            c.remove_flag(lv.obj.FLAG.CLICKABLE)
+            self.heart_w.append(c)
         self._hearts()
         ui.label(
             s,
@@ -1114,14 +1216,11 @@ class VangActivity(GameActivity):
         )
 
     def _hearts(self):
-        self.hearts_box.clean()
-        for i in range(3):
-            pal = (
-                {"k": 0x7A1F12, "r": 0xE0463A}
-                if i < 3 - self._missed
-                else {"k": 0xB0A07E, "r": 0xECE0C2}
-            )
-            art.draw_sprite(self.hearts_box, art.HEART, pal, 2).set_pos(i * 22, 0)
+        lit, dim = self._heart_buf
+        for i, c in enumerate(self.heart_w):
+            buf, w, h = lit if i < 3 - self._missed else dim
+            c.set_buffer(buf, w, h, lv.COLOR_FORMAT.ARGB8888)
+            c.invalidate()  # same buffer pointer, new bytes — say so
 
     def _turn(self):
         if not self._over:
@@ -1141,8 +1240,9 @@ class VangActivity(GameActivity):
 
     def _due(self, it):
         """Ticks until `it` is catchable — its place in the queue the player
-        has to work through, in order."""
-        return (_CATCH_Y - it["y"]) / it["vy"]
+        has to work through, in order. Whole ticks: the item only ever moves on
+        one, and the caller clamps the negative case to zero anyway."""
+        return (_CATCH_YF - it["y"]) // it["vy"]
 
     def _drop_x(self, vy):
         """Where an item falling at `vy` may appear: only somewhere the beast
@@ -1163,72 +1263,88 @@ class VangActivity(GameActivity):
 
         The fall is measured to the FIRST catchable tick, not the last, so a
         drop at the very edge of the window still arrives with a little slack
-        rather than demanding a frame-perfect turn."""
-        fall = (_CATCH_Y - _DROP_Y) / vy
+        rather than demanding a frame-perfect turn.
+
+        Whole ticks and whole pixels throughout — vy is hundredths, everything
+        else here is a screen coordinate. Rounding costs the window at most the
+        4 px of one tick's run, well inside the slack the paragraph above
+        deliberately leaves."""
+        fall = (_CATCH_YF - _DROP_YF) // vy
         if self.items:
             last = max(self.items, key=self._due)
-            anchor, slack = last["x"] - _AIM, fall - max(0.0, self._due(last))
+            due = self._due(last)
+            anchor, slack = last["x"] - _AIM, fall - (due if due > 0 else 0)
         else:
-            anchor, slack = self._cx, fall
-        reach = max(0.0, slack) * _RUN
-        lo = max(_CX_MIN, anchor - reach) + _AIM
-        hi = min(_CX_MAX, anchor + reach) + _AIM
-        return random.randrange(int(lo), int(hi) + 1)
+            anchor, slack = self._cx // _FP, fall
+        reach = (slack if slack > 0 else 0) * _RUN_PX
+        lo = max(_CX_MIN_PX, anchor - reach) + _AIM
+        hi = min(_CX_MAX_PX, anchor + reach) + _AIM
+        return random.randrange(lo, hi + 1)
 
     def step(self):
-        self._cx += _RUN * self._dir
-        if self._cx < _CX_MIN:
-            self._cx, self._dir = _CX_MIN, 1
-        elif self._cx > _CX_MAX:
-            self._cx, self._dir = _CX_MAX, -1
-        self.beast.set_x(int(self._cx))
+        cxf = self._cx + _RUN * self._dir
+        if cxf < _CX_MIN:
+            cxf, self._dir = _CX_MIN, 1
+        elif cxf > _CX_MAX:
+            cxf, self._dir = _CX_MAX, -1
+        self._cx = cxf
+        cx = cxf // _FP
+        self.beast.set_x(cx)
 
         self._spawn_t -= 1
         if self._spawn_t <= 0:
             self._spawn_t = max(16, 30 - self._caught)
-            vy = min(6.0, 2.5 + self._caught * 0.08)
+            vy = min(600, 250 + self._caught * 8)  # hundredth-px per tick
             self._treat_in -= 1
             if self._treat_in <= 0 and self.treats:
                 # worth 0 marks the hapje: it pays a pantry item, not points
                 self._treat_in = random.randrange(*_VANG_TREAT)
                 _f = random.choice(store.FOODS)
-                w, worth = art.icon(self.screen, _f, 3), 0
+                key, worth = _f, 0
             else:
                 kind = _ring_kind()
-                w = art.draw_sprite(self.screen, art.RING, art.RING_PALS[kind], 3)
-                worth = kind + 1
-                _f = None
+                key, worth, _f = kind, kind + 1, None
             x = self._drop_x(vy)
-            w.set_pos(x, _DROP_Y)
-            self.items.append(
-                {
-                    "w": w,
-                    "x": x,
-                    "y": float(_DROP_Y),
-                    "vy": vy,
-                    "worth": worth,
-                    "food": _f,
-                }
-            )
-        for it in self.items[:]:
-            it["y"] += it["vy"]
-            it["w"].set_y(int(it["y"]))
+            got = self.pool.take(key, x, _DROP_Y)
+            if got is not None:
+                slot, w = got
+                self.items.append(
+                    {
+                        "w": w,
+                        "slot": slot,
+                        "x": x,
+                        "y": _DROP_YF,
+                        "vy": vy,
+                        "worth": worth,
+                        "food": _f,
+                    }
+                )
+        # Backwards by index: `self.items[:]` copied the list every tick just to
+        # be able to remove from it while iterating, and a copy is an
+        # allocation. Walking down never visits a moved element.
+        items = self.items
+        for i in range(len(items) - 1, -1, -1):
+            it = items[i]
+            y = it["y"] + it["vy"]
+            it["y"] = y
+            ypx = y // _FP
+            it["w"].set_y(ypx)
             if (
-                it["y"] + _ITEM_PX >= _BEAST_Y
-                and it["x"] + _ITEM_PX > self._cx
-                and it["x"] < self._cx + 32
+                ypx + _ITEM_PX >= _BEAST_Y
+                and it["x"] + _ITEM_PX > cx
+                and it["x"] < cx + 32
             ):
-                it["w"].delete()
-                self.items.remove(it)
+                self.pool.give(it["slot"])
+                items.pop(i)
                 self._caught += 1
                 if it["worth"]:
                     sound.play("tap")
                     self.set_score(self.score + it["worth"])
                 else:
                     self.take_treat(it["food"])
-            elif it["y"] > _GONE_Y:
-                it["w"].delete()
-                self.items.remove(it)
+            elif ypx > _GONE_Y:
+                self.pool.give(it["slot"])
+                items.pop(i)
                 self._missed += 1
                 self._hearts()
                 sound.play("error")
