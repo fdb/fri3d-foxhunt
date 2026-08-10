@@ -18,6 +18,16 @@ board layer handles the hardware differences.
   simulate taps/drags/focus and capture screenshots — see
   `docs/emulator-testing.md`. Prefer this over "it should work" for any
   change with visible or interactive behaviour.
+- **Kill every emulator you start.** The emulator does not exit on stdin EOF,
+  and a backgrounded or crashed run leaves it alive for hours. Stale instances
+  are not harmless: each one holds the app's data symlink, so the next
+  `run_on_mac.sh --lora` swaps the persona under a still-running verzamelaar,
+  and a screenshot can come from the wrong process. Two processes per launch —
+  the SDL binary and the shell that started it:
+  `pkill -f lvgl_micropy; pkill -f run_desktop.sh`. Verify with
+  `ps aux | grep -E 'lvgl_micropy|run_desktop' | grep -v grep`; if anything
+  survives, force it: `pkill -9 -f lvgl_micropy`. Do this at the END of every
+  task that ran the emulator, not only when a run misbehaves.
 - **The emulator's profile is throwaway.** Whatever sits in
   `<MicroPythonOS>/internal_filesystem/prefs/be.fri3d.foxhunt/config.json` is
   test data — no real account, no real catches. Overwrite it with `{}` to
@@ -141,7 +151,9 @@ to "is anything slow?" measurement — no code was slow and nothing blocked.
   stutter; `-4 -4 -4 -4` is not. A 1 ms `lv.timer` heartbeat is the companion
   test: a gap between beats IS a stall of the whole LVGL thread (render, timer,
   asyncio holding the GIL, gc), and `gc.mem_free()` at each beat tells a gc
-  pause apart from the rest.
+  pause apart from the rest. `tools/gcprobe.py` does both — `pacing()` for the
+  frame, `start()`/`report()` for the allocation, and its header for the traps
+  in each (the sampler is not free, and emulator bytes are not badge bytes).
 - **A second-long freeze on a loose ~45 s cycle is the garbage collector.** The
   badge's heap is megabytes of octal PSRAM, so one mark-sweep costs about a
   second, and MicroPython runs one when the heap fills — which is why it lands
@@ -159,12 +171,40 @@ to "is anything slow?" measurement — no code was slow and nothing blocked.
   `onPause` and taken inline by `_again()` (a fast NOG EEN KEER would otherwise
   drop it into the new round). Keep new game code allocating as little as
   possible per tick, and keep those collect points.
-- **MicroPython boxes every float on the heap.** `x -= 1.6` in a 20 Hz loop is
-  an allocation 20 times a second, per object. VLIEGEN's five parallax clouds
-  cost 160 B/tick that way. Fixed-point ints (cloud x is px `<< _SUB`) allocate
-  nothing; use them wherever the value is background or already whole (a branch
-  always moved exactly 3 px). Keep floats only where the fraction IS the game
-  feel — the bird's 0.9 gravity and -6.5 flap.
+- **A tick must not CREATE anything.** That is the whole rule, and the two
+  halves of it are `screens_care._FP` and `_SpritePool`. Measured with
+  `tools/gcprobe.py` (read its header before trusting a number): VANGEN's
+  `step()` went 593.5 → 22.0 B/tick and VLIEGEN's 213.4 → 3.5, with the spawn
+  tick's peak down from 11 KB to 416 B.
+  - **Fixed point, in hundredths.** MicroPython boxes every float on the heap
+    (16 B on the badge, 32 on desktop), so `y += vy` is an allocation per
+    object per tick. Everything that moves is `px * _FP`; convert once, at the
+    `set_x`. Hundredths and not a shift because these numbers were tuned as
+    decimals and 1/100 holds all of them exactly — sixteenths already cost the
+    sky its 1.6 px cloud (it became 1.625) and would have made 0.9 gravity
+    0.875. `// 100` is one machine divide; twenty times a second it is free.
+    The unit error does not raise, it just makes something behave: a probe
+    comparing hundredths against pixels pinned VANGEN's beast to the wall for
+    a whole run and still printed plausible numbers.
+  - **Fixed buffers.** `art.sprite_buf` is the pixel work (a 24x24 sprite is
+    2.3 KB of bytearray plus a line buffer per row) and `art.canvas_for` is
+    the widget. Bake every buffer a round can show in `build()`, then hand a
+    pool of canvases around. A pool must be sized as an UPPER BOUND — running
+    dry drops a spawn, which is a difficulty change, not a glitch — and its
+    failure mode is a ghost widget, so verify it (`gcprobe.check_vlieg`).
+  - **Also gone from the tick:** `for o in self.obs[:]`, whose only job was to
+    allow removal while iterating. Walk backwards by index instead.
+- **Struct-of-arrays is NOT worth it here, though it looks like it should be.**
+  `array('i')` in place of the per-item dicts saved 2.6 B/tick, measured.
+  MicroPython's dicts and small-int arithmetic already allocate nothing —
+  `d["x"] -= 3` is 0 B — so flattening state optimises something that was
+  never costing anything, and costs readability. Optimise what gets CREATED.
+- **The game is a minority of the allocation, so know the floor before you
+  start.** An idle emulator allocates ~11 KB/s with the app on screen and
+  nothing playing; VLIEGEN's whole `step()` was ~4 KB/s of that even BEFORE
+  this work. Emptying a tick moves the collector's interval by a fraction, and
+  it is worth doing because the interval only has to clear the length of a
+  round — a threshold, not a proportion. Do not expect it to scale.
 - **Do not blame background work without measuring it.** `sound.play` is 0 ms
   (the RTTTL player is async), `store` writes are already out of the tick
   (`bank_treats`), home's poll and outbox flush stop on pause, and the OS
@@ -233,7 +273,7 @@ a whole module. Badge paths are under `be.fri3d.foxhunt/assets/`.
 | **VLIEGEN** | `screens_care` → `VliegActivity` |
 | **VANGEN** | `screens_care` → `VangActivity` |
 | **DANSEN** | `screens_care` → `DansActivity` |
-| shared game scaffolding (tick loop, scenery, treats) | `screens_care` → `GameActivity`, `_scenery` |
+| shared game scaffolding (tick loop, scenery, treats, fixed point, widget pool) | `screens_care` → `GameActivity`, `_scenery`, `_FP`, `_SpritePool` |
 | boekje (roster-grid) | `screens_care` → `BoekjeActivity` |
 | jacht / kompas | `screens_hunt` → `HuntActivity` |
 | viercijferige code intypen | `screens_hunt` → `CodeActivity` |

@@ -63,9 +63,43 @@ both. Edit the winning file between runs to set up scenarios:
 delete the `profile` key to re-trigger first-run onboarding, seed a profile
 dict to skip it, delete `settings` to reset toggles.
 
+## Measuring a game: `tools/gcprobe.py`
+
+Copy it into `<MicroPythonOS>/internal_filesystem/` and drive it like any
+other REPL helper. It answers the two questions a game change has to answer,
+and its own header documents the traps in both.
+
+```bash
+echo "import gcprobe"
+echo "gcprobe.start(25)"                    # 25 ms, NOT the 1 ms default
+echo "gcprobe.launch('VangActivity')"       # no screen taps needed
+echo "gcprobe.autoplay()"                   # plays the game so a round lasts
+sleep 30
+echo "gcprobe.report()"                     # B/tick in step(), and the rest
+```
+
+- **`start(25)`, not `start()`.** The 1 ms sampler allocates ~10 KB/s of its
+  own and doubles an idle reading.
+- **`launch()` needs the free-play cheat**, or the round ends on energy:
+  put `"debug": {"nooit_moe": true}` in the app's `config.json`. It also
+  turns hapjes off (`play_cost` gates both), so a treat-spawn path has to be
+  measured another way.
+- **Emulator bytes are not badge bytes** — halve anything small, see the
+  header. And the desktop has ~11 MB free, so it never shows the collector's
+  pause at all; it measures the RATE, the badge measures the interval.
+- `pacing()` / `pacing_report()` print per-RENDERED-FRAME movement, which is
+  what actually decides whether a game stutters. `check_vlieg()` asserts the
+  pooled branch widgets still match the geometry the old per-spawn code drew,
+  because a widget pool's failure mode is a ghost and no counter sees one.
+
 ## Reading the log
 
 `Traceback` lines from `lib/mpos/ui/topmenu.py` (`LvReferenceError`) are OS
 status-bar noise, not app failures. App-level failures show as tracebacks
 with `apps/be.fri3d.foxhunt/...` frames, or an on-screen error dialog logged
 from `activity.onCreate`.
+
+An `LvReferenceError` from an app frame is the same noise **when it appears
+after the last line your script printed**: killing the emulator tears the
+screen down while a game tick is still in flight. Check the line numbers in
+the log, not just `grep -c Traceback`.
