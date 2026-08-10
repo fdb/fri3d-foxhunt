@@ -1245,16 +1245,6 @@ class VangActivity(GameActivity):
             c.remove_flag(lv.obj.FLAG.CLICKABLE)
             self.heart_w.append(c)
         self._hearts()
-        ui.label(
-            s,
-            "tik om te keren - of stuur met de stick",
-            0,
-            226,
-            ui.TEXT_MUTED,
-            ui.font_small(),
-            w=320,
-            center=True,
-        )
 
     def _hearts(self):
         lit, dim = self._heart_buf
