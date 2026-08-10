@@ -42,12 +42,25 @@ proposal.md / app.md              # original workshop brief
 
 ## Run on the desktop emulator
 
-The app is symlinked into a local MicroPythonOS checkout's `apps/`. From that
-checkout:
+From the repo root:
 
 ```bash
-cd /Users/fdb/Source/MicroPythonOS
-./scripts/run_desktop.sh be.fri3d.foxhunt
+scripts/run_on_mac.sh          # verzamelaar (no antenna)
+scripts/run_on_mac.sh --lora   # jager (fakes a LoRa antenna + a second MAC)
+```
+
+On first run it downloads a prebuilt MicroPythonOS into `~/MicroPythonOS`.
+It symlinks the working tree into that checkout's `internal_filesystem/apps/`,
+so edits show up on the next run with no copy step, and it points the save at
+the persona's own slot before launching — each persona keeps a separate save
+and a separate server account.
+
+The emulator does not exit when its window closes or when stdin ends, and it
+often ignores SIGTERM. Kill it when you are done, then check what survived:
+
+```bash
+pkill -f lvgl_micropy; pkill -f run_desktop.sh
+pgrep -fl lvgl_micropy_macOS   # anything left needs kill -9 <pid>
 ```
 
 Mouse = touch · arrow keys = focus nav · Esc = back. The hunt "warms up" on its
