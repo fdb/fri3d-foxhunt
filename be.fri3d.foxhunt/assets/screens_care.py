@@ -1266,8 +1266,11 @@ class VangActivity(GameActivity):
         lit, dim = self._heart_buf
         for i, c in enumerate(self.heart_w):
             buf, w, h = lit if i < 3 - self._missed else dim
+            # set_buffer re-points the canvas's OWN dsc struct, so LVGL's image
+            # cache sees the same src pointer for lit and dim; it drops the
+            # cache itself, and the invalidate makes the repaint explicit.
             c.set_buffer(buf, w, h, lv.COLOR_FORMAT.ARGB8888)
-            c.invalidate()  # same buffer pointer, new bytes — say so
+            c.invalidate()
 
     def _turn(self):
         if not self._over:
