@@ -17,9 +17,12 @@
 # status bar, asyncio). A negative delta means memory was freed — LVGL's C
 # allocator hands blocks straight back, since lv_conf.h sets
 # LV_USE_STDLIB_MALLOC = LV_STDLIB_MPY — so those are counted, not summed.
-#   * THE SAMPLER IS NOT FREE. Reading it every 1 ms adds ~10 KB/s of its own
-#     and doubles an idle reading; 25 ms is the honest setting. Measured on an
-#     idle home screen: 21.2 KB/s at 1 ms, 13.1 at 5, 10.9 at 25.
+#   * THE SAMPLER IS NOT FREE, AND ON THE BADGE IT IS WORSE. gc.mem_alloc() /
+#     gc.mem_free() WALK THE WHOLE HEAP — O(heap size), a few ms on the badge's
+#     multi-MB PSRAM. On the emulator, reading every 1 ms adds ~10 KB/s and
+#     doubles an idle reading; on the BADGE, a per-frame sample is a per-frame
+#     stall that halves the frame rate and deflates the very allocation it
+#     measures. Sample at ~1 Hz on the badge (25 ms is fine on the emulator).
 #   * Emulator bytes are not badge bytes. The desktop is a 64-bit build with
 #     32-byte GC blocks and doubles; the badge is 32-bit with 16-byte blocks
 #     and single floats. HALVE anything small — a float, a dict, a list. A

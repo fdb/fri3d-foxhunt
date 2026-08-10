@@ -188,8 +188,14 @@ either. Rules:
   that returns at once and samples in the background, read back later by a second
   quick `exec`. Never a blocking sleep-loop against a live game.
 - **When the REPL keeps wedging, skip serial entirely: use an on-screen HUD.**
-  Draw `gc.mem_free()` and a collect counter in a corner behind the debug cheat,
-  deploy, and read the numbers off the glass while playing.
+  Draw the heap stats in a corner behind the debug cheat, deploy, and read the
+  numbers off the glass while playing.
+- **`gc.mem_free()` and `gc.mem_alloc()` WALK THE WHOLE HEAP** — O(heap size),
+  several ms on the badge's multi-MB PSRAM. Sampling either one per game tick
+  (or an lv.timer faster than ~1 Hz) is itself a per-frame stall that halves the
+  frame rate AND deflates the allocation it is trying to measure. Sample at most
+  ~1 Hz. This distorts any probe that reads them in a hot loop; a HUD must
+  sample every N ticks, never every tick.
 
 ## Frame pacing — why a game stutters
 A moving game screen is judged by what the DISPLAY shows per frame, never by
