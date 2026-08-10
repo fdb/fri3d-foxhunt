@@ -976,16 +976,6 @@ class VliegActivity(GameActivity):
         self.treat_pool = _SpritePool(s, bufs, _MAX_TREATS)
         self._spawn_t = 10
         self._treat_in = random.randrange(*_VLIEG_TREAT)
-        ui.label(
-            s,
-            "tik om te fladderen - of stick omhoog",
-            0,
-            226,
-            ui.TEXT_MUTED,
-            ui.font_small(),
-            w=320,
-            center=True,
-        )
 
     def _flap(self):
         if not self._over:
