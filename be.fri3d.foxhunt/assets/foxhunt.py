@@ -12,6 +12,8 @@
 # activity cannot pop itself out from under a child. The system back gesture
 # pops the child, this activity resumes, and decides again — see onResume.
 
+import sys
+
 import lvgl as lv
 from mpos import Activity, Intent
 import ui
@@ -20,8 +22,35 @@ import store
 import registrar
 import telemetry
 from creatures import by_id
-from screens_system import HomeActivity
-from screens_onboarding import WelcomeActivity
+
+# The route targets are imported through lazy() below, not here: on the badge
+# every module import pays ~0.25s of LittleFS open() overhead before its body
+# even runs, and importing a flow module here pulls in every OTHER flow module
+# it links to. Deferring them keeps the splash off the hook for screens this
+# launch may never route to.
+
+# The app dir sits on sys.path only while the OS runs this entrypoint script
+# (AppManager restores the path the moment the script finishes), so capture it
+# now: every deferred import must put it back for the duration of the import.
+_APP_PATH = sys.path[0]
+
+
+def lazy(name):
+    """Import an app module after launch (tap handlers, prewarm, reroutes).
+
+    Re-inserts the app dir around the import and removes it again, so the
+    app's flat module names (ui, sound, store, ...) never linger at
+    sys.path[0] where they could shadow an OS import.
+    """
+    m = sys.modules.get(name)
+    if m is not None:
+        return m
+    sys.path.insert(0, _APP_PATH)
+    try:
+        return __import__(name)
+    finally:
+        sys.path.remove(_APP_PATH)
+
 
 _SPLASH_SCALE = 8  # 16px art -> 128px
 
@@ -64,10 +93,12 @@ class FoxhuntActivity(Activity):
                 return
             self._onboarded = True
             self._booked = False
-            self.startActivity(Intent(activity_class=WelcomeActivity))
+            welcome = lazy("screens_onboarding").WelcomeActivity
+            self.startActivity(Intent(activity_class=welcome))
         elif not self._booked:
             self._booked = True
             self._onboarded = False
-            self.startActivity(Intent(activity_class=HomeActivity))
+            home = lazy("screens_system").HomeActivity
+            self.startActivity(Intent(activity_class=home))
         else:
             self.finish()  # back out of the boek -> back to the launcher

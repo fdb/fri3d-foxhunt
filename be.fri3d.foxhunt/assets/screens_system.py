@@ -22,13 +22,31 @@ import store
 import sound
 from creatures import CREATURES
 from fox_radio import RADIO
-from screens_hunt import HuntActivity
-from screens_care import BeastActivity
-from screens_hunt import SnuffelActivity
-from screens_hunt import PlukActivity
-from screens_onboarding import UitlegActivity
-from screens_hunt import VisitorActivity
 import registrar
+from foxhunt import lazy
+
+# The other flow modules are imported at the navigation edge (foxhunt.lazy
+# inside the tap handlers), never here: each module import costs ~0.25s of
+# LittleFS open() overhead on the badge, and a top-level import would chain
+# ALL flow modules into every cold start (measured: 7.7s of import before
+# first paint). A plain import statement cannot do it — the OS drops the app
+# dir from sys.path once the entrypoint script finishes, which is lazy()'s
+# whole reason to exist. The prewarm timer below pulls the modules in while
+# the player reads the home screen, so a tap normally finds its module
+# already in sys.modules.
+#
+# Order is likeliest-first-tap first, and screens_hunt comes AFTER the three
+# helpers it imports at its own top level (celebrate, snuffel_link,
+# pluk_radio) so no single timer firing blocks longer than one module.
+_PRELOAD = [
+    "screens_care",
+    "celebrate",
+    "snuffel_link",
+    "pluk_radio",
+    "screens_hunt",
+    "screens_onboarding",
+]
+_PRELOAD_MS = 400
 
 _CELL_W, _CELL_H, _GAP = 74, 52, 4  # boek tiles
 _HAIR = 0xDCCFA9  # section hairline on paper
@@ -43,6 +61,7 @@ class HomeActivity(Activity):
         self._fresh = True
         self._visitor_timer = None
         self._visitor_id = None
+        self._prewarm_timer = None
         self.screen = ui.make_screen(ui.PAPER)
         self._populate()
         self.setContentView(self.screen)
@@ -50,7 +69,8 @@ class HomeActivity(Activity):
         # A store flag, not part of onboarding, so restored accounts get it too.
         if not store.flag("uitleg_gezien"):
             store.set_flag("uitleg_gezien")
-            self.startActivity(Intent(activity_class=UitlegActivity))
+            uitleg = lazy("screens_onboarding").UitlegActivity
+            self.startActivity(Intent(activity_class=uitleg))
 
     def onResume(self, screen):
         super().onResume(screen)
@@ -66,6 +86,7 @@ class HomeActivity(Activity):
         # dead network just leaves the outbox for the next resume.
         registrar.flush()
         self._start_visitor_poll()
+        self._start_prewarm()
         # Refresh caught state in place. Do NOT call setContentView again — it
         # appends a new screen to the stack and leaks the old one (11 canvas
         # buffers!). clean() frees the previous cells before repopulating.
@@ -78,10 +99,35 @@ class HomeActivity(Activity):
     def onPause(self, screen):
         super().onPause(screen)
         self._stop_visitor_poll()
+        # Also the prewarm: an import blocks the LVGL loop for ~0.3-0.7s, and
+        # once home is covered the foreground may be a GAME tick loop. A tap
+        # that outran the prewarm pays its own module's import in the handler
+        # instead; onResume picks the remainder back up.
+        self._stop_prewarm()
 
     def onDestroy(self, screen):
         super().onDestroy(screen)
         self._stop_visitor_poll()
+        self._stop_prewarm()
+
+    def _start_prewarm(self):
+        if _PRELOAD and self._prewarm_timer is None:
+            self._prewarm_timer = lv.timer_create(self._prewarm, _PRELOAD_MS, None)
+
+    def _stop_prewarm(self):
+        if self._prewarm_timer is not None:
+            self._prewarm_timer.delete()
+            self._prewarm_timer = None
+
+    def _prewarm(self, _timer):
+        # One module per firing, so no single callback holds the loop longer
+        # than one import. The list empties exactly once per deploy:
+        # screens_system is not the entrypoint, so it survives app relaunches
+        # in sys.modules — and so do the modules it warmed.
+        if _PRELOAD:
+            lazy(_PRELOAD.pop(0))
+        if not _PRELOAD:
+            self._stop_prewarm()
 
     def _start_visitor_poll(self):
         if self._visitor_timer is None:
@@ -253,7 +299,8 @@ class HomeActivity(Activity):
 
     def _visitor(self):
         sound.play("tap")
-        self.startActivity(Intent(activity_class=VisitorActivity))
+        visitor = lazy("screens_hunt").VisitorActivity
+        self.startActivity(Intent(activity_class=visitor))
 
     def _kop_btn(self, x, icon, on_click):
         """Jager header shortcut: a compact 42px icon panel."""
@@ -325,19 +372,23 @@ class HomeActivity(Activity):
 
     def _snuffel(self):
         sound.play("tap")
-        self.startActivity(Intent(activity_class=SnuffelActivity))
+        snuffel = lazy("screens_hunt").SnuffelActivity
+        self.startActivity(Intent(activity_class=snuffel))
 
     def _pluk(self):
         sound.play("tap")
-        self.startActivity(Intent(activity_class=PlukActivity))
+        pluk = lazy("screens_hunt").PlukActivity
+        self.startActivity(Intent(activity_class=pluk))
 
     def _hunt(self, cid):
         sound.play("tap")
-        self.startActivity(Intent(activity_class=HuntActivity, extras={"fox_id": cid}))
+        hunt = lazy("screens_hunt").HuntActivity
+        self.startActivity(Intent(activity_class=hunt, extras={"fox_id": cid}))
 
     def _open(self, cid):
         sound.play("tap")
-        self.startActivity(Intent(activity_class=BeastActivity, extras={"fox_id": cid}))
+        beast = lazy("screens_care").BeastActivity
+        self.startActivity(Intent(activity_class=beast, extras={"fox_id": cid}))
 
     def _profile(self):
         sound.play("tap")
@@ -364,8 +415,10 @@ import sound
 import store
 import companion
 from creatures import CREATURES, by_id
-from screens_onboarding import CompanionActivity
-from screens_onboarding import RegisterActivity
+from foxhunt import lazy
+
+# CompanionActivity / RegisterActivity load at the navigation edge via
+# lazy() — see the home section's header note.
 
 SCORE_BG = 0xF6E7CD
 SCORE_LABEL = 0x8A6A2E
@@ -468,15 +521,13 @@ class ProfileActivity(Activity):
 
     def _edit_companion(self):
         sound.play("tap")
-        self.startActivity(
-            Intent(activity_class=CompanionActivity, extras={"edit": True})
-        )
+        comp = lazy("screens_onboarding").CompanionActivity
+        self.startActivity(Intent(activity_class=comp, extras={"edit": True}))
 
     def _edit_name(self):
         sound.play("tap")
-        self.startActivity(
-            Intent(activity_class=RegisterActivity, extras={"edit": True})
-        )
+        reg = lazy("screens_onboarding").RegisterActivity
+        self.startActivity(Intent(activity_class=reg, extras={"edit": True}))
 
 
 # ═════════════════════════ screen_settings ═════════════════════════
@@ -495,8 +546,10 @@ import store
 import sound
 import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import registrar
-from screens_onboarding import UitlegActivity
-from screens_onboarding import RegSendActivity
+from foxhunt import lazy
+
+# UitlegActivity / RegSendActivity load at the navigation edge via lazy() —
+# see the home section's header note.
 
 TRACK_OFF = 0xE0D4B4  # switch track when off
 ROW_H, ROW_GAP = 26, 4
@@ -717,7 +770,8 @@ class SettingsActivity(Activity):
 
     def _uitleg(self):
         sound.play("tap")
-        self.startActivity(Intent(activity_class=UitlegActivity))
+        uitleg = lazy("screens_onboarding").UitlegActivity
+        self.startActivity(Intent(activity_class=uitleg))
 
     def _open_resync(self):
         # The send screen, not a bare retry: the server may answer that this
@@ -725,9 +779,8 @@ class SettingsActivity(Activity):
         # answers only the player can pick between. Everything that can be
         # said about a registration attempt is already said there.
         sound.play("tap")
-        self.startActivity(
-            Intent(activity_class=RegSendActivity, extras={"resync": True})
-        )
+        regsend = lazy("screens_onboarding").RegSendActivity
+        self.startActivity(Intent(activity_class=regsend, extras={"resync": True}))
 
     def _word_jager(self):
         if self._wj_busy:

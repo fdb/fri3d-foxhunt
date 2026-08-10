@@ -479,8 +479,12 @@ import store
 import companion
 from creatures import by_id
 from snuffel_link import LINK
-from screens_care import BoekjeActivity
-from screens_care import BeastActivity
+from foxhunt import lazy
+
+# BoekjeActivity / BeastActivity load at the navigation edge (foxhunt.lazy
+# inside the handlers): a top-level import here would chain all of
+# screens_care into the first load of this module, and each module import
+# costs ~0.25s of LittleFS open() overhead on the badge.
 
 _ROW_TOP_BG = 0xF6E7CD  # the strongest peer's row
 _AVATAR_BG = 0xCFE0EA
@@ -676,7 +680,8 @@ class SnuffelActivity(Activity):
 
     def _boekje(self):
         sound.play("tap")
-        self.startActivity(Intent(activity_class=BoekjeActivity))
+        boekje = lazy("screens_care").BoekjeActivity
+        self.startActivity(Intent(activity_class=boekje))
 
 
 class VonkActivity(Activity):
@@ -849,9 +854,8 @@ class VonkActivity(Activity):
         # straight into the normal creature flow: the geluk beast's page,
         # with VOER / AAI / SPEEL / DOSSIER like any caught creature
         sound.play("tap")
-        self.startActivity(
-            Intent(activity_class=BeastActivity, extras={"fox_id": self.geluk})
-        )
+        beast = lazy("screens_care").BeastActivity
+        self.startActivity(Intent(activity_class=beast, extras={"fox_id": self.geluk}))
 
 
 # ═════════════════════════ screen_pluk ═════════════════════════
