@@ -480,6 +480,26 @@ from creatures import by_id
 # nothing new to show.
 _LV_REFR_DEFAULT_MS = 33  # LV_DEF_REFR_PERIOD in the firmware's lv_conf.h
 
+# Fixed point: every game keeps anything that MOVES in hundredths of a pixel,
+# `_FP` to the pixel, and its speeds with it.
+#
+# MicroPython boxes every float on the heap — a 16-byte GC block on the badge,
+# 32 on the desktop — so `y += vy` is an allocation per moving object per tick,
+# and garbage is exactly what buys the collector's second-long pause (see
+# _collect). A small int allocates nothing at all. Measured over both games,
+# the floats were ~350 B of the ~600 B a VANGEN tick used to cost.
+#
+# Hundredths, not a power-of-two shift, and that choice has already been made
+# the other way once: VLIEGEN's sky first went to sixteenths and had to round a
+# 1.6 px cloud to 1.625. Every number these games were tuned with is a decimal
+# a human typed — 0.9 gravity, a -6.5 flap, 4.0 px of run, 0.08 of ramp — and
+# 1/100 holds all of them exactly. `// 100` is one machine divide; against
+# twenty ticks a second it is not measurable, and the arithmetic staying
+# readable as the numbers the designer chose is worth more.
+#
+# Screen coordinates stay whole pixels. Convert once, at the set_x / set_y.
+_FP = 100
+
 
 def _collect():
     """Take the garbage collector's pause where it cannot hurt.
@@ -851,27 +871,30 @@ _BRANCH = 0x8A5F2C
 _GAP = 84  # opening between branch pair
 _BIRD_X = 50
 
-# Parallax layers: (grid, palette, scale, px per tick). Depth is signalled on
-# three channels at once — far clouds are smaller, paler and slower — because
-# speed alone is barely legible on a 320px screen. The branches scroll at 3.0,
-# so even the fastest cloud stays visibly behind the play field.
-# Cloud x is kept in SIXTEENTHS of a pixel, and the speeds with it (8 = 0.5 px
-# per tick, 26 = 1.625). Not premature cleverness: MicroPython boxes every
-# float on the heap, so the five `c["x"] -= c["sp"]` in _drift allocated 160
-# bytes EVERY tick — 3.2 KB/s, the largest single source of garbage in the
-# game, and garbage is what buys the collector's pause (see _collect). Small
-# ints allocate nothing at all. The clouds are background parallax, so the only
-# visible consequence is the fastest layer drifting at 1.625 px instead of 1.6.
+# Parallax layers: (grid, palette, scale, hundredth-px per tick). Depth is
+# signalled on three channels at once — far clouds are smaller, paler and
+# slower — because speed alone is barely legible on a 320px screen. The
+# branches scroll at 3 px, so even the fastest cloud stays visibly behind the
+# play field.
+# Cloud x and speed are in hundredths (see _FP). This sky went to sixteenths
+# first and had to round its 1.6 px layer to 1.625; at 1/100 it is 160, exactly
+# the number the parallax was tuned with.
 _SKY = (
-    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 8),
-    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 8),
-    (art.CLOUD, {"w": 0xECF2D6, "s": 0xDFE9C2}, 2, 16),
-    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 26),
-    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 26),
+    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 50),
+    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 50),
+    (art.CLOUD, {"w": 0xECF2D6, "s": 0xDFE9C2}, 2, 100),
+    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 160),
+    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 160),
 )
-_SUB = 4  # cloud x is px << _SUB
 _SKY_TOP = 32  # clear of the 26px banner, which is drawn before the clouds
 _SKY_BOT = 148
+
+# The fox's flight, in hundredths per tick. These three ARE the game feel and
+# were tuned by hand as decimals; 1/100 holds all of them exactly.
+_GRAVITY = 90  # 0.9 px/tick added per tick
+_FLAP = -650  # 6.5 px/tick upward
+_VY_MAX = 800  # 8 px/tick terminal fall
+_BRANCH_DX = 3  # px per tick, whole from the start
 
 # Collision leniency, the oldest trick in the platformer book: the fox's box is
 # 32x32 but the art doesn't fill it — ears, tail and paws leave transparent
@@ -887,6 +910,13 @@ _GRACE = 5
 # the whole skill of this game, and this pays for it.
 _VLIEG_TREAT = (10, 21)
 _TREAT_PX = 16  # a food icon at scale 2
+# A branch pair spawns every 46 ticks and crosses the 350 px to its deletion
+# point in 117, so four pairs can share the screen; five is the pool with room.
+# Two hapjes can never be in the air at once (they are at least ten pairs
+# apart) but the pool costs two small canvases, and a pool that runs dry drops
+# a spawn silently.
+_MAX_OBS = 5
+_MAX_TREATS = 2
 
 
 class VliegActivity(GameActivity):
@@ -907,22 +937,39 @@ class VliegActivity(GameActivity):
             self.clouds.append(
                 {
                     "w": w,
-                    "x": x << _SUB,
-                    "px": (len(rows[0]) * scale) << _SUB,
+                    "x": x * _FP,
+                    "px": (len(rows[0]) * scale) * _FP,
                     "sp": sp,
                     "ix": x,
                 }
             )
         self.bird = art.creature_panel(s, self.c, 2, flip_x=True)
-        self._y = 110.0
-        self._vy = 0.0
+        self._y = 110 * _FP
+        self._vy = 0
         # The round starts on the first tap, not on the first tick. Gravity,
         # the branches and the collision test all wait; only the sky keeps
         # drifting, so the held frame still looks alive. Without this a player
         # who is still reading the hint has already fallen out of the sky.
         self._flying = False
-        self.bird.set_pos(_BIRD_X, int(self._y))
-        self.obs = []  # {"top", "bot", "x", "passed", "treat"}
+        self.bird.set_pos(_BIRD_X, self._y // _FP)
+        # Branch pairs and hapjes are pooled the same way VANGEN's falling
+        # items are: the widgets exist for the whole round and a spawn only
+        # moves and unhides them. Two lv.obj per pair plus a canvas per hapje,
+        # created and deleted every 46 ticks, was the rest of this game's
+        # garbage once the sky and the fox stopped allocating.
+        self.obs = []  # {"slot", "x", "gap", "passed", "treat"}
+        self.pairs = []
+        for _ in range(_MAX_OBS):
+            top = self._branch(s, 26, 2, lv.BORDER_SIDE.BOTTOM)
+            bot = self._branch(s, 26, 2, lv.BORDER_SIDE.TOP)
+            top.add_flag(lv.obj.FLAG.HIDDEN)
+            bot.add_flag(lv.obj.FLAG.HIDDEN)
+            self.pairs.append((top, bot))
+        self.free_pairs = list(range(_MAX_OBS))
+        bufs = {}
+        for f in store.FOODS:
+            bufs[f] = art.icon_buf(f, 2)
+        self.treat_pool = _SpritePool(s, bufs, _MAX_TREATS)
         self._spawn_t = 10
         self._treat_in = random.randrange(*_VLIEG_TREAT)
         ui.label(
@@ -939,7 +986,7 @@ class VliegActivity(GameActivity):
     def _flap(self):
         if not self._over:
             self._flying = True
-            self._vy = -6.5
+            self._vy = _FLAP
 
     def _key(self, e):
         """Every "go" key flaps: joystick up and A on the badge, up / enter /
@@ -950,6 +997,8 @@ class VliegActivity(GameActivity):
             self._flap()
 
     def _branch(self, s, y, h, cap):
+        """One branch. Built five pairs at a time in build() and then reshaped
+        per spawn (set_y + set_height), never created inside the round."""
         b = ui.box(s, 320, y, 26, max(2, h), _BRANCH)
         b.set_style_border_width(ui.BORDER, 0)
         b.set_style_border_color(ui.hexc(ui.INK), 0)
@@ -967,46 +1016,48 @@ class VliegActivity(GameActivity):
         for c in self.clouds:
             c["x"] -= c["sp"]
             if c["x"] < -c["px"]:
-                c["x"] = (320 + random.randrange(0, 48)) << _SUB
+                c["x"] = (320 + random.randrange(0, 48)) * _FP
                 c["w"].set_y(random.randrange(_SKY_TOP, _SKY_BOT))
-            x = c["x"] >> _SUB
+            x = c["x"] // _FP
             if x != c["ix"]:
                 c["ix"] = x
                 c["w"].set_x(x)
 
     def step(self):
-        s = self.screen
         self._drift()
         if not self._flying:
             return
-        self._vy = min(8.0, self._vy + 0.9)
-        self._y += self._vy
-        if self._y < 26 or self._y > 240 - 32:
+        vy = self._vy + _GRAVITY
+        if vy > _VY_MAX:
+            vy = _VY_MAX
+        self._vy = vy
+        yf = self._y + vy
+        self._y = yf
+        y = yf // _FP
+        if y < 26 or y > 240 - 32:
             sound.play("error")
             self.game_over("AUW!")
             return
-        self.bird.set_pos(_BIRD_X, int(self._y))
+        self.bird.set_pos(_BIRD_X, y)
 
         self._spawn_t -= 1
-        if self._spawn_t <= 0:
+        if self._spawn_t <= 0 and self.free_pairs:
             self._spawn_t = 46
             gap_y = random.randrange(92, 178)
+            slot = self.free_pairs.pop()
+            top, bot = self.pairs[slot]
+            top.set_pos(320, 26)
+            top.set_height(max(2, gap_y - _GAP // 2 - 26))
+            top.remove_flag(lv.obj.FLAG.HIDDEN)
+            bot.set_pos(320, gap_y + _GAP // 2)
+            bot.set_height(max(2, 240 - gap_y - _GAP // 2))
+            bot.remove_flag(lv.obj.FLAG.HIDDEN)
             self.obs.append(
                 {
-                    "top": self._branch(
-                        s, 26, gap_y - _GAP // 2 - 26, lv.BORDER_SIDE.BOTTOM
-                    ),
-                    "bot": self._branch(
-                        s,
-                        gap_y + _GAP // 2,
-                        240 - gap_y - _GAP // 2,
-                        lv.BORDER_SIDE.TOP,
-                    ),
-                    # A branch scrolls exactly 3 px per tick, so an int is not
-                    # an approximation of the float it replaces — it is the
-                    # same number without a heap allocation per obstacle per
-                    # tick. (The bird keeps its floats: 0.9 gravity and a -6.5
-                    # flap are genuinely fractional and that IS the game feel.)
+                    "slot": slot,
+                    # A branch scrolls exactly 3 px per tick, so its x is a
+                    # plain pixel count: the fox needs hundredths because its
+                    # motion is fractional, a branch never does.
                     "x": 320,
                     "gap": gap_y,
                     "passed": False,
@@ -1017,18 +1068,22 @@ class VliegActivity(GameActivity):
             if self._treat_in <= 0 and self.treats:
                 self._treat_in = random.randrange(*_VLIEG_TREAT)
                 _f = random.choice(store.FOODS)
-                t = art.icon(s, _f, 2)
-                t.set_pos(320 + 5, gap_y - _TREAT_PX // 2)
-                self.obs[-1]["treat"] = t
-                self.obs[-1]["treat_food"] = _f
-        for o in self.obs[:]:
-            o["x"] -= 3
-            x = o["x"]
-            o["top"].set_x(x)
-            o["bot"].set_x(x)
+                got = self.treat_pool.take(_f, 325, gap_y - _TREAT_PX // 2)
+                if got is not None:
+                    self.obs[-1]["treat"] = got[0]
+                    self.obs[-1]["treat_food"] = _f
+        # Backwards by index, so no per-tick copy of the list (see VANGEN).
+        obs = self.obs
+        for i in range(len(obs) - 1, -1, -1):
+            o = obs[i]
+            x = o["x"] - _BRANCH_DX
+            o["x"] = x
+            top, bot = self.pairs[o["slot"]]
+            top.set_x(x)
+            bot.set_x(x)
             t = o["treat"]
             if t is not None:
-                t.set_x(x + 5)
+                self.treat_pool.w[t].set_x(x + 5)
                 # The hapje's own box against the fox's forgiving one. It sits
                 # inside the gap, so this can only ever fire on a pass the
                 # branch test below is going to allow anyway.
@@ -1036,28 +1091,29 @@ class VliegActivity(GameActivity):
                 if (
                     x + 5 < _BIRD_X + 32 - _GRACE
                     and x + 5 + _TREAT_PX > _BIRD_X + _GRACE
-                    and ty < self._y + 32 - _GRACE
-                    and ty + _TREAT_PX > self._y + _GRACE
+                    and ty < y + 32 - _GRACE
+                    and ty + _TREAT_PX > y + _GRACE
                 ):
-                    t.delete()
+                    self.treat_pool.give(t)
                     o["treat"] = None
                     self.take_treat(o.pop("treat_food", None))
             if not o["passed"] and x + 26 < _BIRD_X:
                 o["passed"] = True
                 self.set_score(self.score + 1)
             if x < -30:
-                o["top"].delete()
-                o["bot"].delete()
+                top.add_flag(lv.obj.FLAG.HIDDEN)
+                bot.add_flag(lv.obj.FLAG.HIDDEN)
+                self.free_pairs.append(o["slot"])
                 if o["treat"] is not None:
-                    o["treat"].delete()
-                self.obs.remove(o)
+                    self.treat_pool.give(o["treat"])
+                obs.pop(i)
                 continue
             # collision: the fox's hitbox (its 32x32 box inset by _GRACE, so
             # x 55..77) vs the branch column outside the gap
             if x < _BIRD_X + 32 - _GRACE and x + 26 > _BIRD_X + _GRACE:
                 if (
-                    self._y + _GRACE < o["gap"] - _GAP // 2
-                    or self._y + 32 - _GRACE > o["gap"] + _GAP // 2
+                    y + _GRACE < o["gap"] - _GAP // 2
+                    or y + 32 - _GRACE > o["gap"] + _GAP // 2
                 ):
                     sound.play("error")
                     self.game_over("AUW!")
@@ -1094,17 +1150,8 @@ _CAMP_ART = (
 # so a hand-tuned literal moving out from under it would silently make the game
 # unfair again.
 #
-# Anything that MOVES is kept in hundredths of a pixel, `_FP` to the pixel, and
-# so are its speeds: the beast's x, a falling item's y and its vy. MicroPython
-# boxes every float on the heap, so `it["y"] += it["vy"]` was an allocation per
-# item per tick and `self._cx += _RUN * self._dir` two more — measured together
-# at ~350 B/tick, the whole of what was left after the sprite buffers were
-# baked. Small ints allocate nothing.
-# Hundredths, not a power-of-two shift: every number this game was tuned with
-# is exact at 1/100 (4.0 -> 400, 2.5 -> 250, 0.08 -> 8, 6.0 -> 600), and `// 100`
-# costs the same as `>> 8`. The sky in VLIEGEN pays for that lesson — in
-# sixteenths its 1.6 px cloud had to become 1.625.
-_FP = 100
+# The beast's x, a falling item's y and its vy are in hundredths (see _FP);
+# every number below is exact at that scale (4.0 -> 400, 2.5 -> 250, 0.08 -> 8).
 _RUN_PX = 4  # beast px per tick; it never stops, it only turns
 _CX_MIN_PX, _CX_MAX_PX = 6, 282  # how far the beast can run
 _CX_START_PX = 144  # where it stands when the round starts
