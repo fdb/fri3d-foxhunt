@@ -879,11 +879,15 @@ _BIRD_X = 50
 # Cloud x and speed are in hundredths (see _FP). This sky went to sixteenths
 # first and had to round its 1.6 px layer to 1.625; at 1/100 it is 160, exactly
 # the number the parallax was tuned with.
+# THREE layers, not five. Every moving widget costs a per-frame LVGL draw
+# descriptor off the MicroPython heap, and the badge's partial-buffer renderer
+# pays that several times per frame — the sky was ~100 KB/s of the allocation
+# that fills the heap and buys the ~400 ms collect (see _collect). One layer per
+# depth channel keeps the parallax reading (small/pale/slow, mid, big/bright/
+# fast) while cutting the sky's mover count from five to three.
 _SKY = (
     (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 50),
-    (art.PUFF, {"w": 0xE7F0CE, "s": 0xDCE8BC}, 2, 50),
     (art.CLOUD, {"w": 0xECF2D6, "s": 0xDFE9C2}, 2, 100),
-    (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 160),
     (art.CLOUD, {"w": 0xFFF7E6, "s": 0xEDF3D8}, 3, 160),
 )
 _SKY_TOP = 32  # clear of the 26px banner, which is drawn before the clouds
