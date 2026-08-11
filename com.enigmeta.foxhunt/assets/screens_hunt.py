@@ -171,6 +171,7 @@ STATUS = {
     "wrong": ("verkeerde code", ui.TERRA_D),
     "used": ("code al gebruikt", ui.TERRA_D),
     "self": ("al zelf gevonden - +0 punten", ui.TERRA_D),
+    "busy": ("probeer opnieuw", ui.TERRA_D),
 }
 
 
@@ -354,7 +355,7 @@ class CodeActivity(Activity):
                 extras["pakket"] = pakket
             self.startActivity(Intent(activity_class=WinActivity, extras=extras))
             return
-        # wrong/used: pure feedback, nothing to bank — a late one just drops.
+        # wrong/used/busy: pure feedback, nothing to bank — a late one just drops.
         if not self.has_foreground():
             return
         sound.play("error")

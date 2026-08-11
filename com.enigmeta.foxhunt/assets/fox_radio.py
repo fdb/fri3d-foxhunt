@@ -173,8 +173,13 @@ class FoxRadio:
 
         result is one of:
             "ok"    accepted, the catch counts
-            "wrong" no such code for this fox
+            "wrong" no such code for this fox (or the fox was never even
+                    heard/reachable -- indistinguishable from a bad code,
+                    per spec §5.5)
             "used"  right code, but it was already claimed (codes are one-time)
+            "busy"  the fox confirmed the code (PENDING) but the round trip
+                    to the central then failed or timed out -- the code was
+                    fine, the network wasn't (spec §5.3)
         """
         raise NotImplementedError
 
@@ -185,6 +190,7 @@ class FakeFoxRadio(FoxRadio):
     seconds with no hardware. bump() lets a key nudge it warmer/colder."""
 
     ROUND_TRIP_MS = 500  # what asking the network "costs", faked
+    active_cnt = 1
 
     def __init__(self):
         super().__init__()
@@ -203,7 +209,8 @@ class FakeFoxRadio(FoxRadio):
 
     def active_foxes(self):
         ids = {c["id"] for c in CREATURES}
-        return [b for b in _AWAKE if b in ids]
+        act = [b for b in _AWAKE if b in ids]
+        return act[:self.active_cnt]
 
     def start(self, fox_id):
         self._strength[fox_id] = 0.12
@@ -212,6 +219,9 @@ class FakeFoxRadio(FoxRadio):
     def bump(self, fox_id, delta):
         s = self._strength.get(fox_id, 0.12) + delta
         self._strength[fox_id] = max(0.0, min(1.0, s))
+
+    def poll(self):
+        self.active_cnt = (self.active_cnt+1)%5 # ranges [0-4]
 
     def reading(self, fox_id):
         s = self._strength.get(fox_id, 0.12)

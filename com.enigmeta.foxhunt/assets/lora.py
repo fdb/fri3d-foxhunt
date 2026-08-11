@@ -56,7 +56,7 @@ CURRENT_LIMIT = 140.0  # copied from the known-working main.py bring-up; the
                         # which this app never does — LP (§7, -9 dBm, the
                         # SX1262 minimum) is the only power CODE_ENTRY ever
                         # uses, so 140 mA is harmless headroom, not a risk.
-LP_POWER = -9      # dBm; hunter devices only ever transmit at LP (spec §6.2)
+LP_POWER = 4      # dBm; hunter devices only ever transmit at LP (spec §6.2)
 
 RF_SW_PIN = 46            # fri3d_2026: high = receive path enabled
 REG_LORA_SYNC_WORD_MSB = 0x0740
@@ -103,6 +103,11 @@ TYPE_FAIL = 0x7
 def _fid_char(fid):
     """CHAR (game creature id) out of a full FID byte (§2.1)."""
     return (fid >> 3) & 0x1F
+
+
+def _fid_seq(fid):
+    """SEQ (slot number) out of a full FID byte (§2.1). 0 = central node."""
+    return fid & 0x07
 
 
 def build_code_entry(fid, hid, otc):
@@ -152,7 +157,7 @@ def _byte_to_code(byte_val):
 def _code_to_byte(code):
     if not 2100 <= code <= 9877:
         return -1
-    d1, d2, d3, d4 = [int(c) for c in str(code).zfill(4)]
+    d1, d2, d3, d4 = [int(c) for c in str(code)]
     b1, b2, b3 = d1 - 2, d2 - 1, d3
     if not all(0 <= x <= 7 for x in (b1, b2, b3)):
         return -1
@@ -185,14 +190,32 @@ def code_to_otc(code):
 # FOUND/ACK exchange (§5.1, §5.4) is entirely someone else's problem; we only
 # see its outcome as PENDING, then PROOF or FAIL, or silence.
 #
-# The FoxRadio contract (fox_radio.py) only has three verdicts: "ok", "wrong",
-# "used". The real protocol has no signal for "used" distinct from "wrong" —
-# a stale code (already claimed, since rotated) gets exactly the same silent
-# ignore as a mistyped one (§6.1, §5.5) — so this never reports "used"; both
-# collapse to "wrong", same as a timeout. The player just retypes either way.
-T_PEND_TIMEOUT = 3000   # ms; no PENDING yet -> resend CODE_ENTRY (§5.3)
-N_CODE_RETRY = 5        # max CODE_ENTRY attempts before giving up (§5.3)
-T_VERIFY_HUNTER = 15000  # ms after PENDING to wait for PROOF/FAIL (§5.3 "~15s")
+# The FoxRadio contract (fox_radio.py) has four verdicts: "ok", "wrong",
+# "used", "busy". The real protocol has no signal for "used" distinct from
+# "wrong" — a stale code (already claimed, since rotated) gets exactly the
+# same silent ignore as a mistyped one (§6.1, §5.5) — so this never reports
+# "used"; that collapses to "wrong", same as a pre-PENDING timeout (the fox
+# never confirmed it heard us at all, so a genuinely wrong code and an
+# unreachable fox are indistinguishable, per §5.5).
+#
+# A *post*-PENDING failure is different: the fox already confirmed the code
+# was right and proximity was OK, so whatever went wrong happened in the
+# FOUND/ACK round trip with the central, not with what the player typed.
+# That's "busy", matching §5.3's "on FAIL or timeout -> network busy —
+# press to retry", kept apart from "wrong" so the player isn't told their
+# correct code was wrong.
+T_PEND_INITIAL = 3000        # ms; no PENDING yet on the first send -> start
+                              # repeating CODE_ENTRY (§5.3)
+T_CODE_RETRY_INTERVAL = 1000  # ms between repeats after that (§5.3 "1 s intervals")
+N_CODE_RETRY = 5              # max CODE_ENTRY attempts before giving up (§5.3)
+T_VERIFY_HUNTER = 8500  # ms after PENDING to wait for PROOF/FAIL. Spec's
+                         # own §5.2 fox-side T_VERIFY is 12s, so this is
+                         # deliberately shorter than that margin: chosen for
+                         # a snappier UI at the cost of occasionally showing
+                         # "wrong" for a claim that was genuinely still in
+                         # flight and would have succeeded a moment later
+                         # (the late PROOF/FAIL is then silently dropped by
+                         # on_packet's self.done check). Trade accepted.
 
 
 class _Claim:
@@ -230,22 +253,25 @@ class _Claim:
             # The fox keeps the OTC valid and would accept an immediate
             # resend (§5.2 step 4), but this UI has no instant-retry
             # affordance -- CodeActivity just clears the entry, so the
-            # player's next keypress starts a fresh claim. Same verdict.
-            self._finish("wrong")
+            # player's next keypress starts a fresh claim. PENDING was
+            # already seen for this claim, so the code itself was fine --
+            # this is the central round trip failing, not the player.
+            self._finish("busy")
 
     def tick(self):
         if self.done:
             return
         now = time.ticks_ms()
         if not self.pending_seen:
-            if time.ticks_diff(now, self.sent_at) >= T_PEND_TIMEOUT:
+            timeout = T_PEND_INITIAL if self.attempts == 1 else T_CODE_RETRY_INTERVAL
+            if time.ticks_diff(now, self.sent_at) >= timeout:
                 if self.attempts >= N_CODE_RETRY:
                     self._finish("wrong")  # never even got PENDING -- give up
                 else:
                     self._send()
             return
         if time.ticks_diff(now, self.pending_at) >= T_VERIFY_HUNTER:
-            self._finish("wrong")  # PENDING but no PROOF/FAIL -- network stalled
+            self._finish("busy")  # PENDING but no PROOF/FAIL -- network stalled
 
     def _finish(self, result):
         self.done = True
@@ -504,6 +530,9 @@ class LoRaLink:
             return  # malformed, or FOUND/ACK (fox<->central, not ours)
         if parsed[0] == "beacon":
             fid = parsed[1]
+            if _fid_seq(fid) == 0:
+                return  # central's own beacon (§3.1) -- not a creature, and
+                         # this app has no TDMA role to sync it against (§4)
             char = _fid_char(fid)
             self._last_fid[char] = fid
             self._last_reading[char] = (rssi, time.ticks_ms())

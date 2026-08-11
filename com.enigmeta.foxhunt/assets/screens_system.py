@@ -54,14 +54,18 @@ _NEAR_BG = 0xF6E7CD  # nearby-card fill
 _SEG_OFF = 0xE4D6BC  # unlit heat segment
 _RARITY_FRAME = {"rare": ui.TERRA, "leg": ui.GOLD}
 _VISITOR_POLL_MS = 30_000
+_NEARBY_POLL_MS = 5_000
 
 
 class HomeActivity(Activity):
     def onCreate(self):
         self._fresh = True
         self._visitor_timer = None
+        self._nearby_timer = None
         self._visitor_id = None
         self._prewarm_timer = None
+        self._is_jager = False
+        self._nearby_container = None
         self.screen = ui.make_screen(ui.PAPER)
         self._populate()
         self.setContentView(self.screen)
@@ -89,12 +93,14 @@ class HomeActivity(Activity):
         registrar.flush()
         self._start_visitor_poll()
         self._start_prewarm()
+        self._start_nearby_poll()
         # Refresh caught state in place. Do NOT call setContentView again — it
         # appends a new screen to the stack and leaks the old one (11 canvas
         # buffers!). clean() frees the previous cells before repopulating.
         if self._fresh:  # onCreate built it a moment ago
             self._fresh = False
             return
+        self._nearby_container = None  # about to be destroyed by clean()
         self.screen.clean()
         self._populate()
 
@@ -106,11 +112,13 @@ class HomeActivity(Activity):
         # that outran the prewarm pays its own module's import in the handler
         # instead; onResume picks the remainder back up.
         self._stop_prewarm()
+        self._stop_nearby_poll()
 
     def onDestroy(self, screen):
         super().onDestroy(screen)
         self._stop_visitor_poll()
         self._stop_prewarm()
+        self._stop_nearby_poll()
 
     def _start_prewarm(self):
         if _PRELOAD and self._prewarm_timer is None:
@@ -149,8 +157,28 @@ class HomeActivity(Activity):
     def _poll_visitor(self, _timer):
         pending = store.visitor_pending()
         if pending is not None and self._visitor_id is None:
+            self._nearby_container = None  # about to be destroyed by clean()
             self.screen.clean()
             self._populate()
+
+    def _start_nearby_poll(self):
+        if not self._is_jager:
+            return
+        if self._nearby_timer is None:
+            self._nearby_timer = lv.timer_create(
+                self._poll_nearby, _NEARBY_POLL_MS, None
+            )
+
+    def _stop_nearby_poll(self):
+        if self._nearby_timer is not None:
+            self._nearby_timer.delete()
+            self._nearby_timer = None
+
+    def _poll_nearby(self, _timer):
+        RADIO.poll()
+        awake = set(RADIO.active_foxes())
+        caught = set(store.caught_ids())
+        self._draw_nearby_cards(self.screen, awake, caught)
 
     def _section(self, y, text, color, right=None):
         """Small section header: label + hairline (+ count on the right)."""
@@ -169,6 +197,7 @@ class HomeActivity(Activity):
         awake = set(RADIO.active_foxes())
         caught = set(store.caught_ids())
         jager = bool(p.get("hunter_id"))
+        self._is_jager = jager
 
         # ── header: your companion (tap -> profile) + settings gear ───────
         # Two SIBLING panels, not one panel with the gear inside: the badge's
@@ -316,7 +345,28 @@ class HomeActivity(Activity):
 
     def _nearby_row(self, s, awake, caught):
         # ── nu in de buurt: every transmitting fox, caught or not ─────────
+        # The "NU IN DE BUURT" header never changes once drawn, so it's
+        # painted once here. The cards below it drift with RADIO.poll(),
+        # so they live in their own rebuildable container (_draw_nearby_cards)
+        # that _tick can refresh on its own, without touching this header.
         self._section(52, "NU IN DE BUURT", ui.TERRA)
+        self._draw_nearby_cards(s, awake, caught)
+
+    def _draw_nearby_cards(self, s, awake, caught):
+        # Rebuildable half of the nearby row: everything here is derived
+        # from live radio state (which foxes are awake, how hot they read),
+        # so _tick deletes and recreates just this wrapper on each poll
+        # instead of self.screen.clean() + _populate() nuking all 11 canvas
+        # buffers on the screen every 2 seconds.
+        if self._nearby_container is not None:
+            self._nearby_container.delete()
+            self._nearby_container = None
+        # transparent wrapper spanning the cards row's bounding box (68..120)
+        # with a little slack so neither the header above nor JE BOEK below
+        # is clipped.
+        wrap = ui.box(s, 0, 62, 320, 60, None)
+        self._nearby_container = wrap
+
         nearby = []
         for c in CREATURES:
             if c["id"] in awake:
@@ -330,7 +380,7 @@ class HomeActivity(Activity):
         # creature is zelf vinden (GAME_DESIGN.md), an upgrade, never a dud
         nearby.sort(key=lambda ch: (ch[0]["id"] in caught, -ch[1]))
         if nearby:
-            cards = ui.row(s, 6, 68, 308, 52, gap=5)
+            cards = ui.row(wrap, 6, 6, 308, 52, gap=5)
             for i, (c, heat) in enumerate(nearby[:4]):
                 is_caught = c["id"] in caught
                 cell = ui.box(cards, 0, 0, 73, 52, _NEAR_BG, radius=ui.RADIUS)
@@ -352,10 +402,10 @@ class HomeActivity(Activity):
                 )
         else:
             ui.label(
-                s,
+                wrap,
                 "alles slaapt - kom straks terug",
                 6,
-                86,
+                24,
                 ui.TEXT_MUTED,
                 ui.font_small(),
             )
