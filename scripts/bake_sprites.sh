@@ -37,7 +37,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "artwork"
-OUT = ROOT / "be.fri3d.foxhunt" / "assets"
+OUT = ROOT / "com.enigmeta.foxhunt" / "assets"
 BIN = OUT / "sprites.bin"
 INDEX = OUT / "atlas.py"
 
@@ -48,7 +48,7 @@ FRAME = 16  # sprite grid; a sheet is N of these side by side
 # anywhere else has no code path that can ever draw it.
 #
 # This is an allowlist, not a glob, on purpose. artwork/ never ships (the
-# deploy stages be.fri3d.foxhunt/ only), but the atlas launders whatever it
+# deploy stages com.enigmeta.foxhunt/ only), but the atlas launders whatever it
 # holds onto the badge — and packing many files into one destroyed the audit
 # surface that used to make that obvious. `ls assets/` once told you what
 # shipped; now it says "sprites.bin". Guest art under artwork/fien and

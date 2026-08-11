@@ -36,7 +36,7 @@ cd "$(dirname "$0")/.."
 #   BADGE_PORT       same as --port
 
 PROJECT_DIR="$(pwd)"
-APP_ID="be.fri3d.foxhunt"
+APP_ID="com.enigmeta.foxhunt"
 APP_SRC="$PROJECT_DIR/$APP_ID"
 
 START=0

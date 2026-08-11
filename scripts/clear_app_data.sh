@@ -28,7 +28,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-APP_ID="be.fri3d.foxhunt"
+APP_ID="com.enigmeta.foxhunt"
 if [[ -n "${MPOS_DIR:-}" ]]; then
     MPOS_DIRS=("$MPOS_DIR")
 else

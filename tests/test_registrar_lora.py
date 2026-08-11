@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 
-ASSETS = Path(__file__).parents[1] / "be.fri3d.foxhunt" / "assets"
+ASSETS = Path(__file__).parents[1] / "com.enigmeta.foxhunt" / "assets"
 
 
 def load_registrar(radio_chip=None):

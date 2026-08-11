@@ -1,6 +1,6 @@
 # Fonts
 
-The app renders text with **1-bit bitmap fonts** in `be.fri3d.foxhunt/assets/fonts/*.bin`,
+The app renders text with **1-bit bitmap fonts** in `com.enigmeta.foxhunt/assets/fonts/*.bin`,
 loaded at runtime via `lv.binfont_create` (see `assets/ui.py`). They're crisp pixel
 fonts: one design-pixel maps to one screen pixel, no anti-aliasing, no runtime scaling.
 
@@ -48,7 +48,7 @@ cd tools/bitmap_fonts && python3 -m http.server   # then open editor.html (Chrom
    file you hand-edit.
 3. Bake the deployed artifact:
    ```
-   scripts/bake_fonts.sh            # every .bdf → be.fri3d.foxhunt/assets/fonts/*.bin
+   scripts/bake_fonts.sh            # every .bdf → com.enigmeta.foxhunt/assets/fonts/*.bin
    scripts/bake_fonts.sh --check    # report stale/missing .bin, change nothing (CI)
    ```
    It calls the same `font_codec.js` the editor's *Export `.bin`* button calls, so
@@ -79,12 +79,12 @@ the roundtrip distortion removed). Format spec:
 ## Running on the emulator
 
 The app is symlinked into a local MicroPythonOS checkout's `apps/`; the symlink name
-must match the app id (`be.fri3d.foxhunt`):
+must match the app id (`com.enigmeta.foxhunt`):
 
 ```
-ln -sfn /Users/fdb/Projects/fri3d-fox-hunt/be.fri3d.foxhunt \
-  /Users/fdb/Source/MicroPythonOS/internal_filesystem/apps/be.fri3d.foxhunt
-cd /Users/fdb/Source/MicroPythonOS && ./scripts/run_desktop.sh be.fri3d.foxhunt
+ln -sfn /Users/fdb/Projects/fri3d-fox-hunt/com.enigmeta.foxhunt \
+  /Users/fdb/Source/MicroPythonOS/internal_filesystem/apps/com.enigmeta.foxhunt
+cd /Users/fdb/Source/MicroPythonOS && ./scripts/run_desktop.sh com.enigmeta.foxhunt
 ```
 
 `ui.py` falls back to the built-in font if a `.bin` fails to load (printing

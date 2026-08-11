@@ -20,7 +20,7 @@ board layer handles the hardware differences.
   re-download; deleting the clone breaks every badge deploy.
 - The app is symlinked into BOTH checkouts' `internal_filesystem/apps/`, so
   both can launch — which is the trap, because their `internal_filesystem/`
-  trees are separate. Only the package has `data/be.fri3d.foxhunt`.
+  trees are separate. Only the package has `data/com.enigmeta.foxhunt`.
 - Run: `scripts/run_on_mac.sh` (add `--lora` for the jager persona). Use it and
   not a bare `run_desktop.sh`: it is the only path that points the save at the
   right persona slot before launching. A run out of `~/Source/MicroPythonOS`
@@ -55,7 +55,7 @@ board layer handles the hardware differences.
     `pgrep -fl` first, kill the PIDs you started, and reach for a pattern only
     when the survivors are confirmed parentless.
 - **The emulator's profile is throwaway.** Whatever sits in
-  `<MicroPythonOS>/internal_filesystem/prefs/be.fri3d.foxhunt/config.json` is
+  `<MicroPythonOS>/internal_filesystem/prefs/com.enigmeta.foxhunt/config.json` is
   test data — no real account, no real catches. Overwrite it with `{}` to
   replay first-run onboarding, or seed a profile to skip it, without asking.
   Only the badge and the server hold anything worth keeping.
@@ -79,7 +79,7 @@ board layer handles the hardware differences.
   BEKEND". That second account is exactly as real and permanent as the first —
   `scripts/delete_account.sh --emulator-lora` clears it.
   Each persona also keeps its own LOCAL save: `run_on_mac.sh` makes the app's
-  data dir a symlink into a per-persona slot (`be.fri3d.foxhunt.default` /
+  data dir a symlink into a per-persona slot (`com.enigmeta.foxhunt.default` /
   `.lora`) before every launch. Switching persona never touches the other's
   save, and a persona with an empty slot replays onboarding by itself — which
   is how the jager's first run reaches registration. `clear_app_data.sh`
@@ -138,7 +138,7 @@ not obvious, each because copying the files is not enough:
   on its own — a renamed module or stray `__pycache__` stays forever until
   LittleFS is full and installs start truncating). It returns the badge to
   the launcher first, so no live activity holds the code being overwritten.
-  Save data is unaffected either way; it lives in `data/be.fri3d.foxhunt/`,
+  Save data is unaffected either way; it lives in `data/com.enigmeta.foxhunt/`,
   not in the app dir.
 - **It drops the app's modules from `sys.modules`.** MicroPythonOS evicts only
   the *entrypoint* module between launches (`AppManager.execute_script`), so
@@ -310,7 +310,7 @@ as a citation of the original design bundle file `mascotte.jsx`.
 ## Where things live
 Screens are merged into four 1.2-1.7k-line flow modules (see Size budget), so a
 filename never names a screen. Find the symbol below and grep for it; don't skim
-a whole module. Badge paths are under `be.fri3d.foxhunt/assets/`.
+a whole module. Badge paths are under `com.enigmeta.foxhunt/assets/`.
 
 **Screens** — every one is an `Activity`; the Dutch word is what the UI says.
 

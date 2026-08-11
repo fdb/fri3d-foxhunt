@@ -23,7 +23,7 @@ S=/tmp/shots
   sleep 1
   echo "wfr(); shot('$S/after.raw')"
   sleep 2
-) | ./scripts/run_desktop.sh be.fri3d.foxhunt > /tmp/run.log 2>&1 &
+) | ./scripts/run_desktop.sh com.enigmeta.foxhunt > /tmp/run.log 2>&1 &
 sleep 30; pkill -f lvgl_micropy   # the emulator never exits on stdin EOF
 grep Traceback /tmp/run.log
 ```
@@ -55,7 +55,7 @@ ffmpeg -vcodec rawvideo -f rawvideo -pix_fmt rgb565le -s 320x240 -i shot.raw sho
 ## App state
 
 Preferences live under `<MicroPythonOS>/internal_filesystem/` in
-`prefs/be.fri3d.foxhunt/config.json` OR `data/be.fri3d.foxhunt/config.json`
+`prefs/com.enigmeta.foxhunt/config.json` OR `data/com.enigmeta.foxhunt/config.json`
 — which one wins depends on the OS build (the current source checkout loads
 `data/`; other builds moved to `prefs/`). Don't guess: the boot log prints
 `Loaded preferences from <path>`, and `scripts/clear_app_data.sh` sweeps
@@ -96,7 +96,7 @@ echo "gcprobe.report()"                     # B/tick in step(), and the rest
 
 `Traceback` lines from `lib/mpos/ui/topmenu.py` (`LvReferenceError`) are OS
 status-bar noise, not app failures. App-level failures show as tracebacks
-with `apps/be.fri3d.foxhunt/...` frames, or an on-screen error dialog logged
+with `apps/com.enigmeta.foxhunt/...` frames, or an on-screen error dialog logged
 from `activity.onCreate`.
 
 An `LvReferenceError` from an app frame is the same noise **when it appears

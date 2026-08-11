@@ -30,8 +30,8 @@ cd "$(dirname "$0")/.."
 #             MicroPython cannot even see (no os.getenv on ESP32).
 #
 # Each persona keeps its OWN save. The app reads one fixed path
-# (data/be.fri3d.foxhunt/), so this script makes that path a symlink and
-# points it at a per-persona slot (be.fri3d.foxhunt.default / .lora) before
+# (data/com.enigmeta.foxhunt/), so this script makes that path a symlink and
+# points it at a per-persona slot (com.enigmeta.foxhunt.default / .lora) before
 # every launch. Switching persona never touches the other one's save, and a
 # persona whose slot is empty simply onboards itself — which is exactly what
 # the jager's first run must do, since its MAC has no account yet.
@@ -45,7 +45,7 @@ cd "$(dirname "$0")/.."
 # turn a normal emulator launch into a jager.
 
 PROJECT_DIR="$(pwd)"
-APP_ID="be.fri3d.foxhunt"
+APP_ID="com.enigmeta.foxhunt"
 # The desktop's second fake MAC. Must differ from registrar.badge_id's own
 # fallback, and scripts/delete_account.sh --emulator-lora must know it too.
 LORA_BADGE="A4:CF:12:9B:03:7F"

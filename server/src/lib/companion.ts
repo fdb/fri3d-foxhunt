@@ -1,7 +1,7 @@
 // The companion ("maatje") as the server sees it: a head, stacked accessories
 // and a backdrop, decoded from the 8-char shortcode in players.profile_pic.
 //
-// PORT of be.fri3d.foxhunt/assets/companion.py — keep the three tables below
+// PORT of com.enigmeta.foxhunt/assets/companion.py — keep the three tables below
 // in sync with it. They are the whole contract between badge and server:
 //
 //   HEADS  order == the 1-based H index in the shortcode

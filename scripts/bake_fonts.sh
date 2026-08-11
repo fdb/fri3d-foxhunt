@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Bake the source .bdf fonts into the LVGL .bin files the app loads.
 #
-# tools/bitmap_fonts/fonts/*.bdf  →  be.fri3d.foxhunt/assets/fonts/*.bin
+# tools/bitmap_fonts/fonts/*.bdf  →  com.enigmeta.foxhunt/assets/fonts/*.bin
 #
 # The .bdf is the source of truth (text, diffable, editable in editor.html);
 # the .bin is the deployed artifact — LVGL's `lv.binfont_create` reads nothing
@@ -34,7 +34,7 @@ command -v node >/dev/null || {
 }
 
 src_dir="tools/bitmap_fonts/fonts"
-out_dir="be.fri3d.foxhunt/assets/fonts"
+out_dir="com.enigmeta.foxhunt/assets/fonts"
 
 # The bake itself: read one .bdf, write one .bin. Kept inline so the toolchain
 # stays two files (this script + font_codec.js) with no package.json.

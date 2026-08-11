@@ -1,5 +1,5 @@
 # store.py — persistent state via MicroPythonOS SharedPreferences.
-# Stored at data/be.fri3d.foxhunt/config.json on both desktop and badge.
+# Stored at data/com.enigmeta.foxhunt/config.json on both desktop and badge.
 #
 #   "caught"   : list of caught creature ids
 #   "beast"    : dict {str(id): pet-state} — care stats per caught creature
@@ -27,7 +27,7 @@ import mpos.time
 import pet
 from creatures import CREATURES, by_id
 
-_APP = "be.fri3d.foxhunt"
+_APP = "com.enigmeta.foxhunt"
 _PLACE = "Fri3d Camp"  # stub: no GPS yet — see fox_radio for the backend seam
 
 

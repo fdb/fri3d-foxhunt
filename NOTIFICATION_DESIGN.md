@@ -98,7 +98,7 @@ since the stored cursor.
 ### Routing
 
 ```
-if mpos.get_foreground_app() == "be.fri3d.foxhunt" and app registered a presenter:
+if mpos.get_foreground_app() == "com.enigmeta.foxhunt" and app registered a presenter:
     presenter(event)                      # in-app banner, state 5
 else:
     NotificationManager.notify(...)       # states 2/3/4
@@ -108,7 +108,7 @@ else:
 - **Drawer notification**: stable `notification_id=f"foxhunt.active.{creature_id}"`
   — a re-activation of the same creature updates the existing entry in RAM
   (no flash write, OS handles this), instead of stacking duplicates.
-  `priority=PRIORITY_HIGH`, `intent=Intent(app_fullname="be.fri3d.foxhunt")`
+  `priority=PRIORITY_HIGH`, `intent=Intent(app_fullname="com.enigmeta.foxhunt")`
   (later: an action that deep-links to the hunt screen), `auto_cancel=True`.
   Icon: foxhunt app icon path.
 - **Sound**: the badge firmware already beeps the buzzer inside `notify()`

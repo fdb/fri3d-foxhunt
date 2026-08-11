@@ -649,7 +649,7 @@ except Exception:  # desktop build has no native emitter
 # on badge and desktop alike. The title PNG goes through LVGL's own fs layer
 # instead, which wants its M: driver letter and its canonical path.
 _SPRITE_BIN = __file__.rsplit("/", 1)[0] + "/sprites.bin"
-TITLE_SRC = "M:apps/be.fri3d.foxhunt/assets/title-screen/title-screen.png"
+TITLE_SRC = "M:apps/com.enigmeta.foxhunt/assets/title-screen/title-screen.png"
 _IMG_SRC = 16
 _FRAME_BYTES = _IMG_SRC * _IMG_SRC * 4
 _IDX_BYTES = _IMG_SRC * _IMG_SRC  # on disk: one atlas.PALETTE index per pixel

@@ -154,7 +154,7 @@ hartslag-bpm       150  130  110   90   70   (sneller = dichterbij)
 App-structuur (Android-achtig model):
 
 ```
-be.fri3d.foxhunt/
+com.enigmeta.foxhunt/
 ├── META-INF/MANIFEST.JSON      # name, fullname, version, activities[]
 ├── assets/
 │   ├── foxhunt.py         # Activity-subclass, onCreate() → setContentView

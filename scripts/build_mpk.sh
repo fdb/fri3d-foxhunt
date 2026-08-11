@@ -35,9 +35,9 @@ cd "$(dirname "$0")/.."
 # produces the same .mpk.
 #
 # Usage: scripts/build_mpk.sh
-# Output: dist/be.fri3d.foxhunt_<version>.mpk
+# Output: dist/com.enigmeta.foxhunt_<version>.mpk
 
-APP_ID="be.fri3d.foxhunt"
+APP_ID="com.enigmeta.foxhunt"
 APP_SRC="$PWD/$APP_ID"
 DIST="$PWD/dist"
 

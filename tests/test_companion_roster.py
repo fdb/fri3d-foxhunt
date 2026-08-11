@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-ASSETS = Path(__file__).parents[1] / "be.fri3d.foxhunt" / "assets"
+ASSETS = Path(__file__).parents[1] / "com.enigmeta.foxhunt" / "assets"
 sys.path.insert(0, str(ASSETS))
 
 sys.modules.setdefault("lvgl", MagicMock())

@@ -2,7 +2,7 @@
 // players_creatures is a number, and a debug page showing "7" instead of
 // "Eend" is not an inspection tool.
 //
-// PORT of be.fri3d.foxhunt/assets/creatures.py — id, name and tier only; the
+// PORT of com.enigmeta.foxhunt/assets/creatures.py — id, name and tier only; the
 // badge keeps the codes, blurbs and art. List order is book order (base,
 // rare, legendary); ids are the wire identity and do not follow it.
 //

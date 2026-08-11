@@ -23,7 +23,7 @@ cd "$(dirname "$0")/.."
 #   BADGE_PORT       same as --port
 #   FOXHUNT_SERVER   same as --server (default: the deployed worker)
 
-APP_ID="be.fri3d.foxhunt"
+APP_ID="com.enigmeta.foxhunt"
 SERVER="${FOXHUNT_SERVER:-https://foxhunt.enigmeta.workers.dev}"
 PORT="${BADGE_PORT:-}"
 

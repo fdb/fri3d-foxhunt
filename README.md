@@ -18,7 +18,7 @@ same source.
 ## Layout
 
 ```
-be.fri3d.foxhunt/      # the MicroPythonOS app (the thing that ships)
+com.enigmeta.foxhunt/      # the MicroPythonOS app (the thing that ships)
   META-INF/MANIFEST.JSON
   assets/                    # all the Python; assets/ is on sys.path at runtime
     foxhunt.py          # entry: FoxhuntActivity — splash + registered? router
