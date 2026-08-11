@@ -29,18 +29,20 @@ export function validateBadgeId(raw: unknown): string | null {
   return badgeId;
 }
 
-// Hunter id: the HID of the LoRa spec §2.2. The WIRE is a uint16 (HID_hi,
-// HID_lo big-endian); we allocate only 1-9999 of it, because four digits is
-// already ~16x the badges a camp brings and it keeps "JGR-0042" a fixed width
-// on every screen. Narrowing the allocation, not the field — anything reading
-// the air must still parse a full uint16.
+// Hunter id: the HID of the LoRa spec §2.2 — a uint16 (HID_hi, HID_lo
+// big-endian), and this validator accepts all of it: the bridge relays what
+// it heard on the air, and an id from a foreign allocator must not 400 at
+// the door (an unknown one 404s on lookup instead). OUR allocator (POST
+// /auth/hunter) still mints only 1-9999, because four digits is already
+// ~16x the badges a camp brings and it keeps "JGR-0042" a fixed width on
+// every screen.
 //
 // Not the 0-31 that fox_id gets: that range belongs to CHAR, the 5 MSB of the
 // FID byte (§2.1). 0 is RESERVED by the spec and must stay rejected. It is
 // also the one value that would break the badge, where every screen reads
 // `hunter_id or "Verzamelaar"` — a falsy id renders a jager as a collector.
 export const HUNTER_ID_MIN = 1;
-export const HUNTER_ID_MAX = 9999;
+export const HUNTER_ID_MAX = 65535;
 
 export function validateHunterId(raw: unknown): number | null | "invalid" {
   if (raw === undefined || raw === null) return null;

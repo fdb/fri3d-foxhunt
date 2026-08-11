@@ -62,9 +62,20 @@ def today():
 
 def profile():
     """The hunter profile dict, or None before registration.
-    Keys: name, head, accs, bg, badge_id, hunter_id (None until minted),
+    Keys: name, head, accs, bg, badge_id, hunter_id (the raw HID number,
+    spec §2.2, None until minted — registrar.hunter_label formats it),
     synced (True once the cloud server confirmed the save)."""
     p = SharedPreferences(_APP).get_dict("profile", None)
+    if p:
+        # A profile saved by an older build holds the display label
+        # ("JGR-0042") instead of the number. Readers get the number either
+        # way; the string stays on flash until hunter_id is next written.
+        hid = p.get("hunter_id")
+        if isinstance(hid, str):
+            try:
+                p["hunter_id"] = int(hid[4:] if hid.startswith("JGR-") else hid)
+            except ValueError:
+                p["hunter_id"] = None
     return p if p else None
 
 

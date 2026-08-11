@@ -78,7 +78,7 @@ playerRoutes.post("/found", async (c) => {
   if (bridged) {
     const hunterId = validateHunterId(body.hunter_id);
     if (hunterId === null || hunterId === "invalid")
-      return c.json({ error: "invalid hunter_id (integer 1-9999)" }, 400);
+      return c.json({ error: "invalid hunter_id (integer 1-65535)" }, 400);
     // dt_deleted IS NULL: a wiped account keeps its row (auth.ts, DELETE
     // /user), and the bridge may still hold its HID for a while. A find must
     // not resurrect it — nor land on the next player, who will mint a new HID.

@@ -251,7 +251,9 @@ class RegisterActivity(Activity):
         ui.box(strip, 170, 2, 2, 14, 0xD8CBAA)
         ui.label(strip, "JAGER ID", 180, 3, ui.MYSTERY, ui.font_small())
         art.icon(strip, "ant", 1).set_pos(236, 5)
-        hunter = (store.profile() or {}).get("hunter_id") or "volgt"
+        hunter = (
+            registrar.hunter_label((store.profile() or {}).get("hunter_id")) or "volgt"
+        )
         ui.label(strip, hunter, 250, 3, ui.TEXT_MUTED, ui.font_small())
         self.strip = strip
 
@@ -843,7 +845,7 @@ class RegSendActivity(Activity):
                 ui.font_small(),
             )
             if key == "hunter" and state == "ok":
-                note = st.get("hunter_id") or ""
+                note = registrar.hunter_label(st.get("hunter_id")) or ""
             else:
                 note = _NOTES[key].get(state, "")
             nl = ui.label(
@@ -985,7 +987,7 @@ class RegSendActivity(Activity):
         ui.label(strip, "JAGER ID", 20, 3, ui.GOLD, ui.font_small())
         ui.label(
             strip,
-            st.get("hunter_id") or "volgt",
+            registrar.hunter_label(st.get("hunter_id")) or "volgt",
             82,
             3,
             ui.CREAM,
@@ -1039,7 +1041,14 @@ class RegSendActivity(Activity):
         companion.draw(card, head, accs, 3, x=4, y=4)
         ui.label(acct, st.get("name") or "Jager", 76, 8, ui.INK, ui.font_title())
         ui.label(acct, "JAGER ID", 76, 32, ui.MYSTERY, ui.font_small())
-        ui.label(acct, st.get("hunter_id") or "volgt", 140, 32, ui.INK, ui.font_small())
+        ui.label(
+            acct,
+            registrar.hunter_label(st.get("hunter_id")) or "volgt",
+            140,
+            32,
+            ui.INK,
+            ui.font_small(),
+        )
         n = len(st.get("creatures") or [])
         ui.label(
             acct,
@@ -1402,7 +1411,14 @@ class RestoreActivity(Activity):
         strip = ui.panel(s, 80, 148, 160, 22, bg=RESTORE_STRIP_BG)
         art.icon(strip, "ant", 1).set_pos(6, 6)
         ui.label(strip, "JAGER ID", 20, 3, ui.MYSTERY, ui.font_small())
-        ui.label(strip, st.get("hunter_id") or "volgt", 82, 3, ui.INK, ui.font_small())
+        ui.label(
+            strip,
+            registrar.hunter_label(st.get("hunter_id")) or "volgt",
+            82,
+            3,
+            ui.INK,
+            ui.font_small(),
+        )
 
         ui.label(
             s,

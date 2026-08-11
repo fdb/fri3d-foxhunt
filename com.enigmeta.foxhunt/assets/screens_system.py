@@ -190,7 +190,7 @@ class HomeActivity(Activity):
         # Two modes: a jager has a LoRa-minted id ("JGR-0042"), everyone else
         # plays over WiFi as verzamelaar. The subtitle names the mode you're
         # in — never a "coming soon" placeholder.
-        sub = p.get("hunter_id") or "Verzamelaar"
+        sub = registrar.hunter_label(p.get("hunter_id")) or "Verzamelaar"
         ui.label(header, sub, 46, 24, ui.MYSTERY, ui.font_small())
         if jager:
             self._kop_btn(182, "snuf", self._snuffel)
@@ -414,6 +414,7 @@ import art
 import sound
 import store
 import companion
+import registrar
 from creatures import CREATURES, by_id
 from foxhunt import lazy
 
@@ -462,7 +463,12 @@ class ProfileActivity(Activity):
         pencil = art.icon(s, "pencil", 2)
         pencil.align_to(name, lv.ALIGN.OUT_RIGHT_MID, 6, 0)
         ui.label(
-            s, p.get("hunter_id") or "Verzamelaar", 124, 62, ui.INK, ui.font_small()
+            s,
+            registrar.hunter_label(p.get("hunter_id")) or "Verzamelaar",
+            124,
+            62,
+            ui.INK,
+            ui.font_small(),
         )
         ui.label(s, p.get("badge_id", ""), 124, 78, BADGE_TX, ui.font_small())
 
@@ -694,7 +700,14 @@ class SettingsActivity(Activity):
         if kind == "jager":
             strip = ui.box(self._s, 6, 212, _ROW_W, 22, None)
             ui.label(strip, "JAGER ID", 6, 3, ui.MYSTERY, ui.font_small())
-            ui.label(strip, p.get("hunter_id"), 72, 3, ui.INK, ui.font_small())
+            ui.label(
+                strip,
+                registrar.hunter_label(p.get("hunter_id")),
+                72,
+                3,
+                ui.INK,
+                ui.font_small(),
+            )
             self._slot = strip
         elif kind == "cloud":
             # The profile lives on the badge and nowhere else: registration
@@ -809,7 +822,9 @@ class SettingsActivity(Activity):
             return
         if st.get("ok") and st.get("hunter_id"):
             sound.play("caught")
-            self._wj.set_text(st["hunter_id"] + " - veel jachtplezier!")
+            self._wj.set_text(
+                registrar.hunter_label(st["hunter_id"]) + " - veel jachtplezier!"
+            )
         else:
             sound.play("error")
             self._wj.set_text("geen verbinding - probeer later")

@@ -572,25 +572,24 @@ talks to `/api/v1/auth/*` there.
   the first, and this one already carries the soft delete, the `game_events`
   entry and the idempotency. Run it with no argument to list accounts.
 
-- **`hunter_id` is allocated 1-9999, four digits, even though the wire is wider.**
-  The LoRa spec (§2.2) makes HID a big-endian `uint16` — `HID_hi`, `HID_lo`,
-  1-65535, 0 reserved. We deliberately hand out only the bottom 1-9999 of that
-  field: a camp brings hundreds of badges, so four digits is ~16x headroom, and
-  a fixed-width id keeps "JGR-0042" the same size on every screen that prints it
-  (home, profiel, instellingen, registratie).
-  Two halves, and both matter:
-  - **This is a rule for the allocator, not just the validator.** Whoever mints
-    HIDs — the central node, at registration (§2.2) — must draw from 1-9999.
-    Allocate randomly across the full 16 bits and ~85% of hunters get an id this
-    server rejects with `400 invalid hunter_id`.
-  - **Anything parsing the air still reads a full `uint16`.** We narrowed the
-    allocation, never the field. Do not "optimise" a decoder down to 14 bits.
+- **`hunter_id` is a `uint16`, allocated 1-9999.** The LoRa spec (§2.2) makes
+  HID a big-endian `uint16` — `HID_hi`, `HID_lo`, 1-65535, 0 reserved — and
+  everything that carries the field honours all of it: the server validator
+  accepts 1-65535 (`lib/validate.ts`), and anything parsing the air reads a
+  full `uint16`. Our allocator (`POST /auth/hunter`) deliberately mints only
+  the bottom 1-9999: a camp brings hundreds of badges, so four digits is ~16x
+  headroom, and a fixed-width id keeps "JGR-0042" the same size on every
+  screen that prints it (home, profiel, instellingen, registratie).
+  - **The badge profile stores the raw number, never the label.** Screens
+    format it at the last moment with `registrar.hunter_label`; the LoRa layer
+    packs the same number into `HID_hi`/`HID_lo`. `store.profile()` tolerates
+    the label string older builds saved, parsing it back to the number on read.
   Do NOT copy the 0-31 that `fox_id` uses. That range is not a hunter range: it
   is `CHAR`, the 5 MSB of the FID byte (§2.1) — the creature's character code,
   which is why 0-31 is exactly right for `fox_id` and was a bug for `hunter_id`.
-  Never accept `0`: the spec reserves it, and every screen reads
-  `hunter_id or "Verzamelaar"`, so a falsy id silently renders a jager as a
-  collector.
+  Never accept `0`: the spec reserves it, and every screen falls back through
+  `hunter_label(hunter_id) or "Verzamelaar"`, so a falsy id silently renders a
+  jager as a collector.
 - **Debug catches must never score.** Creatures "attained" through the debug
   screen (opened by tapping the badge id five times in settings) — the 1111
   test code, the roster toggles — land only in the badge's local store. The

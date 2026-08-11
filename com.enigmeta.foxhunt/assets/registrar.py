@@ -257,7 +257,8 @@ class Registrar:
 
             "done"     : True on the terminal update
             "ok"       : the server answered with an id
-            "hunter_id": the label ("JGR-0042") with ok, else None
+            "hunter_id": the raw HID (int, screens format via hunter_label)
+                         with ok, else None
             "error"    : "E-01" when the server didn't answer or refused
         """
         raise NotImplementedError
@@ -335,7 +336,7 @@ class FakeRegistrar(Registrar):
                 # a restore would have handed back.
                 st["exists"] = True
                 st["name"] = "Jager"
-                st["hunter_id"] = "JGR-%04d" % random.randrange(1, 10000)
+                st["hunter_id"] = random.randrange(1, 10000)
                 st["companion"] = self.RESTORE_COMPANION
                 st["creatures"] = list(self.RESTORE_CREATURES)
                 st["done"] = True
@@ -370,7 +371,7 @@ class FakeRegistrar(Registrar):
 
         def mint_done():
             st["hunter"] = "ok"
-            st["hunter_id"] = "JGR-%04d" % random.randrange(1, 10000)
+            st["hunter_id"] = random.randrange(1, 10000)
             st["done"] = st["ok"] = True
             push()
 
@@ -401,7 +402,7 @@ class FakeRegistrar(Registrar):
 
     def word_jager(self, badge, on_update):
         ok = not self.MINT_FAIL
-        hid = "JGR-%04d" % random.randrange(1, 10000) if ok else None
+        hid = random.randrange(1, 10000) if ok else None
         t = lv.timer_create(
             lambda _t: on_update(
                 {
@@ -426,7 +427,7 @@ class FakeRegistrar(Registrar):
                         "done": True,
                         "found": True,
                         "name": "Jager",
-                        "hunter_id": "JGR-%04d" % random.randrange(1, 10000),
+                        "hunter_id": random.randrange(1, 10000),
                         "companion": self.RESTORE_COMPANION,
                         "creatures": list(self.RESTORE_CREATURES),
                         "error": None,
@@ -465,12 +466,13 @@ async def _json_request_raw(method, path, body):
             return resp.status, data
 
 
-def _hunter_label(n):
-    """The server keeps hunter_id as the raw HID (spec §2.2, allocated 1-9999);
-    every screen shows it as text. Always four digits, so the label is a fixed
-    width wherever it is placed. None (no antenna yet) stays None, so the
-    profile says "JGR volgt" rather than inventing an id. The number is always
-    recoverable from the server when the LoRa layer needs it."""
+def hunter_label(n):
+    """Display form of a HID. The profile and the wire keep hunter_id as the
+    raw number (spec §2.2, a uint16 — fox_radio packs it into HID_hi/HID_lo),
+    and screens format it here, at the last moment. Zero-padded to four
+    digits, so the label is a fixed width for every id this server mints
+    (1-9999); None (no antenna yet) stays None, so callers can fall back to
+    their own placeholder ("volgt", "Verzamelaar")."""
     return None if not n else "JGR-%04d" % n
 
 
@@ -513,7 +515,7 @@ class HttpRegistrar(Registrar):
                 creatures = [d.get("starter")]
         return {
             "name": data.get("name"),
-            "hunter_id": _hunter_label(data.get("hunter_id")),
+            "hunter_id": data.get("hunter_id"),
             # "" is how the server spells "this account never sent one".
             "companion": data.get("profile_pic") or None,
             "creatures": creatures,
@@ -628,7 +630,7 @@ class HttpRegistrar(Registrar):
             {
                 "done": True,
                 "ok": ok,
-                "hunter_id": _hunter_label(data.get("hunter_id")) if ok else None,
+                "hunter_id": data.get("hunter_id") if ok else None,
                 "error": None if ok else "E-01",
             }
         )
@@ -658,7 +660,7 @@ class HttpRegistrar(Registrar):
                 "done": True,
                 "found": True,
                 "name": data.get("name"),
-                "hunter_id": _hunter_label(data.get("hunter_id")),
+                "hunter_id": data.get("hunter_id"),
                 # "" is how the server spells "this account never sent one".
                 "companion": data.get("profile_pic") or None,
                 "creatures": data.get("creatures") or [],

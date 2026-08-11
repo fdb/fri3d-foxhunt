@@ -105,7 +105,8 @@ sys.path.insert(0, '/apps/$APP_ID/assets')
 import store, registrar
 badge = ':'.join('%02X' % b for b in machine.unique_id())
 p = store.profile() or {}
-print('STATE', badge, p.get('hunter_id') or '-', p.get('name') or '-',
+print('STATE', badge, registrar.hunter_label(p.get('hunter_id')) or '-',
+      p.get('name') or '-',
       'synced' if p.get('synced') else 'unsynced',
       'lora' if registrar.has_lora() else 'nolora',
       len(store.caught_ids()))
@@ -217,6 +218,7 @@ fi
 # id comes back. Never invent one here — a locally chosen id would collide
 # with a real jager's and redirect their finds.
 label=""
+hid=""
 if [[ "$MODE" == "jager" ]]; then
     echo "Requesting hunter_id from $SERVER..."
     resp="$(curl -sS -m 15 -w $'\n%{http_code}' -X POST "$SERVER/api/v1/auth/hunter" \
@@ -235,8 +237,8 @@ if [[ "$MODE" == "jager" ]]; then
     esac
     hid="$(json_int "$body" hunter_id)"
     [[ -n "$hid" ]] || { echo "error: no hunter_id in server reply: $body" >&2; exit 1; }
-    # The badge stores the LABEL, the server the integer — registrar._hunter_label
-    # is the seam, and every screen prints what the profile holds verbatim.
+    # Badge and server both keep the raw integer; the label here is only for
+    # echoing (registrar.hunter_label is what the screens use).
     printf -v label 'JGR-%04d' "$hid"
     if [[ "$body" == *'"minted"'*true* ]]; then
         echo "  minted $label"
@@ -258,15 +260,15 @@ AppManager.restart_launcher()" >/dev/null 2>&1 || true
 # profile().get('hunter_id') is falsy — which is exactly what every screen
 # tests. There is no key to remove (Editor has no remove()).
 py_value="None"
-if [[ -n "$label" ]]; then
-    py_value="'$label'"
+if [[ -n "$hid" ]]; then
+    py_value="$hid"
 fi
 out="$("${MP[@]}" exec "
 import sys
 sys.path.insert(0, '/apps/$APP_ID/assets')
-import store
+import store, registrar
 p = store.update_profile(hunter_id=$py_value)
-print('MODE', p.get('hunter_id') or 'verzamelaar')
+print('MODE', registrar.hunter_label(p.get('hunter_id')) or 'verzamelaar')
 " 2>&1)"
 
 case "$out" in

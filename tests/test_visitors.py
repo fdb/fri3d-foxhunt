@@ -147,7 +147,7 @@ class VisitorTest(unittest.TestCase):
         due = self.store.visitor_due_at(self.clock[0], "A4:CF:12:9B:03:7E", 0)
         self.clock[0] = due
         pending = self.store.visitor_pending()
-        _Prefs.data["profile"]["hunter_id"] = "JGR-0042"
+        _Prefs.data["profile"]["hunter_id"] = 42
 
         self.assertEqual(self.store.visitor_pending(), pending)
         self.store.claim_visitor()
