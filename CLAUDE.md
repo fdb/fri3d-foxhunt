@@ -619,6 +619,23 @@ Never copy `artwork/animals/` into `server/static/` again. Body copy is Nunito;
 Pixelify Sans is for headings and the badge-mirroring UI (tables, buttons,
 tags) only — it is unreadable at paragraph length.
 
+**Card labels are the badge's own icons, never emoji.** An emoji is somebody
+else's drawing in the middle of a hand-pixelled page, and it dates the whole
+band as decoration. `scripts/bake_server_icons.sh` bakes the `ICONS` grids out
+of `art.py` into `src/lib/icon-art.ts` as SVG run geometry, drawn by
+`<Icon name>`; `--check` reports drift (CI), and `WANTED` in the script lists
+what the site asks for. SVG, not PNG like the companion layers, because an
+`ICONS` entry has no file behind it — the grid IS the source — and rects stay
+square at any card size. Two rules that are easy to get wrong: pick the icon
+that reads standing ALONE (`ant` is the badge's antenna and is correct beside
+the words "antenne gevonden", but in a bare tile it reads as a gold X, which is
+why the jager card wears `spoor`), and keep `shape-rendering: crispEdges` —
+without it the seam between two neighbouring runs antialiases into a hairline
+down the middle of the art. `In het kort` takes neither: it is a sequence, so
+its cards are numbered with a CSS counter (`.cards-steps`), in terra rather
+than the gold chip `.steps` uses, so two orders on one page do not read as one
+list.
+
 **The scoreboard says HOW MANY, never WHICH.** `/scores` is public, so it shows
 each player's maatje, their catch count and when they last scored — and no
 creature name, id or picture. It also shows their name, which is why taking

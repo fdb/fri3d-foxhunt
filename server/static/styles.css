@@ -761,7 +761,8 @@ img {
   font-size: 1rem;
 }
 
-/* Emoji sit in an ink-framed tile so they read as UI, not as loose glyphs */
+/* The badge's own icons sit in an ink-framed tile so they read as UI, the way
+   they do on the badge, not as loose glyphs */
 .card .icon {
   display: inline-grid;
   place-items: center;
@@ -772,7 +773,6 @@ img {
   background: var(--surface-soft);
   border: 2px solid var(--ink);
   border-radius: 5px;
-  font-size: 1.25rem;
   line-height: 1;
 }
 
@@ -781,12 +781,46 @@ img {
   width: 3rem;
   height: 3rem;
   margin: 0 0 0.75rem;
-  font-size: 1.6rem;
+}
+
+/* The grids behind these run from 5x5 to 16x16, so the drawn box is fixed and
+   the art centres inside it — a set of icons has to read as a set. */
+.icon-art {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.cards-3 .card .icon-art {
+  width: 1.9rem;
+  height: 1.9rem;
 }
 
 .card h3 {
   display: flex;
   align-items: center;
+}
+
+/* "In het kort" is one sequence, so its cards are numbered instead of iconed:
+   the pixel numeral is the whole ornament. Terra rather than the gold chip of
+   .steps, because these count the loop of the game and those count the setup —
+   two orders on one page, and the eye should not read them as one list. */
+.cards-steps {
+  counter-reset: kort;
+}
+
+.cards-steps .card {
+  counter-increment: kort;
+}
+
+.cards-steps .card h3 {
+  gap: 0.55rem;
+}
+
+.cards-steps .card h3::before {
+  content: counter(kort);
+  color: var(--terra);
+  font-size: 2.1rem;
+  line-height: 1;
 }
 
 .mode {

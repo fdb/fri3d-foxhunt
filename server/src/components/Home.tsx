@@ -6,6 +6,7 @@
  * screen, so they stay pixel-crisp at 320 CSS px (1x) or 640 (2x). Anything
  * between those relies on `image-rendering: pixelated`.
  */
+import { Icon } from "./Icon";
 
 // The parade shows the roster as flat silhouettes, the way the badge's own
 // title screen teases them — the Vos included. It used to stand in colour,
@@ -56,10 +57,10 @@ export const Home = () => (
         Vossenjacht
       </a>
       <a href="#spelen">Twee manieren</a>
-      <a href="#begin">Beginnen</a>
       <a href="#jacht">De jacht</a>
       <a href="#verzamelen">Verzamelen</a>
       <a href="#verzorgen">Verzorgen</a>
+      <a href="#begin">Beginnen</a>
       <a class="nav-cta" href="/scores">
         Scorebord
       </a>
@@ -102,36 +103,26 @@ export const Home = () => (
     <section class="band band-paper">
       <div class="wrap">
         <h2>In het kort</h2>
-        <div class="cards cards-3">
+        <div class="cards cards-3 cards-steps">
           <div class="card">
-            <span class="icon" aria-hidden="true">
-              📡
-            </span>
             <h3>Zoek</h3>
             <p>
-              Je badge wordt warmer of kouder terwijl je rondloopt. Draai,
-              luister naar de lampjes, en volg het signaal tot je bij de{" "}
-              <i>vos</i> staat.
+              Je badge wordt warmer of kouder terwijl je loopt. Draai rond, volg
+              de lampjes, tot je bij de <i>vos</i> staat.
             </p>
           </div>
           <div class="card">
-            <span class="icon" aria-hidden="true">
-              🔢
-            </span>
             <h3>Vang</h3>
             <p>
-              Op elke vos staat een code van vier cijfers. Tik hem in en de vos
-              verandert in een beest voor je boek.
+              Op elke vos staat een code van vier cijfers. Tik hem in: de vos
+              wordt een beest in je boek.
             </p>
           </div>
           <div class="card">
-            <span class="icon" aria-hidden="true">
-              🫐
-            </span>
             <h3>Verzorg</h3>
             <p>
-              Voeren, aaien, spelen. Je band groeit, het dossier vult zich, en
-              je beest leert je kennen.
+              Voeren, aaien, spelen. De band groeit, het dossier vult zich, je
+              beest leert je kennen.
             </p>
           </div>
         </div>
@@ -148,8 +139,8 @@ export const Home = () => (
         <div class="cards cards-2">
           <article class="card mode mode-hunter">
             <h3>
-              <span class="icon" aria-hidden="true">
-                🦊
+              <span class="icon">
+                <Icon name="spoor" />
               </span>
               Jager
             </h3>
@@ -166,8 +157,8 @@ export const Home = () => (
           </article>
           <article class="card mode mode-gatherer">
             <h3>
-              <span class="icon" aria-hidden="true">
-                🧺
+              <span class="icon">
+                <Icon name="sig" />
               </span>
               Verzamelaar
             </h3>
@@ -198,64 +189,6 @@ export const Home = () => (
           mogen ook verzamelen, verzamelaars zorgen net zo goed voor hun
           beesten. Je kiest geen rol — je kiest waar je je tijd aan besteedt.
         </p>
-      </div>
-    </section>
-
-    <section class="band band-paper" id="begin">
-      <div class="wrap">
-        <h2>Zo begin je</h2>
-        <ol class="steps">
-          <li>
-            <div class="step-text">
-              <h3>Zet je badge aan</h3>
-              <p>
-                Start Vossenjacht en druk op <b>Registreer</b>. Heb je al eens
-                gespeeld maar je badge gereset? Dan haal je je account terug met
-                “Herstel mijn account”.
-              </p>
-            </div>
-            <Shot
-              src="welkom"
-              alt="Het welkomscherm met de knop Registreer"
-              caption="Het beginscherm"
-            />
-          </li>
-          <li>
-            <div class="step-text">
-              <h3>Maak je maatje</h3>
-              <p>
-                Je maatje is je eigen figuurtje: kies een kop, plak er extra’s
-                op en kies een kleur. Je ziet meteen wat je maakt.
-              </p>
-            </div>
-            <div class="shot-pair">
-              <Shot
-                src="maatje-kop"
-                alt="Maatje maken: keuze uit vijf koppen"
-                caption="Kies een kop"
-              />
-              <Shot
-                src="maatje-extra"
-                alt="Maatje maken: brillen, hoeden en andere extra's"
-                caption="En wat extra’s"
-              />
-            </div>
-          </li>
-          <li>
-            <div class="step-text">
-              <h3>Klaar om te spelen</h3>
-              <p>
-                Je account wordt veilig bewaard in de cloud. Een lege badge is
-                daardoor nooit een leeg spel: je haalt jezelf altijd terug.
-              </p>
-            </div>
-            <Shot
-              src="ingeschreven"
-              alt="Bevestiging: je bent ingeschreven"
-              caption="Ingeschreven"
-            />
-          </li>
-        </ol>
       </div>
     </section>
 
@@ -317,8 +250,8 @@ export const Home = () => (
         />
         <div class="cards cards-3">
           <div class="card">
-            <span class="icon" aria-hidden="true">
-              📶
+            <span class="icon">
+              <Icon name="pluk" />
             </span>
             <h3>Plukken</h3>
             <p>
@@ -329,8 +262,8 @@ export const Home = () => (
             </p>
           </div>
           <div class="card">
-            <span class="icon" aria-hidden="true">
-              🫐
+            <span class="icon">
+              <Icon name="bes" />
             </span>
             <h3>De voorraad</h3>
             <p>
@@ -341,8 +274,8 @@ export const Home = () => (
             </p>
           </div>
           <div class="card">
-            <span class="icon" aria-hidden="true">
-              🎮
+            <span class="icon">
+              <Icon name="dans" />
             </span>
             <h3>Spelen</h3>
             <p>
@@ -370,13 +303,13 @@ export const Home = () => (
           />
           <Shot
             src="vliegen"
-            alt="Het vliegspel: de Vos fladdert tussen takken door"
+            alt="Het vliegspel: de Vos fladdert tussen takken door, wolken op de achtergrond"
             caption="VLIEGEN — tik om te fladderen, ontwijk de takken."
           />
           <Shot
             src="vangen"
-            alt="Het vangspel: de Vos vangt vallende hapjes"
-            caption="VANGEN — je beest draaft heen en weer, tik om te keren en vang de hapjes."
+            alt="Het vangspel: de Vos vangt vallende ringen boven het kampterrein"
+            caption="VANGEN — je beest draaft heen en weer, tik om te keren en vang de ringen."
           />
           <Shot
             src="dansen"
@@ -398,8 +331,8 @@ export const Home = () => (
         <h2>Verzorgen — het gedeelde spel</h2>
         <p class="intro">
           Of je nu jaagt of verzamelt: hier komt alles samen. Elk beest heeft
-          een band met jou, en energie die meebeweegt: spelen kost energie,
-          eten vult ze weer aan.
+          een band met jou, en energie die meebeweegt: spelen kost energie, eten
+          vult ze weer aan.
         </p>
         <div class="shots">
           <Shot
@@ -422,8 +355,8 @@ export const Home = () => (
           <h3>Beesten gaan nooit dood</h3>
           <p>
             Ze lopen niet weg en je verliest nooit wat je hebt opgebouwd. Een
-            moe beest is een uitnodiging, geen straf. Speel je een dag niet
-            mee, dan staat alles er gewoon nog — geen strafpunten, geen verloren
+            moe beest is een uitnodiging, geen straf. Speel je een dag niet mee,
+            dan staat alles er gewoon nog — geen strafpunten, geen verloren
             reeks, geen boos berichtje.
           </p>
         </div>
@@ -436,8 +369,8 @@ export const Home = () => (
         <div class="cards cards-2">
           <article class="card">
             <h3>
-              <span class="icon" aria-hidden="true">
-                👃
+              <span class="icon">
+                <Icon name="snuf" />
               </span>
               Snuffelen
             </h3>
@@ -458,8 +391,8 @@ export const Home = () => (
           </article>
           <article class="card">
             <h3>
-              <span class="icon" aria-hidden="true">
-                ✨
+              <span class="icon">
+                <Icon name="spark" />
               </span>
               De vonk
             </h3>
@@ -494,6 +427,64 @@ export const Home = () => (
             caption="Elke eerste ontmoeting is een pagina. Het boekje groeit het hele weekend."
           />
         </div>
+      </div>
+    </section>
+
+    <section class="band band-soft" id="begin">
+      <div class="wrap">
+        <h2>Zo begin je</h2>
+        <ol class="steps">
+          <li>
+            <div class="step-text">
+              <h3>Zet je badge aan</h3>
+              <p>
+                Start Vossenjacht en druk op <b>Registreer</b>. Heb je al eens
+                gespeeld maar je badge gereset? Dan haal je je account terug met
+                “Herstel mijn account”.
+              </p>
+            </div>
+            <Shot
+              src="welkom"
+              alt="Het welkomscherm met de knop Registreer"
+              caption="Het beginscherm"
+            />
+          </li>
+          <li>
+            <div class="step-text">
+              <h3>Maak je maatje</h3>
+              <p>
+                Je maatje is je eigen figuurtje: kies een kop, plak er extra’s
+                op en kies een kleur. Je ziet meteen wat je maakt.
+              </p>
+            </div>
+            <div class="shot-pair">
+              <Shot
+                src="maatje-kop"
+                alt="Maatje maken: keuze uit vijf koppen"
+                caption="Kies een kop"
+              />
+              <Shot
+                src="maatje-extra"
+                alt="Maatje maken: brillen, hoeden en andere extra's"
+                caption="En wat extra’s"
+              />
+            </div>
+          </li>
+          <li>
+            <div class="step-text">
+              <h3>Klaar om te spelen</h3>
+              <p>
+                Je account wordt veilig bewaard in de cloud. Een lege badge is
+                daardoor nooit een leeg spel: je haalt jezelf altijd terug.
+              </p>
+            </div>
+            <Shot
+              src="ingeschreven"
+              alt="Bevestiging: je bent ingeschreven"
+              caption="Ingeschreven"
+            />
+          </li>
+        </ol>
       </div>
     </section>
 
