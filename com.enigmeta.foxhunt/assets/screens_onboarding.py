@@ -529,7 +529,7 @@ class CompanionActivity(Activity):
     def _build_heads(self):
         th = 46
         self._grid = ui.row(
-            self.screen, _GRID_X, _GRID_Y, _GRID_W, 2 * th + 5, gap=5, wrap=True
+            self.screen, _GRID_X, _GRID_Y, _GRID_W, 4 * th + 5, gap=5, wrap=True
         )
         for h in companion.HEADS:
             on = h["id"] == self.head

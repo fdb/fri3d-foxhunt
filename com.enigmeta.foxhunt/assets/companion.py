@@ -23,6 +23,15 @@ HEADS = [
     {"id": "beer", "naam": "Beer"},
     {"id": "konijn", "naam": "Konijn"},
     {"id": "varken", "naam": "Varken"},
+    {"id": "leeuw", "naam": "Leeuw"},
+    {"id": "zeemeeuw", "naam": "Meeuw"},
+    {"id": "kikker", "naam": "Kermit"},
+    {"id": "zeehond", "naam": "Siel"},
+    {"id": "pinguin", "naam": "Ping"},
+    {"id": "ijsbeer", "naam": "Knut"},
+    {"id": "muis", "naam": "Jerry"},
+    {"id": "eekhoorn", "naam": "Babbel"},
+    {"id": "axolotl", "naam": "Axel"},
 ]
 
 # ORDER IS DRAW ORDER, bottom-up — the same stacking the artist used in the
