@@ -38,6 +38,8 @@ class CompanionProfileSyncTest(unittest.TestCase):
         registrar = types.ModuleType("registrar")
         registrar.badge_id = MagicMock(return_value="A4:CF:12:9B:03:7E")
         registrar.REGISTRAR = MagicMock()
+        registrar.flush = MagicMock()
+        cls.registrar = registrar
 
         creatures = types.ModuleType("creatures")
         creatures.by_id = MagicMock()
@@ -66,6 +68,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
         self.store.reset_mock()
         self.sound.reset_mock()
         self.companion.encode.reset_mock()
+        self.registrar.flush.reset_mock()
 
     def test_edit_saves_locally_and_queues_shortcode_patch(self):
         screen = MagicMock(edit=True, head="uil", accs=["bril"], bg=2)
@@ -79,6 +82,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
         self.store.enqueue_report.assert_called_once_with(
             "profile", {"profile_pic": "H02A001C3"}
         )
+        self.registrar.flush.assert_called_once_with()
         screen.finish.assert_called_once_with()
 
     def test_head_grid_scrolls_vertically(self):
