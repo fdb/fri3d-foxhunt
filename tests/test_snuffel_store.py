@@ -66,8 +66,8 @@ class SnuffelStoreTest(unittest.TestCase):
 
     def test_repeat_snuffel_refreshes_friend_name_and_companion(self):
         mac = "aa:bb:cc:dd:ee:ff"
-        first = self.store.record_snuffel(mac, "Oude naam", "H1A000C1")
-        second = self.store.record_snuffel(mac, "Nieuwe naam", "H2A005C3")
+        first = self.store.record_snuffel(mac, "Oude naam", "H01A000C1")
+        second = self.store.record_snuffel(mac, "Nieuwe naam", "H02A005C3")
 
         self.assertTrue(first["new_friend"])
         self.assertFalse(second["new_friend"])
@@ -77,7 +77,7 @@ class SnuffelStoreTest(unittest.TestCase):
                 {
                     "mac": mac,
                     "naam": "Nieuwe naam",
-                    "code": "H2A005C3",
+                    "code": "H02A005C3",
                     "dag": "2026-08-07",
                 }
             ],

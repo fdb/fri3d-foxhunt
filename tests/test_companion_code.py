@@ -19,7 +19,12 @@ import companion  # noqa: E402
 class CompanionCodeTest(unittest.TestCase):
     def test_documented_example(self):
         # The format's reference vector: head 1, bril + strik, backdrop 1.
-        self.assertEqual(companion.encode("vos", ["bril", "strik"], 0), "H1A003C1")
+        self.assertEqual(companion.encode("vos", ["bril", "strik"], 0), "H01A003C1")
+        self.assertEqual(companion.decode("H01A003C1"), ("vos", ["bril", "strik"], 0))
+
+    def test_legacy_one_digit_codes_still_decode(self):
+        # Existing players already have H1...H9 codes on the server. The new
+        # encoder is canonical, but restore must remain backwards compatible.
         self.assertEqual(companion.decode("H1A003C1"), ("vos", ["bril", "strik"], 0))
 
     def test_round_trips_every_head_and_backdrop(self):
@@ -27,7 +32,7 @@ class CompanionCodeTest(unittest.TestCase):
             for bg in range(len(companion.BGS)):
                 code = companion.encode(head["id"], [], bg)
                 self.assertEqual(companion.decode(code), (head["id"], [], bg), code)
-            self.assertEqual(code[1], str(h + 1))  # 1-based, never 0
+            self.assertEqual(code[1:3], "%02d" % (h + 1))  # 1-based, padded
 
     def test_round_trips_every_accessory(self):
         for aid in companion._ACCS_WIRE:
@@ -37,34 +42,37 @@ class CompanionCodeTest(unittest.TestCase):
     def test_all_accessories_at_once_fits_the_mask(self):
         every = list(companion._ACCS_WIRE)
         code = companion.encode("varken", every, 6)
-        self.assertEqual(len(code), 8)
+        self.assertEqual(len(code), 9)
         self.assertEqual(companion.decode(code), ("varken", every, 6))
 
     def test_geen_is_not_an_accessory_bit(self):
         # "geen" is the builder screen's take-it-all-off tile, not a member of
         # the roster; it must never consume a bit, or every accessory shifts.
         self.assertNotIn("geen", companion._ACCS_WIRE)
-        self.assertEqual(companion.encode("vos", ["geen"], 0), "H1A000C1")
+        self.assertEqual(companion.encode("vos", ["geen"], 0), "H01A000C1")
 
     def test_mask_is_hex_wide_enough_for_the_roster(self):
         # Three hex digits = 12 bits. If the roster ever outgrows that, the
         # format needs a fourth digit, not a silently truncated mask.
         self.assertLessEqual(len(companion._ACCS_WIRE), 12)
 
+    def test_two_digit_head_field_is_wide_enough_for_the_roster(self):
+        self.assertLessEqual(len(companion.HEADS), 99)
+
     def test_malformed_codes_fall_back_to_the_default(self):
         default = (companion.HEADS[0]["id"], [], 0)
-        for bad in (None, "", "H1A003", "X1A003C1", "H1B003C1", "H1A00ZC1", 12345):
+        for bad in (None, "", "H01A003", "X01A003C1", "H01B003C1", "H01A00ZC1", 12345):
             self.assertEqual(companion.decode(bad), default, repr(bad))
 
     def test_out_of_range_indices_degrade_instead_of_crashing(self):
         # A badge reading a code minted by a newer roster keeps rendering.
-        head, accs, bg = companion.decode("H9AFFFC9")
+        head, accs, bg = companion.decode("H99AFFFC9")
         self.assertEqual(head, companion.HEADS[0]["id"])
         self.assertEqual(bg, 0)
         self.assertEqual(accs, list(companion._ACCS_WIRE))
 
     def test_unknown_head_encodes_as_the_default(self):
-        self.assertEqual(companion.encode("draak", [], 0), "H1A000C1")
+        self.assertEqual(companion.encode("draak", [], 0), "H01A000C1")
 
 
 if __name__ == "__main__":

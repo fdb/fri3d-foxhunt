@@ -302,7 +302,7 @@ identifiers and player-facing copy remain consistent.
 | **hunter** | **jager** | The player, when playing with a LoRa antenna: has a minted `hunter_id` (1-9999), shown as "JGR-0042". |
 | **collector** | **verzamelaar** | The player, when playing WiFi-only (no antenna): `hunter_id` is None. The UI shows the mode word where a jager would see their id. |
 | **pet state** | — | The per-creature care stats — bond, energy (`pet.py`, `store.beast_state`). Belongs to a creature, never to the companion. |
-| **shortcode** | — | The companion serialized for the wire: `H1A003C1` (`companion.encode` / `.decode`). |
+| **shortcode** | — | The companion serialized for the wire: `H01A003C1` (`companion.encode` / `.decode`). |
 
 Retired words: **mascot** (say companion), **mascotte** (say maatje) — except
 as a citation of the original design bundle file `mascotte.jsx`.

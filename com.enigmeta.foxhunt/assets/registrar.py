@@ -302,7 +302,7 @@ class FakeRegistrar(Registrar):
     # A recovered companion that is deliberately NOT the default (uil + hoed +
     # sjaal on the third backdrop), so a restore that ignored the shortcode
     # would be obvious on screen instead of quietly plausible.
-    RESTORE_COMPANION = "H2A014C3"
+    RESTORE_COMPANION = "H02A014C3"
     # ...and the catch list that earns it: sjaal opens at 8, so eight ids is
     # the smallest recovery consistent with the companion above. Restore them
     # together or the builder greys out a sjaal the player is wearing.

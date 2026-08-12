@@ -58,13 +58,13 @@ ACCS = [
 # backdrop swatches; the last one is the single dark option.
 BGS = [0xE9F1CF, 0xF7F0DF, 0xEFE0BB, 0xCFE0EA, 0xF0D3D6, 0xDED3EA, 0x3A4A34]
 
-# ── Wire format: the companion as an 8-char shortcode ──────────────────────────
+# ── Wire format: the companion as a 9-char shortcode ──────────────────────────
 #
-#   H1A003C1   =  head 1, accessories bril+strik, backdrop 1
-#   ^ ^^^^ ^
-#   | |  | +-- C: 1-based index into BGS
-#   | |  +---- A: 12-bit accessory mask, three HEX digits
-#   +-+------- H: 1-based index into HEADS
+#   H01A003C1   =  head 1, accessories bril+strik, backdrop 1
+#   ^--^ ^^^^ ^
+#    |   |  | +-- C: 1-based index into BGS
+#    |   |  +---- A: 12-bit accessory mask, three HEX digits
+#    +---+------- H: zero-padded, 1-based index into HEADS
 #
 # The server stores this in players.profile_pic. It exists because the badge's
 # own head/accs/bg lists don't survive a wipe — the shortcode is what the
@@ -87,7 +87,7 @@ _DEFAULT_COMPANION = (HEADS[0]["id"], [], 0)
 
 
 def encode(head_id, accs, bg):
-    """(head id, accessory ids, backdrop index) -> "H1A003C1"."""
+    """(head id, accessory ids, backdrop index) -> "H01A003C1"."""
     h = 1
     for i, x in enumerate(HEADS):
         if x["id"] == head_id:
@@ -98,22 +98,38 @@ def encode(head_id, accs, bg):
         if aid in accs:
             mask |= 1 << i
     c = bg + 1 if 0 <= bg < len(BGS) else 1
-    return "H%dA%03XC%d" % (h, mask, c)
+    return "H%02dA%03XC%d" % (h, mask, c)
 
 
 def decode(code):
-    """ "H1A003C1" -> (head id, accessory ids, backdrop index).
+    """ "H01A003C1" -> (head id, accessory ids, backdrop index).
 
     Anything malformed or out of range falls back to the default companion: a
     profile that renders beats an error dialog halfway through a restore, and
     an old badge reading a code from a newer roster is a case we'd rather
-    degrade than refuse."""
+    degrade than refuse. The old one-digit H1...H9 form remains readable so
+    profiles already stored on the server survive this format upgrade."""
     try:
-        if len(code) != 8 or code[0] != "H" or code[2] != "A" or code[6] != "C":
+        if (
+            len(code) == 9
+            and code[0] == "H"
+            and code[3] == "A"
+            and code[7] == "C"
+        ):
+            h = int(code[1:3])
+            mask = int(code[4:7], 16)
+            c = int(code[8])
+        elif (
+            len(code) == 8
+            and code[0] == "H"
+            and code[2] == "A"
+            and code[6] == "C"
+        ):
+            h = int(code[1])
+            mask = int(code[3:6], 16)
+            c = int(code[7])
+        else:
             return _DEFAULT_COMPANION
-        h = int(code[1])
-        mask = int(code[3:6], 16)
-        c = int(code[7])
     except (TypeError, ValueError):
         return _DEFAULT_COMPANION
     head = HEADS[h - 1]["id"] if 1 <= h <= len(HEADS) else HEADS[0]["id"]

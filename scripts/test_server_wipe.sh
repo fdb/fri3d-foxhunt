@@ -79,7 +79,7 @@ echo
 echo "--- a normal account ---"
 
 req POST /api/v1/auth/register \
-    "{\"badge_id\":\"$BADGE\",\"name\":\"Testjager\",\"profile_pic\":\"H1A003C1\"}"
+    "{\"badge_id\":\"$BADGE\",\"name\":\"Testjager\",\"profile_pic\":\"H01A003C1\"}"
 check "register a fresh badge" 201 '"starter"'
 PLAYER_ID=$(json_num id)
 STARTER=$(json_num starter)
@@ -141,7 +141,7 @@ echo
 echo "--- registering again on the same badge ---"
 
 req POST /api/v1/auth/register \
-    "{\"badge_id\":\"$BADGE\",\"name\":\"Nieuwe\",\"profile_pic\":\"H2A014C3\"}"
+    "{\"badge_id\":\"$BADGE\",\"name\":\"Nieuwe\",\"profile_pic\":\"H02A014C3\"}"
 check "revives instead of 409ing" 201 "Nieuwe"
 [[ "$(json_num id)" == "$PLAYER_ID" ]] \
     && ok "same row revived (#$PLAYER_ID), no duplicate badge_id" \

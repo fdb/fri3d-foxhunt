@@ -299,8 +299,8 @@ class FakeLink(BaseLink):
     fires by itself after ~8 s), Nora hovers mid-range, Wout at the edge."""
 
     _CAST = (
-        ("Sam", "H1A003C3", (0, 2, 5), -75, 4.5),  # (start dBm, ramp/tick)
-        ("Nora", "H2A103C4", (1, 3), -68, 0.0),
+        ("Sam", "H01A003C3", (0, 2, 5), -75, 4.5),  # (start dBm, ramp/tick)
+        ("Nora", "H02A103C4", (1, 3), -68, 0.0),
         ("Wout", "H3A200C0", (0,), -78, 0.0),
     )
 

@@ -51,11 +51,13 @@ export function validateHunterId(raw: unknown): number | null | "invalid" {
   return raw;
 }
 
-// Profile pic: the companion shortcode "H<head>A<mask>C<colour>", e.g. "H1A003C1"
+// Profile pic: the companion shortcode "H<head>A<mask>C<colour>", e.g. "H01A003C1"
 // — head and backdrop are 1-based indices, mask is a 12-bit accessory bitmask
-// in hex (see companion.py, which owns the format). Stored as-is; the badge is
-// the only thing that renders it, and it tolerates indices it doesn't know.
-const COMPANION_RE = /^H[1-9]A[0-9A-F]{3}C[1-9]$/;
+// in hex (see companion.py, which owns the format). Stored as-is; badge and
+// server renderers both tolerate indices they do not know.
+// New writes use two digits. Keep accepting the legacy one-digit form because
+// existing players may send their previously stored code during recovery.
+const COMPANION_RE = /^H(?:[1-9]|0[1-9]|[1-9][0-9])A[0-9A-F]{3}C[1-9]$/;
 
 export function validateProfilePic(raw: unknown): string | null {
   if (typeof raw !== "string") return null;

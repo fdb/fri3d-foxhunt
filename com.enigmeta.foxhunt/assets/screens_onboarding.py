@@ -529,8 +529,10 @@ class CompanionActivity(Activity):
     def _build_heads(self):
         th = 46
         self._grid = ui.row(
-            self.screen, _GRID_X, _GRID_Y, _GRID_W, 4 * th + 5, gap=5, wrap=True
+            self.screen, _GRID_X, _GRID_Y, _GRID_W, 142, gap=5, wrap=True
         )
+        self._grid.add_flag(lv.obj.FLAG.SCROLLABLE)
+        self._grid.set_scroll_dir(lv.DIR.VER)
         for h in companion.HEADS:
             on = h["id"] == self.head
             cell = self._tile(th, on)

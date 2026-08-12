@@ -4,7 +4,7 @@
 // PORT of com.enigmeta.foxhunt/assets/companion.py — keep the three tables below
 // in sync with it. They are the whole contract between badge and server:
 //
-//   HEADS  order == the 1-based H index in the shortcode
+//   HEADS  order == the zero-padded, 1-based H index in the shortcode
 //   ACCS   order == both the accessory bit positions AND the draw order
 //   BGS    order == the 1-based C index
 //
@@ -15,7 +15,22 @@
 // ACCS[i], so a new accessory goes at the END, where it also draws on top.
 // Insert one in the middle and every shortcode already in D1 changes meaning.
 
-export const HEADS = ["vos", "uil", "beer", "konijn", "varken"];
+export const HEADS = [
+  "vos",
+  "uil",
+  "beer",
+  "konijn",
+  "varken",
+  "leeuw",
+  "zeemeeuw",
+  "kikker",
+  "zeehond",
+  "pinguin",
+  "ijsbeer",
+  "muis",
+  "eekhoorn",
+  "axolotl",
+];
 
 export const ACCS = [
   "bril",
@@ -49,14 +64,16 @@ export interface Companion {
 const DEFAULT: Companion = { head: HEADS[0], accs: [], bg: BGS[0] };
 
 /**
- * "H1A003C1" -> { head: "vos", accs: ["bril", "strik"], bg: "#e9f1cf" }.
+ * "H01A003C1" -> { head: "vos", accs: ["bril", "strik"], bg: "#e9f1cf" }.
  *
  * Anything malformed or out of range falls back to the default companion —
  * the same forgiveness companion.decode() applies on the badge. A debug page
  * that renders a plain fox for a corrupt shortcode beats one that throws.
  */
 export function decodeCompanion(code: string | null | undefined): Companion {
-  const m = /^H(\d)A([0-9A-Fa-f]{3})C(\d)$/.exec(code ?? "");
+  // Read the former H1...H9 form as well as the canonical H01...H99 form so
+  // existing profiles keep their companion after the format upgrade.
+  const m = /^H(\d{1,2})A([0-9A-Fa-f]{3})C(\d)$/.exec(code ?? "");
   if (!m) return DEFAULT;
   const h = Number(m[1]);
   const mask = parseInt(m[2], 16);

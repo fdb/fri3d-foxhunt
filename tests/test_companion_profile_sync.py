@@ -27,8 +27,13 @@ class CompanionProfileSyncTest(unittest.TestCase):
 
         companion = types.ModuleType("companion")
         companion.BGS = [0]
-        companion.encode = MagicMock(return_value="H2A001C3")
+        companion.HEADS = [{"id": "vos", "naam": "Vos"}]
+        companion.src = MagicMock(return_value="companions/vos.png")
+        companion.encode = MagicMock(return_value="H02A001C3")
         cls.companion = companion
+
+        cls.lvgl = MagicMock()
+        cls.ui = MagicMock()
 
         registrar = types.ModuleType("registrar")
         registrar.badge_id = MagicMock(return_value="A4:CF:12:9B:03:7E")
@@ -38,11 +43,11 @@ class CompanionProfileSyncTest(unittest.TestCase):
         creatures.by_id = MagicMock()
 
         modules = {
-            "lvgl": MagicMock(),
+            "lvgl": cls.lvgl,
             "mpos": mpos,
             "mpos.ui": mpos_ui,
             "mpos.ui.keyboard": keyboard,
-            "ui": MagicMock(),
+            "ui": cls.ui,
             "art": MagicMock(),
             "sound": cls.sound,
             "store": cls.store,
@@ -72,9 +77,19 @@ class CompanionProfileSyncTest(unittest.TestCase):
             head="uil", accs=["bril"], bg=2
         )
         self.store.enqueue_report.assert_called_once_with(
-            "profile", {"profile_pic": "H2A001C3"}
+            "profile", {"profile_pic": "H02A001C3"}
         )
         screen.finish.assert_called_once_with()
+
+    def test_head_grid_scrolls_vertically(self):
+        grid = MagicMock()
+        self.ui.row.return_value = grid
+        screen = MagicMock(screen=MagicMock(), head="vos")
+
+        self.module.CompanionActivity._build_heads(screen)
+
+        grid.add_flag.assert_called_once_with(self.lvgl.obj.FLAG.SCROLLABLE)
+        grid.set_scroll_dir.assert_called_once_with(self.lvgl.DIR.VER)
 
     def test_name_edit_saves_locally_and_queues_name_patch(self):
         """NAAM WIJZIGEN is the same promise as the maatje edit: the name is

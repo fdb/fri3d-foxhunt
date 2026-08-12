@@ -90,7 +90,7 @@ Two limits, both deliberate:
 
 ## The companion shortcode (`profile_pic`)
 
-The badge's avatar is stored as an 8-character code, `H1A003C1`:
+The badge's avatar is stored as a 9-character code, `H01A003C1`:
 
 | Part   | Meaning                                                      |
 | ------ | ------------------------------------------------------------ |
