@@ -95,10 +95,15 @@ class _LevelTracker:
 class FoxReading:
     # NB: no "found" flag — RSSI can't tell you you've physically reached the
     # box. The player decides when to enter the code. We only report signal.
-    def __init__(self, fox_id, rssi, level, bearing=None):
+    def __init__(self, fox_id, rssi, level, link=0, bearing=None):
         self.fox_id = fox_id
         self.rssi = rssi  # dBm, the one measured value — feeds bpm, untouched
-        self.level = level  # 0..5 hot/cold -> the 5 LEDs, auto-ranged (above)
+        self.level = level  # 0..5 hot/cold, auto-ranged (above) — home's
+                             # heat bars and other observers still read this
+        self.link = link  # 0..5 BEACONs actually received in the trailing
+                           # link-quality window -> HuntActivity's 5 LEDs
+                           # (screens_hunt.py); level above still drives
+                           # everything else that reads .level unchanged
         self.bearing = bearing  # degrees; present but UI ignores it (classic ARDF)
 
 
@@ -184,6 +189,57 @@ class FoxRadio:
         raise NotImplementedError
 
 
+# ── 5-LED link quality: real receive counting for LoraFoxRadio (see
+# lora.LoRaLink.link_quality), a simulated equivalent here for the fake ────
+#
+# Distinct from level (above): level asks "how strong is the signal we DID
+# get", auto-ranged so it stays readable at any distance. Link quality asks
+# a blunter question — "how many of the fox's own ~BEACON_PERIOD_MS
+# broadcasts actually arrived in the last five of them" — so the LEDs read
+# as a literal packet-loss meter: full when every expected message lands,
+# fading down over ~1.25s if the fox goes quiet, climbing back the same way
+# once it resumes. LoraFoxRadio gets this straight from lora.LINK, which
+# counts real BEACONs; FakeFoxRadio has no real packets to count, so
+# _FakeLinkSim fabricates the same kind of arrival/drop history at the same
+# cadence, driven by the existing walk-toward-the-fox `_strength`.
+LINK_DROP_MIN = 0.0   # best-case per-broadcast drop chance, right on top of the fox
+LINK_DROP_MAX = 0.65  # worst-case, at the edge of the simulated approach
+SILENCE_CHANCE = 0.004        # per simulated broadcast slot, chance the fox
+                               # goes quiet for a while — so the fade/ramp
+                               # behaviour has something to actually show on
+                               # desktop, not just gradually-improving reception
+SILENCE_MS = (2000, 6000)     # random length of a simulated silent stretch
+
+
+class _FakeLinkSim:
+    """Desktop-only stand-in for lora.LoRaLink's real BEACON bookkeeping:
+    walks forward through simulated ~BEACON_PERIOD_MS broadcast slots
+    (catching up on however many have elapsed since the last call, since
+    reading() is polled faster than that), rolling for a drop or an
+    occasional silent stretch, and keeps a trailing count the same way
+    LoRaLink.link_quality() does."""
+
+    def __init__(self):
+        self._times = deque((), 8)
+        self._next_slot = time.ticks_ms()
+        self._silent_until = 0
+
+    def tick(self, strength):
+        now = time.ticks_ms()
+        while time.ticks_diff(now, self._next_slot) >= 0:
+            if time.ticks_diff(self._next_slot, self._silent_until) >= 0:
+                if random.random() < SILENCE_CHANCE:
+                    self._silent_until = self._next_slot + random.randint(*SILENCE_MS)
+                else:
+                    drop = LINK_DROP_MAX - strength * (LINK_DROP_MAX - LINK_DROP_MIN)
+                    if random.random() >= drop:
+                        self._times.append(self._next_slot)
+            self._next_slot = time.ticks_add(self._next_slot, lora.BEACON_PERIOD_MS)
+        while self._times and time.ticks_diff(now, self._times[0]) > lora.LINK_WINDOW_MS:
+            self._times.popleft()
+        return min(len(self._times), 5)
+
+
 class FakeFoxRadio(FoxRadio):
     """Simulates honing in on a fox: strength drifts upward (with noise) the
     longer you 'search', so on desktop the hunt reaches 'found' in a few
@@ -196,6 +252,7 @@ class FakeFoxRadio(FoxRadio):
         super().__init__()
         self._strength = {}
         self._used = set()  # burnt one-time codes; the real server owns this
+        self._link_sim = {}  # fox_id -> _FakeLinkSim (see class below)
 
     def reset(self):
         # Both halves are simulation, not a record of play: _strength is where
@@ -215,6 +272,13 @@ class FakeFoxRadio(FoxRadio):
     def start(self, fox_id):
         self._strength[fox_id] = 0.12
         self._reset_level(fox_id)
+        self._link_sim.pop(fox_id, None)  # fresh hunt, fresh simulated air
+
+    def _link(self, fox_id, strength):
+        sim = self._link_sim.get(fox_id)
+        if sim is None:
+            sim = self._link_sim[fox_id] = _FakeLinkSim()
+        return sim.tick(strength)
 
     def bump(self, fox_id, delta):
         s = self._strength.get(fox_id, 0.12) + delta
@@ -229,7 +293,7 @@ class FakeFoxRadio(FoxRadio):
         s = max(0.0, min(1.0, s))
         self._strength[fox_id] = s
         rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
-        return FoxReading(fox_id, rssi, self._level(fox_id, rssi))
+        return FoxReading(fox_id, rssi, self._level(fox_id, rssi), link=self._link(fox_id, s))
 
     def peek(self, fox_id):
         # No drift: reading() simulates walking toward the fox, and the home
@@ -237,9 +301,12 @@ class FakeFoxRadio(FoxRadio):
         # ~30 visits home pinned all the heat bars at maximum forever. The
         # level tracker still sees this rssi (harmless — same value repeated
         # barely moves an auto-ranged window), just never a NEW one.
+        # The link sim, unlike strength, is driven by real elapsed time, not
+        # by being looked at — same as a real fox keeps beaconing whether or
+        # not a screen is watching — so ticking it here is harmless too.
         s = self._strength.get(fox_id, 0.12)
         rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
-        return FoxReading(fox_id, rssi, self._level(fox_id, rssi))
+        return FoxReading(fox_id, rssi, self._level(fox_id, rssi), link=self._link(fox_id, s))
 
     def submit_code(self, fox_id, code, on_result):
         # A one-shot timer stands in for the round trip; the verdict is decided
@@ -305,7 +372,8 @@ class LoraFoxRadio(FoxRadio):
         rssi = lora.LINK.last_rssi(fox_id)
         if rssi is None:
             rssi = RSSI_FAR
-        return FoxReading(fox_id, rssi, self._level(fox_id, rssi))
+        link = lora.LINK.link_quality(fox_id)
+        return FoxReading(fox_id, rssi, self._level(fox_id, rssi), link=link)
 
     def submit_code(self, fox_id, code, on_result):
         otc = lora.code_to_otc(code)

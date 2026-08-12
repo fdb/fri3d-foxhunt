@@ -9,10 +9,18 @@
 
 
 # ═════════════════════════ screen_hunt ═════════════════════════
-# screen_hunt.py — classic ARDF. Silhouette + heart/bpm + 5-LED hot/cold.
+# screen_hunt.py — classic ARDF. Silhouette + heart/bpm + 5-LED hot/cold,
+# with the physical LEDs (badge) repurposed to show link quality.
 #
 # A timer polls the (faked) radio; the RSSI it reports IS the heart rate
-# (rssi + 255) and also drives the LEDs (warmer = closer).
+# (rssi + 255) and also drives the on-screen 5-LED mirror (warmer = closer),
+# same as always. The physical NeoPixels are the one thing that diverged:
+# they now show link quality instead — how many of the fox's own ~250ms
+# broadcasts actually arrived in the last five of them (fox_radio.FoxReading
+# .link, 0..5; see lora.LoRaLink.link_quality) — so on the badge itself they
+# read as a signal-health meter: full when every expected message lands,
+# fading down over ~1.25s if the fox goes quiet, climbing back the same way
+# once it resumes.
 # There is NO automatic "found": RSSI can't tell you you've physically reached
 # the box. The player walks up, reads the code off the device, and taps
 # "VOER DE CODE IN" themselves.
@@ -105,9 +113,9 @@ class HuntActivity(Activity):
         # independent timer — is what keeps it from ever landing mid-flush
         # against the display's own SPI traffic (see lora.py). A no-op on
         # desktop (FakeFoxRadio.poll is inherited and does nothing).
-        RADIO.poll()
         if not self.has_foreground():
             return
+        RADIO.poll()
         r = RADIO.reading(self.fox_id)
         self.bpm.set_text(str(rssi_to_bpm(r.rssi)))
 
@@ -115,9 +123,9 @@ class HuntActivity(Activity):
         self._beat = not self._beat
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 6 if self._beat else 10)
 
-        leds.show_level(r.level)  # physical LEDs (badge)
+        leds.show_level(r.link)  # physical LEDs (badge) — link quality
         # Restyle the mirror only when the level moved: every set_style call
-        # invalidates its cell, and at 4 Hz an unchanged level would redraw
+        # invalidates its cell, and at ~7 Hz an unchanged level would redraw
         # all five for nothing (same guard discipline as VliegActivity._drift).
         if r.level != self._mirror_level:
             self._mirror_level = r.level

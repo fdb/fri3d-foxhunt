@@ -40,6 +40,7 @@
 # their own ticks instead.
 
 import time
+from collections import deque
 
 import lvgl as lv
 
@@ -89,6 +90,11 @@ EXPANDER_LORA_RUN = 0x13
 STALE_MS = 90000  # ~1.7x the biggest example T_CYCLE (52s @ N_SLOTS=4, §4.1).
                    # A fox this quiet is out of range, off, or orphaned (§4.3.4)
                    # — not worth showing as "awake" to the player.
+
+LQ_PERIOD_MS = 300   # nominal fox broadcast cadence. Not part of the wire
+                          # format itself, just what the 5-LED "link quality"
+                          # meter (fox_radio.FoxReading.link) counts against.
+LQ_WINDOW_MS = 5 * LQ_PERIOD_MS  # trailing window link_quality() scans
 
 # ───────────────────────────── wire format (spec §3) ────────────────────────
 TYPE_BEACON = 0x1
@@ -306,6 +312,12 @@ class LoRaLink:
 
         self._last_fid = {}      # char -> last full FID byte seen in a BEACON
         self._last_reading = {}  # char -> (rssi, ticks_ms) of that BEACON
+        self._recv_times = {}    # char -> deque of ticks_ms for every BEACON
+                                  # actually heard, pruned to LQ_WINDOW_MS.
+                                  # Kept separate from _last_reading above,
+                                  # which only remembers the single newest
+                                  # sample -- link_quality() needs the whole
+                                  # trailing set so it can literally count them.
         self._claim = None       # the one in-flight CODE_ENTRY, or None
 
     # ------------------------------------------------------------ lifecycle
@@ -534,8 +546,13 @@ class LoRaLink:
                 return  # central's own beacon (§3.1) -- not a creature, and
                          # this app has no TDMA role to sync it against (§4)
             char = _fid_char(fid)
+            now = time.ticks_ms()
             self._last_fid[char] = fid
-            self._last_reading[char] = (rssi, time.ticks_ms())
+            self._last_reading[char] = (rssi, now)
+            times = self._recv_times.setdefault(char, deque((), 8))
+            times.append(now)
+            while times and time.ticks_diff(now, times[0]) > LQ_WINDOW_MS:
+                times.popleft()
             return
         kind, fid, hid = parsed
         if self._claim is not None:
@@ -591,6 +608,25 @@ class LoRaLink:
         address a CODE_ENTRY at this fox."""
         fid = self._last_fid.get(char)
         return fid
+
+    def link_quality(self, char):
+        """How many BEACONs we've actually heard from this creature in the
+        trailing LQ_WINDOW_MS (5 slots of its ~LQ_PERIOD_MS cadence)
+        -- the 5-LED "link quality" meter's source value (screens_hunt.py).
+
+        A plain sliding window, not a decay filter: each LQ_PERIOD_MS
+        that passes without a fresh BEACON ages the oldest timestamp out of
+        the window on its own, so the count -- and therefore the LEDs --
+        fades from 5 down to 0 over the span the fox was actually silent
+        for, and climbs back the same way once it resumes. No separate
+        ramp/decay logic needed."""
+        times = self._recv_times.get(char)
+        if not times:
+            return 0
+        now = time.ticks_ms()
+        while times and time.ticks_diff(now, times[0]) > LQ_WINDOW_MS:
+            times.popleft()
+        return min(len(times), 5)
 
     def active_chars(self):
         """Creatures heard beaconing recently -- this hunter's only source
