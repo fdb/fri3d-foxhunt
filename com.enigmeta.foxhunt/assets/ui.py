@@ -250,32 +250,13 @@ def row(parent, x, y, w, h, gap=GAP_M, wrap=False, bg=None):
 
 
 def seg_bar(
-    parent,
-    x,
-    y,
-    text,
-    lit,
-    color,
-    total=5,
-    seg_w=16,
-    seg_h=11,
-    gap=GAP_S,
-    label_w=56,
-    stacked=False,
+    parent, x, y, text, lit, color, total=5, seg_w=16, seg_h=11, gap=GAP_S, label_w=56
 ):
-    """Label + a row of `total` segment cells, `lit` of them coloured.
-
-    Set ``stacked`` to put the cells below the label instead of beside it.
-    Mirrors the device's 5-LED look. Returns the cells for live updates.
-    """
+    """Label + a row of `total` segment cells, `lit` of them coloured. Mirrors
+    the device's 5-LED look. Returns the list of cells for live updates."""
     label(parent, text, x, y, INK, font_small())
     track = row(
-        parent,
-        x if stacked else x + label_w,
-        y + 16 if stacked else y,
-        total * seg_w + (total - 1) * gap,
-        seg_h,
-        gap=gap,
+        parent, x + label_w, y, total * seg_w + (total - 1) * gap, seg_h, gap=gap
     )
     cells = []
     for i in range(total):
@@ -303,6 +284,21 @@ def heart_row(parent, x, y, filled, total=5, scale=2, gap=GAP_S):
         )
         hearts.append(art.draw_sprite(track, art.HEART, pal, scale))
     return hearts
+
+
+def energy_row(parent, x, y, filled, total=5, scale=2, gap=GAP_S):
+    """A row of pixel energy bolts on the same grid as ``heart_row``."""
+    ew = 9 * scale
+    track = row(parent, x, y, total * ew + (total - 1) * gap, 8 * scale, gap=gap)
+    bolts = []
+    for i in range(total):
+        pal = (
+            {"k": GREEN_D, "g": GREEN}
+            if i < filled
+            else {"k": 0xB0A07E, "g": 0xECE0C2}
+        )
+        bolts.append(art.draw_sprite(track, art.ENERGY, pal, scale))
+    return bolts
 
 
 def focusable(obj, on_click=None, focus_border=False):

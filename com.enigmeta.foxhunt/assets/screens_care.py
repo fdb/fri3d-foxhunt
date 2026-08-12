@@ -104,15 +104,8 @@ class BeastActivity(Activity):
             ui.label(g, "Beste vriend!", 24, 48, ui.GOLD_D, ui.font_label())
             ui.label(g, "speelt altijd mee", 24, 64, ui.TEXT_MUTED, ui.font_small())
         else:
-            ui.seg_bar(
-                g,
-                0,
-                44,
-                "Energie",
-                pet.energy_segments(st["energy"]),
-                ui.GREEN,
-                stacked=True,
-            )
+            ui.label(g, "Energie", 0, 44, ui.INK, ui.font_small())
+            ui.energy_row(g, 0, 60, pet.energy_segments(st["energy"]), scale=2)
         ui.label(
             g,
             "gevonden " + st.get("date", "?"),

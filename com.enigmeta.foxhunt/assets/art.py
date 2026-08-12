@@ -27,6 +27,19 @@ HEART = [
     "...krk...",
     "....k....",
 ]
+# Energy uses the same 9x8 footprint as HEART so both five-icon rows align
+# exactly on the creature profile. Its palette is supplied by the caller too:
+# green while charged, muted cream while empty.
+ENERGY = [
+    ".....kk..",
+    "....kggk.",
+    "...kggk..",
+    "..kggk...",
+    ".kggggk..",
+    "..kkgk...",
+    "...kgk...",
+    "...kk....",
+]
 
 # The ring: the ordinary thing the mini-games drop. A HOLLOW silhouette is the
 # one shape none of the three hapjes can imitate, so a rare hapje falling among
