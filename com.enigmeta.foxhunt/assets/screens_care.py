@@ -114,11 +114,11 @@ class BeastActivity(Activity):
         found_x = 0
         if profile.get("hunter_id"):
             if self_found:
-                art.self_found_badge(g).set_pos(0, 93)
+                art.self_found_badge(g, 2).set_pos(0, 91)
                 found_text = "Zelf gevonden " + (
                     store.zelf_date(self.fox_id) or st.get("date", "?")
                 )
-                found_x = 14
+                found_x = 20
             else:
                 found_text = "Gekregen " + st.get("date", "?")
         ui.label(
@@ -239,8 +239,8 @@ class DossierActivity(Activity):
             and self.fox_id in store.zelf_ids()
         ):
             # the zelf-gevonden stamp: the hunter visited this one at home
-            art.self_found_badge(s).set_pos(202, 74)
-            ui.label(s, "zelf gevonden", 215, 77, ui.GOLD_D, ui.font_small())
+            art.self_found_badge(s, 2).set_pos(198, 70)
+            ui.label(s, "zelf gevonden", 216, 77, ui.GOLD_D, ui.font_small())
 
         # ── facts grid ───────────────────────────────────────────────────
         facts = (
