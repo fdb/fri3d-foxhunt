@@ -49,7 +49,7 @@ BATTERY = [
 SELF_FOUND_BADGE = [
     "rrrrrrr.",
     "ryoooor.",
-    "roooord.",
+    "roooodr.",
     "rododor.",
     "roodoor.",
     ".rooorr..",
