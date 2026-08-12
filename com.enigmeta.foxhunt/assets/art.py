@@ -41,25 +41,27 @@ BATTERY = [
     ".kkkkkkk.",
 ]
 
-# A hunter's proof-of-discovery stamp. It deliberately is not a star: the star
-# already means beste vriend. The little gold shield carries a dark paw print,
-# so it still reads as a different state on a monochrome or washed-out screen.
-# At scale 1 it fits the top-left corner of a 74x52 book tile without covering
-# the creature; the same sprite sits beside the provenance line on its page.
+# A hunter's proof-of-discovery check, authored in
+# artwork/icons/own-discovery-check.aseprite. It deliberately is not a star:
+# the star already means beste vriend. Keep this grid and palette pixel-exact
+# with the exported 8x8 PNG; it sits both on the book tile and beside the
+# provenance line on the creature page.
 SELF_FOUND_BADGE = [
-    "kkkkkkkkk",
-    "kggpgpggk",
-    "kgggggggk",
-    "kggpppggk",
-    "kggpppggk",
-    ".kgpppgk.",
-    ".kggpggk.",
-    "..kgggk..",
-    "..kgggk..",
-    "...kgk...",
-    "...kkk...",
+    "rrrrrrr.",
+    "ryoooor.",
+    "roooord.",
+    "rododor.",
+    "roodoor.",
+    ".rooorr..",
+    "..ror...",
+    "...r....",
 ]
-SELF_FOUND_PAL = {"k": 0x5A3316, "g": 0xE8B23A, "p": 0x5A3316}
+SELF_FOUND_PAL = {
+    "r": 0xAC3232,
+    "o": 0xDF7126,
+    "d": 0x663931,
+    "y": 0xFBF236,
+}
 
 # The ring: the ordinary thing the mini-games drop. A HOLLOW silhouette is the
 # one shape none of the three hapjes can imitate, so a rare hapje falling among
