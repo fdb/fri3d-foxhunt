@@ -449,7 +449,20 @@ async def _json_request(method, path, body=None):
     response; every caller already treats an exception as "no answer"."""
     import asyncio
 
-    return await asyncio.wait_for(_json_request_raw(method, path, body), TOTAL_TIMEOUT)
+    # Query strings can carry badge ids. Keep those out of serial/emulator
+    # logs while still making every real network attempt and its verdict
+    # obvious during playtesting.
+    log_path = path.split("?", 1)[0]
+    print("registrar: HTTP", method, log_path, "...")
+    try:
+        status, data = await asyncio.wait_for(
+            _json_request_raw(method, path, body), TOTAL_TIMEOUT
+        )
+    except Exception:
+        print("registrar: HTTP", method, log_path, "-> FAILED")
+        raise
+    print("registrar: HTTP", method, log_path, "->", status)
+    return status, data
 
 
 async def _json_request_raw(method, path, body):
