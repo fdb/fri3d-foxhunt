@@ -25,6 +25,8 @@
 # the box. The player walks up, reads the code off the device, and taps
 # "VOER DE CODE IN" themselves.
 
+import time
+
 import lvgl as lv
 from mpos import Activity, Intent
 import ui
@@ -33,6 +35,26 @@ import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import sound
 from creatures import by_id
 from fox_radio import RADIO, rssi_to_bpm
+
+# ── sleeping animation: link quality 0 looks identical to a frozen app if
+# the physical LEDs just go dark (leds.show_level(0)), so instead we breathe
+# LED 0 gently -- a slow fade in/out, red, for "listening, nothing heard
+# yet" -- same idea as a laptop's sleep light. Phase comes from
+# time.ticks_ms(), not this screen's own 150ms tick count, so the breathing
+# rate stays the same regardless of poll cadence.
+SLEEP_PERIOD_MS = 2400   # one full breath in + out
+SLEEP_COLOR = (0xB0, 0x22, 0x18)
+SLEEP_FLOOR = 0.06        # never fully black -- stays visibly "alive"
+
+
+def _sleep_colors():
+    phase = time.ticks_ms() % SLEEP_PERIOD_MS
+    t = phase / SLEEP_PERIOD_MS
+    tri = 1.0 - abs(2.0 * t - 1.0)  # 0 -> 1 -> 0, linear ramp both ways
+    scale = SLEEP_FLOOR + (1.0 - SLEEP_FLOOR) * tri
+    r, g, b = SLEEP_COLOR
+    lit = (int(r * scale), int(g * scale), int(b * scale))
+    return [lit, leds.OFF, leds.OFF, leds.OFF, leds.OFF]
 
 
 class HuntActivity(Activity):
@@ -123,13 +145,28 @@ class HuntActivity(Activity):
         self._beat = not self._beat
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 6 if self._beat else 10)
 
-        leds.show_level(r.link)  # physical LEDs (badge) — link quality
+        # Physical LEDs (badge): link quality, or a breathing "listening"
+        # animation when it's flatlined at 0 (see _sleep_colors above) so a
+        # silent fox doesn't read as a frozen app.
+        if r.link == 0:
+            leds.write(_sleep_colors())
+            # A silent fox means the player could be moving around freely,
+            # so keep dropping the auto-range window while it's quiet --
+            # otherwise level would keep reporting wherever that window
+            # happened to be when the beacons stopped, until a fresh BEACON
+            # eventually pushed it somewhere new.
+            RADIO.reset_level(self.fox_id)
+            level = 0  # mirror reads as "koud" too; r.level itself is just
+                       # a stale rssi carried forward, not a real signal
+        else:
+            leds.show_level(r.link)
+            level = r.level
         # Restyle the mirror only when the level moved: every set_style call
         # invalidates its cell, and at ~7 Hz an unchanged level would redraw
         # all five for nothing (same guard discipline as VliegActivity._drift).
-        if r.level != self._mirror_level:
-            self._mirror_level = r.level
-            cols = leds.colors_for_level(r.level)
+        if level != self._mirror_level:
+            self._mirror_level = level
+            cols = leds.colors_for_level(level)
             for i, seg in enumerate(self.mirror):
                 rr, gg, bb = cols[i]
                 seg.set_style_bg_color(ui.hexc((rr << 16) | (gg << 8) | bb), 0)

@@ -117,9 +117,14 @@ class FoxRadio:
             t = self._level_trackers[fox_id] = _LevelTracker()
         return t.push(rssi)
 
-    def _reset_level(self, fox_id):
-        """Drop fox_id's window. Called from start() so a fresh hunt isn't
-        still influenced by the tail of a previous approach."""
+    def reset_level(self, fox_id):
+        """Drop fox_id's auto-range window. Called from start() so a fresh
+        hunt isn't still influenced by the tail of a previous approach, and
+        by screens_hunt.HuntActivity whenever link quality drops to 0 --
+        a silent fox means the player could be walking around (or away)
+        for a while, and the level shouldn't keep reporting wherever the
+        window happened to be when the beacons stopped. Public: called from
+        outside this module as well as from start() below."""
         self._level_trackers.pop(fox_id, None)
 
     def active_foxes(self):
@@ -271,7 +276,7 @@ class FakeFoxRadio(FoxRadio):
 
     def start(self, fox_id):
         self._strength[fox_id] = 0.12
-        self._reset_level(fox_id)
+        self.reset_level(fox_id)
         self._link_sim.pop(fox_id, None)  # fresh hunt, fresh simulated air
 
     def _link(self, fox_id, strength):
@@ -353,7 +358,7 @@ class LoraFoxRadio(FoxRadio):
         return sorted(c for c in lora.LINK.active_chars() if c in ids)
 
     def start(self, fox_id):
-        self._reset_level(fox_id)  # continuous RX already runs; just a fresh window
+        self.reset_level(fox_id)  # continuous RX already runs; just a fresh window
 
     def poll(self):
         lora.LINK.poll()
