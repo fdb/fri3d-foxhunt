@@ -41,10 +41,13 @@ class VonkGelukTest(unittest.TestCase):
             )
         )
 
-    def test_shareable_roster_applies_legendary_endpoint_rule(self):
+    def test_shareable_roster_applies_self_found_and_endpoint_rules(self):
         roster = [0, 16, 12]
         self.assertEqual(
-            self.store.shareable_roster(roster, [12], is_hunter=True),
+            self.store.shareable_roster(roster, [12], is_hunter=True), [0, 12]
+        )
+        self.assertEqual(
+            self.store.shareable_roster(roster, [16, 12], is_hunter=True),
             [0, 16, 12],
         )
         self.assertEqual(

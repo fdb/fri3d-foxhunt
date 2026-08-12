@@ -832,9 +832,11 @@ def record_snuffel(mac, naam, code):
 def shareable_roster(roster, self_found, is_hunter):
     """The ids this player may advertise as possible outgoing introductions.
 
-    Base and rare creatures can travel onward. A legendary is advertised only
-    by the hunter who personally found it; a gatherer who received one is an
-    endpoint and therefore never puts it in the shareable set.
+    Base creatures can always travel onward. Gatherers may pass rare creatures
+    onward, but hunters must first find a rare themselves. A legendary is
+    advertised only by the hunter who personally found it; a gatherer who
+    received one is an endpoint and therefore never puts it in the shareable
+    set.
     """
     zelf = set(self_found)
     result = []
@@ -842,7 +844,11 @@ def shareable_roster(roster, self_found, is_hunter):
         c = by_id(cid)
         if not c:
             continue
-        if c["rarity"] != "leg" or (is_hunter and cid in zelf):
+        if c["rarity"] == "norm":
+            result.append(cid)
+        elif c["rarity"] == "rare" and (not is_hunter or cid in zelf):
+            result.append(cid)
+        elif c["rarity"] == "leg" and is_hunter and cid in zelf:
             result.append(cid)
     return result
 

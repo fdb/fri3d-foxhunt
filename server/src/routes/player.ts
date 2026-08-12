@@ -60,7 +60,9 @@ async function shareEligible(
     .bind(giver.id, creatureId)
     .first<{ self_found: number }>();
   if (!owned) return false;
-  if (creature.rarity !== "leg") return true;
+  if (creature.rarity === "norm") return true;
+  if (creature.rarity === "rare")
+    return !giver.hunter_id || owned.self_found === 1;
   return !!giver.hunter_id && !recipient.hunter_id && owned.self_found === 1;
 }
 

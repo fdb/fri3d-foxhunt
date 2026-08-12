@@ -38,11 +38,8 @@ CREATE TABLE IF NOT EXISTS players_creatures (
   PRIMARY KEY (player_id, creature_id)
 );
 
--- Snuffel reports: the badge reports a MEETING, never a catch
--- (GAME_DESIGN.md, "How a creature reaches the profile"). One row per
--- (player, peer, day) is the server-side rate limit on grants; vonk SCORE,
--- when it is built, will be computed by corroborating the pair's two rows —
--- and only inside the camp window (GAME_DESIGN.md, "Buiten het kamp").
+-- Legacy snuffel rows from the original one-sided reporting format. New badge
+-- versions write snuffel_reports below so both sides can corroborate a spark.
 CREATE TABLE IF NOT EXISTS snuffels (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   player_id INTEGER NOT NULL REFERENCES players(id),
