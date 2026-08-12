@@ -287,18 +287,18 @@ def heart_row(parent, x, y, filled, total=5, scale=2, gap=GAP_S):
 
 
 def energy_row(parent, x, y, filled, total=5, scale=2, gap=GAP_S):
-    """A row of pixel energy bolts on the same grid as ``heart_row``."""
+    """A row of filled/empty pixel batteries on ``heart_row``'s grid."""
     ew = 9 * scale
     track = row(parent, x, y, total * ew + (total - 1) * gap, 8 * scale, gap=gap)
-    bolts = []
+    batteries = []
     for i in range(total):
         pal = (
             {"k": GREEN_D, "g": GREEN}
             if i < filled
             else {"k": 0xB0A07E, "g": 0xECE0C2}
         )
-        bolts.append(art.draw_sprite(track, art.ENERGY, pal, scale))
-    return bolts
+        batteries.append(art.draw_sprite(track, art.BATTERY, pal, scale))
+    return batteries
 
 
 def focusable(obj, on_click=None, focus_border=False):

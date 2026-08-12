@@ -27,18 +27,18 @@ HEART = [
     "...krk...",
     "....k....",
 ]
-# Energy uses the same 9x8 footprint as HEART so both five-icon rows align
-# exactly on the creature profile. Its palette is supplied by the caller too:
-# green while charged, muted cream while empty.
-ENERGY = [
-    ".....kk..",
-    "....kggk.",
-    "...kggk..",
-    "..kggk...",
-    ".kggggk..",
-    "..kkgk...",
-    "...kgk...",
-    "...kk....",
+# The upright battery uses HEART's 9x8 footprint so both five-icon rows align
+# exactly. The caller supplies a green fill for charged cells and a pale fill
+# for empty cells; the terminal and case keep their dark outline in both.
+BATTERY = [
+    "...kkk...",
+    "..kgggk..",
+    ".kgggggk.",
+    ".kgggggk.",
+    ".kgggggk.",
+    ".kgggggk.",
+    ".kgggggk.",
+    ".kkkkkkk.",
 ]
 
 # The ring: the ordinary thing the mini-games drop. A HOLLOW silhouette is the
