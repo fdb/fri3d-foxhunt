@@ -199,7 +199,7 @@ class FoxRadio:
 #
 # Distinct from level (above): level asks "how strong is the signal we DID
 # get", auto-ranged so it stays readable at any distance. Link quality asks
-# a blunter question — "how many of the fox's own ~BEACON_PERIOD_MS
+# a blunter question — "how many of the fox's own ~LQ_PERIOD_MS
 # broadcasts actually arrived in the last five of them" — so the LEDs read
 # as a literal packet-loss meter: full when every expected message lands,
 # fading down over ~1.25s if the fox goes quiet, climbing back the same way
@@ -218,7 +218,7 @@ SILENCE_MS = (2000, 6000)     # random length of a simulated silent stretch
 
 class _FakeLinkSim:
     """Desktop-only stand-in for lora.LoRaLink's real BEACON bookkeeping:
-    walks forward through simulated ~BEACON_PERIOD_MS broadcast slots
+    walks forward through simulated ~LQ_PERIOD_MS broadcast slots
     (catching up on however many have elapsed since the last call, since
     reading() is polled faster than that), rolling for a drop or an
     occasional silent stretch, and keeps a trailing count the same way
@@ -239,8 +239,8 @@ class _FakeLinkSim:
                     drop = LINK_DROP_MAX - strength * (LINK_DROP_MAX - LINK_DROP_MIN)
                     if random.random() >= drop:
                         self._times.append(self._next_slot)
-            self._next_slot = time.ticks_add(self._next_slot, lora.BEACON_PERIOD_MS)
-        while self._times and time.ticks_diff(now, self._times[0]) > lora.LINK_WINDOW_MS:
+            self._next_slot = time.ticks_add(self._next_slot, lora.LQ_PERIOD_MS)
+        while self._times and time.ticks_diff(now, self._times[0]) > lora.LQ_WINDOW_MS:
             self._times.popleft()
         return min(len(self._times), 5)
 
