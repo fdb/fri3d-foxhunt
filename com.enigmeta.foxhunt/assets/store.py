@@ -8,6 +8,7 @@
 #                wild pluk encounter / startbeest / random visitor / debug
 #                toggle); feeds the dossier lineage
 #   "zelf"     : list of ids stamped zelf gevonden (re-found at the fox)
+#   "zelf_dates": dict {str(id): YYYY-MM-DD} — date of that first self-find
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
 #   "vonk"     : snuffel log — {date, count (daily reset), pairs: {mac:
@@ -253,7 +254,7 @@ def add_caught(cid, origin="vangst"):
     e.commit()
 
 
-def restore_caught(ids, self_found=None):
+def restore_caught(ids, self_found=None, found_dates=None, self_found_dates=None):
     """Adopt the catch list the server handed back (screen_restore).
 
     A union, never a replace: the server only hears about a catch when the
@@ -268,6 +269,7 @@ def restore_caught(ids, self_found=None):
     prefs = SharedPreferences(_APP)
     have = prefs.get_list("caught", [])
     zelf = prefs.get_list("zelf", [])
+    zelf_dates = prefs.get_dict("zelf_dates", {})
     beast = prefs.get_dict("beast", {})
     e = prefs.edit()
     changed = False
@@ -278,16 +280,22 @@ def restore_caught(ids, self_found=None):
             have.append(cid)
             changed = True
         if str(cid) not in beast:
+            found = (found_dates or {}).get(str(cid), _today())
             e.put_dict_item(
-                "beast", str(cid), pet.default_state(_today(), _PLACE, _now())
+                "beast", str(cid), pet.default_state(found, _PLACE, _now())
             )
     for cid in self_found or []:
         if by_id(cid) and cid in have and cid not in zelf:
             zelf.append(cid)
             changed = True
+        found = (self_found_dates or {}).get(str(cid))
+        if found and str(cid) not in zelf_dates:
+            zelf_dates[str(cid)] = found
+            changed = True
     if changed:
         e.put_list("caught", have)
         e.put_list("zelf", zelf)
+        e.put_dict("zelf_dates", zelf_dates)
     e.commit()
     return have
 
@@ -306,6 +314,10 @@ def remove_caught(cid):
     if cid in zelf:
         zelf.remove(cid)
         e.put_list("zelf", zelf)
+    zelf_dates = prefs.get_dict("zelf_dates", {})
+    if str(cid) in zelf_dates:
+        del zelf_dates[str(cid)]
+        e.put_dict("zelf_dates", zelf_dates)
     origins = prefs.get_dict("origins", {})
     if str(cid) in origins:
         del origins[str(cid)]
@@ -330,6 +342,11 @@ def zelf_ids():
     return SharedPreferences(_APP).get_list("zelf", [])
 
 
+def zelf_date(cid):
+    """Date of the first personal find, separate from first acquisition."""
+    return SharedPreferences(_APP).get_dict("zelf_dates", {}).get(str(cid))
+
+
 def zelf_gevonden(cid):
     """A jager found the fox of a creature already in the boek (screen_code).
     Not a dud but an upgrade (GAME_DESIGN.md, Zelf vinden): bump sightings,
@@ -350,6 +367,9 @@ def zelf_gevonden(cid):
     zelf = prefs.get_list("zelf", [])
     zelf.append(cid)
     e.put_list("zelf", zelf)
+    dates = prefs.get_dict("zelf_dates", {})
+    dates[str(cid)] = _today()
+    e.put_dict("zelf_dates", dates)
     c = by_id(cid)
     fav = (c.get("favoriet") if c else None) or FOODS[0]
     pakket = {fav: 2, random.choice([f for f in FOODS if f != fav]): 1}

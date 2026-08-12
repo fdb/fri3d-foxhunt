@@ -41,6 +41,26 @@ BATTERY = [
     ".kkkkkkk.",
 ]
 
+# A hunter's proof-of-discovery stamp. It deliberately is not a star: the star
+# already means beste vriend. The little gold shield carries a dark paw print,
+# so it still reads as a different state on a monochrome or washed-out screen.
+# At scale 1 it fits the top-left corner of a 74x52 book tile without covering
+# the creature; the same sprite sits beside the provenance line on its page.
+SELF_FOUND_BADGE = [
+    "kkkkkkkkk",
+    "kggpgpggk",
+    "kgggggggk",
+    "kggpppggk",
+    "kggpppggk",
+    ".kgpppgk.",
+    ".kggpggk.",
+    "..kgggk..",
+    "..kgggk..",
+    "...kgk...",
+    "...kkk...",
+]
+SELF_FOUND_PAL = {"k": 0x5A3316, "g": 0xE8B23A, "p": 0x5A3316}
+
 # The ring: the ordinary thing the mini-games drop. A HOLLOW silhouette is the
 # one shape none of the three hapjes can imitate, so a rare hapje falling among
 # rings reads as an event even at full speed — which is the whole point of
@@ -528,6 +548,11 @@ def icon(parent, name, scale=2):
     """Render an 8x8 UI icon onto a transparent canvas. Returns the canvas."""
     ic = ICONS[name]
     return draw_sprite(parent, ic["rows"], ic["pal"], scale)
+
+
+def self_found_badge(parent, scale=1):
+    """Render the hunter-only `zelf gevonden` provenance shield."""
+    return draw_sprite(parent, SELF_FOUND_BADGE, SELF_FOUND_PAL, scale)
 
 
 def icon_buf(name, scale=2):

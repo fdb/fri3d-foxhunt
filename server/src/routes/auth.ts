@@ -296,16 +296,30 @@ authRoutes.get("/user", async (c) => {
   // counted straight off this list, so a restore that dropped it would hand
   // the player back an avatar wearing things it says they haven't earned.
   const { results } = await c.env.DB.prepare(
-    `SELECT creature_id, self_found FROM players_creatures
+    `SELECT creature_id, dt_found, self_found, dt_self_found
+     FROM players_creatures
      WHERE player_id = ? ORDER BY creature_id`,
   )
     .bind(player.id)
-    .all<{ creature_id: number; self_found: number }>();
+    .all<{
+      creature_id: number;
+      dt_found: string;
+      self_found: number;
+      dt_self_found: string | null;
+    }>();
 
   return c.json({
     ...player,
     creatures: results.map((r) => r.creature_id),
     self_found: results.filter((r) => r.self_found).map((r) => r.creature_id),
+    found_dates: Object.fromEntries(
+      results.map((r) => [r.creature_id, r.dt_found.slice(0, 10)]),
+    ),
+    self_found_dates: Object.fromEntries(
+      results
+        .filter((r) => r.self_found && r.dt_self_found)
+        .map((r) => [r.creature_id, r.dt_self_found!.slice(0, 10)]),
+    ),
   });
 });
 

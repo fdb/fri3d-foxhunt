@@ -106,14 +106,29 @@ class BeastActivity(Activity):
         else:
             ui.label(g, "Energie", 0, 44, ui.INK, ui.font_small())
             ui.energy_row(g, 0, 60, pet.energy_segments(st["energy"]), scale=2)
+        profile = store.profile() or {}
+        self_found = (
+            bool(profile.get("hunter_id")) and self.fox_id in store.zelf_ids()
+        )
+        found_text = "gevonden " + st.get("date", "?")
+        found_x = 0
+        if profile.get("hunter_id"):
+            if self_found:
+                art.self_found_badge(g).set_pos(0, 93)
+                found_text = "Zelf gevonden " + (
+                    store.zelf_date(self.fox_id) or st.get("date", "?")
+                )
+                found_x = 14
+            else:
+                found_text = "Gekregen " + st.get("date", "?")
         ui.label(
             g,
-            "gevonden " + st.get("date", "?"),
-            0,
+            found_text,
+            found_x,
             96,
             ui.TEXT_MUTED,
             ui.font_small(),
-            w=164,
+            w=164 - found_x,
         )
         ui.label(
             g,
@@ -219,10 +234,13 @@ class DossierActivity(Activity):
             w=210,
         )
         ui.heart_row(s, 82, 76, pet.hearts(bond), scale=2)
-        if self.fox_id in store.zelf_ids():
+        if (
+            (store.profile() or {}).get("hunter_id")
+            and self.fox_id in store.zelf_ids()
+        ):
             # the zelf-gevonden stamp: the hunter visited this one at home
-            art.draw_sprite(s, art.STAR, {"g": ui.GOLD}, 1).set_pos(206, 76)
-            ui.label(s, "zelf gevonden", 220, 77, ui.GOLD_D, ui.font_small())
+            art.self_found_badge(s).set_pos(202, 74)
+            ui.label(s, "zelf gevonden", 215, 77, ui.GOLD_D, ui.font_small())
 
         # ── facts grid ───────────────────────────────────────────────────
         facts = (

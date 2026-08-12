@@ -217,6 +217,7 @@ class HomeActivity(Activity):
         boek = [c for c in CREATURES if c["id"] in caught]
         boek += [c for c in CREATURES if c["id"] not in caught]
         beste = store.finished_ids()
+        zelf = set(store.zelf_ids()) if jager else set()
         for c in boek:
             cid = c["id"]
             is_caught = cid in caught
@@ -239,7 +240,9 @@ class HomeActivity(Activity):
 
             sp = art.creature_panel(cell, c, 2, silhouette=not is_caught)
             sp.align(lv.ALIGN.TOP_MID, 0, 1)
-            if is_caught and c["rarity"] == "leg":
+            if is_caught and cid in zelf:
+                art.self_found_badge(cell).set_pos(2, 2)
+            elif is_caught and c["rarity"] == "leg":
                 art.icon(cell, "spark", 1).set_pos(2, 2)
             if cid in beste:
                 # beste-vriend star, top-right so it never collides with spark

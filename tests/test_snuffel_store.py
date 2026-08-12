@@ -23,6 +23,10 @@ class _Editor:
         self.prefs.data[key] = copy.deepcopy(value)
         return self
 
+    def put_dict_item(self, key, item, value):
+        self.prefs.data.setdefault(key, {})[item] = copy.deepcopy(value)
+        return self
+
     def commit(self):
         return None
 
@@ -98,6 +102,34 @@ class SnuffelStoreTest(unittest.TestCase):
         self.assertEqual(food_only["amount"], 1)
         self.assertTrue(next_spark["vonk"])
         self.assertGreaterEqual(next_spark["amount"], 2)
+
+    def test_self_find_date_is_separate_from_received_date(self):
+        _Prefs.data.update(
+            {
+                "caught": [16],
+                "beast": {
+                    "16": self.store.pet.default_state(
+                        "2026-08-06", "Fri3d Camp", 1_786_000_000
+                    )
+                },
+            }
+        )
+
+        self.store.zelf_gevonden(16)
+
+        self.assertEqual(self.store.zelf_date(16), "2026-08-07")
+        self.assertEqual(_Prefs.data["beast"]["16"]["date"], "2026-08-06")
+
+    def test_restore_preserves_acquisition_and_self_find_dates(self):
+        self.store.restore_caught(
+            [16],
+            [16],
+            {"16": "2026-08-06"},
+            {"16": "2026-08-08"},
+        )
+
+        self.assertEqual(_Prefs.data["beast"]["16"]["date"], "2026-08-06")
+        self.assertEqual(self.store.zelf_date(16), "2026-08-08")
 
 
 if __name__ == "__main__":

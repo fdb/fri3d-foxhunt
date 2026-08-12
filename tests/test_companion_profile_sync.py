@@ -137,10 +137,17 @@ class CompanionProfileSyncTest(unittest.TestCase):
                     "name": "Sam",
                     "creatures": [0, 16],
                     "self_found": [16],
+                    "found_dates": {"0": "2026-08-06", "16": "2026-08-07"},
+                    "self_found_dates": {"16": "2026-08-08"},
                 },
             )
 
-        store.restore_caught.assert_called_once_with([0, 16], [16])
+        store.restore_caught.assert_called_once_with(
+            [0, 16],
+            [16],
+            {"0": "2026-08-06", "16": "2026-08-07"},
+            {"16": "2026-08-08"},
+        )
 
     def test_profile_report_uses_auth_user_patch(self):
         routes = self._load_routes("registrar_profile_under_test")

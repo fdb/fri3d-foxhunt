@@ -117,7 +117,10 @@ def adopt(badge, account, name=None, code=None):
     )
     return len(
         store.restore_caught(
-            account.get("creatures") or [], account.get("self_found") or []
+            account.get("creatures") or [],
+            account.get("self_found") or [],
+            account.get("found_dates") or {},
+            account.get("self_found_dates") or {},
         )
     )
 
@@ -537,6 +540,8 @@ class HttpRegistrar(Registrar):
             "companion": data.get("profile_pic") or None,
             "creatures": creatures,
             "self_found": data.get("self_found") or [],
+            "found_dates": data.get("found_dates") or {},
+            "self_found_dates": data.get("self_found_dates") or {},
         }
 
     async def _register(self, name, badge, companion, st, on_update):
@@ -683,6 +688,8 @@ class HttpRegistrar(Registrar):
                 "companion": data.get("profile_pic") or None,
                 "creatures": data.get("creatures") or [],
                 "self_found": data.get("self_found") or [],
+                "found_dates": data.get("found_dates") or {},
+                "self_found_dates": data.get("self_found_dates") or {},
                 "error": None,
             }
         )
