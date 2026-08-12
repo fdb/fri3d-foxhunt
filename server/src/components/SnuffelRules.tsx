@@ -400,7 +400,8 @@ export const SnuffelRules = () => (
                 <p>
                   Hij krijgt nu 0 vindpunten. Vindt hij later zelf de
                   Tijghert-vos met LoRa? Dan krijgt hij één keer de ZELF-stempel
-                  en 300 punten. Noor kan 50 punten krijgen omdat ze Wout hielp.
+                  en 300 punten. Pas dan mag hij Tijghert verder delen. Noor kan
+                  50 punten krijgen omdat ze Wout hielp.
                 </p>
               </>
             }
@@ -541,8 +542,9 @@ export const SnuffelRules = () => (
             <Beast kind="rare" />
             <h3>Zeldzame beesten reizen door</h3>
             <p>
-              Eerst deelt een jager het met een verzamelaar. Daarna mag elke
-              eigenaar het tijdens een nieuwe vonk verder delen.
+              Eerst deelt een jager het met een verzamelaar. Een verzamelaar mag
+              het verder delen. Een jager mag dat pas nadat die het beest zelf
+              heeft gevonden.
             </p>
           </article>
           <article class="card rules-tier legendary">
@@ -686,7 +688,8 @@ export const SnuffelRules = () => (
             <h3>Zeldzaam mag doorreizen</h3>
             <p>
               Een ontvangen jager krijgt geen ZELF-stempel. Hij kan het beest
-              wel verder delen en later één keer zelf vinden voor punten.
+              pas verder delen nadat hij het één keer zelf vindt. Dan krijgt hij
+              ook de punten.
             </p>
           </article>
           <article class="card">

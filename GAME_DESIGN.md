@@ -341,13 +341,13 @@ Eligibility depends on rarity:
 
 - **Base:** any owner may share it with any other player on a vonk.
 - **Rare:** the first social hop is jager → verzamelaar. After that, a rare
-  spoor may continue through the graph: a verzamelaar or jager who received it
-  may share it with either role on a later vonk. Rares spread, but only through
+  spoor may continue through the graph: a verzamelaar who received it may
+  share it with either role on a later vonk. Rares spread, but only through
   real face-to-face vonken. A jager who receives a rare this way owns it but
-  does **not** receive the `zelf gevonden` stamp or its 300 discovery points.
-  They may still relay the rare under this rule. If they later find that
-  creature's LoRa fox themselves, the bridge upgrades it to `zelf gevonden`
-  and awards the 300 points exactly once.
+  does **not** receive the `zelf gevonden` stamp, its 300 discovery points, or
+  permission to share it onward. If they later find that creature's LoRa fox
+  themselves, the bridge upgrades it to `zelf gevonden`, awards the 300 points
+  exactly once and unlocks sharing for that jager.
 - **Legendary:** every lineage branch permits exactly one social hop, from a
   jager who has the creature stamped **zelf gevonden** to a verzamelaar. That
   self-finding jager may introduce it to other distinct verzamelaars on later
@@ -1125,7 +1125,7 @@ Following the one-word-per-thing rule:
 | Code (English) | UI (Dutch) | What it is |
 | --- | --- | --- |
 | **gatherer** | **verzamelaar** | The non-antenna play track: foraging resources for creature care. |
-| **spread** | **vonk-geluk** | The directed payoff on a vonk: an eligible creature the recipient does not know introduces itself; both keep it. Base spreads freely, rare relays after its first jager→verzamelaar hop, and every legendary branch ends after self-found jager→verzamelaar. Never "clone" in the UI. |
+| **spread** | **vonk-geluk** | The directed payoff on a vonk: an eligible creature the recipient does not know introduces itself; both keep it. Base spreads freely. A gatherer may relay rare; a hunter may share rare only after finding it personally. Every legendary branch ends after self-found jager→verzamelaar. Never "clone" in the UI. |
 | **boop / socialize** | **snuffelen** | The face-to-face handshake over ESP-NOW, gated at -50 dBm RSSI on both sides — and the home-screen mode named after it. |
 | **spark** | **vonk** | The mutual creature-sharing window: immediate for a new pair, then per pair every 6 hours (at most four in a rolling 24h). A no-vonk repeat can share generated food only. |
 | **friend book** | **vriendenboekje** | The permanent collection: one page per first-ever meeting between two badges. |

@@ -285,17 +285,20 @@ playerRoutes.post("/snuffel", async (c) => {
   let allowGrant =
     !duplicate &&
     hadVonk &&
+    !!peerPlayer &&
     !!receivedCreature &&
     receivedCreature.rarity !== "leg" &&
     (dayNear(day) || (occurredAt >= CAMP_START_S && occurredAt < CAMP_END_S));
-  if (allowGrant && peerPlayer) {
-    allowGrant = await pairSparkReady(
-      c.env.DB,
-      player.id,
-      peerPlayer.id,
-      encounterId,
-      occurredAt,
-    );
+  if (allowGrant && peerPlayer && receivedCreatureId !== null) {
+    allowGrant =
+      (await shareEligible(c.env.DB, peerPlayer, player, receivedCreatureId)) &&
+      (await pairSparkReady(
+        c.env.DB,
+        player.id,
+        peerPlayer.id,
+        encounterId,
+        occurredAt,
+      ));
   }
   if (allowGrant) {
     const counts = await c.env.DB.prepare(
