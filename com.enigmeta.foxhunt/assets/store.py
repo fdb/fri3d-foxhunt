@@ -331,6 +331,8 @@ def zelf_gevonden(cid):
     the creature's favourite. Nothing is removed or reset; bond and pet state
     carry straight through. Returns the pakket {food: n}.
     One instance, one editor (CLAUDE.md, Conventions)."""
+    if cid in zelf_ids():
+        return None
     v = voorraad()  # may seed the starter — must run BEFORE prefs snapshots
     prefs = SharedPreferences(_APP)
     e = prefs.edit()
@@ -340,9 +342,8 @@ def zelf_gevonden(cid):
         raw["sightings"] = int(raw.get("sightings", 1)) + 1
         e.put_dict_item("beast", str(cid), raw)
     zelf = prefs.get_list("zelf", [])
-    if cid not in zelf:
-        zelf.append(cid)
-        e.put_list("zelf", zelf)
+    zelf.append(cid)
+    e.put_list("zelf", zelf)
     c = by_id(cid)
     fav = (c.get("favoriet") if c else None) or FOODS[0]
     pakket = {fav: 2, random.choice([f for f in FOODS if f != fav]): 1}
@@ -733,12 +734,11 @@ def claim_visitor():
 
 # ── snuffelen: vrienden (permanent) + vonken (cooldown-gated) ───────────────
 # The vriendenboekje never decays. The vonk log holds per-pair timestamps:
-# a pair scores a new vonk after ~4h (daily cap on top), and shares picknick
+# a pair scores a new vonk after 6h, and shares picknick
 # food after ~1h — inside the hour a repeat snuffel pays NOTHING, so two
 # badges cannot be farmed for food. Identity is the peer's MAC (snuffel_link)
 # or a manual code — either way one string.
-VONK_DAY_CAP = 10  # scored vonken per day: meet SOME new people, not everyone
-SNF_VONK_COOLDOWN_S = 4 * 60 * 60
+SNF_VONK_COOLDOWN_S = 6 * 60 * 60
 SNF_FOOD_COOLDOWN_S = 60 * 60
 
 
@@ -752,10 +752,10 @@ def _vonk_log():
     if not isinstance(pairs, dict):  # pre-cooldown logs kept a daily mac list
         pairs = {}
     if d.get("date") != _today() and (_clock_ok() or d.get("date") is None):
-        # the day rolls the CAP counter only; pair cooldowns are wall-clock
+        # the day rolls the display counter only; pair cooldowns are wall-clock
         # and survive midnight, or a 23:00 vonk would re-arm at 00:00.
         # An unsynced clock (2000-01-01) is not a new day — rolling on it
-        # would re-arm the daily cap on every pre-NTP boot.
+        # would corrupt the daily display count on every pre-NTP boot.
         return {"date": _today(), "pairs": pairs, "count": 0}
     d["pairs"] = pairs
     return d
@@ -768,8 +768,8 @@ def vonk_count_today():
 def record_snuffel(mac, naam, code):
     """A completed snuffel with peer `mac`. Writes the boekje page on a
     first-ever meeting and refreshes its name and companion on every later
-    meeting; scores a vonk when the pair's 4h cooldown has passed (daily cap
-    on top) — a vonk is a picknick, 2-5 hapjes of one kind; a repeat inside
+    meeting; scores a vonk when the pair's 6h cooldown has passed — a vonk is
+    a picknick, 2-5 hapjes of one kind; a repeat inside
     the vonk cooldown shares a single hapje at most once an hour per pair.
     Inside the hour the handshake still celebrates but pays nothing. Nothing
     is chosen: the handshake itself pays out.
@@ -797,7 +797,6 @@ def record_snuffel(mac, naam, code):
     pair = log["pairs"].get(mac, {})
     vonk = (
         now - pair.get("vonk", -SNF_VONK_COOLDOWN_S) >= SNF_VONK_COOLDOWN_S
-        and log["count"] < VONK_DAY_CAP
     )
     picknick = (
         vonk or now - pair.get("food", -SNF_FOOD_COOLDOWN_S) >= SNF_FOOD_COOLDOWN_S
@@ -823,61 +822,61 @@ def record_snuffel(mac, naam, code):
     }
 
 
-# Vonk-geluk: the chance that one of the OTHER player's creatures introduces
-# itself, weighted by rarity — commons spread eagerly, rares reluctantly,
-# legendaries never on their own (GAME_DESIGN.md, Vonk-geluk).
-_GELUK_PCT = {"norm": 45, "rare": 15, "leg": 0}
+def shareable_roster(roster, self_found, is_hunter):
+    """The ids this player may advertise as possible outgoing introductions.
 
-
-def roll_vonk_geluk(own_roster, peer_roster, encounter_key):
-    """Return a new creature from the peer, or None, as a mutual outcome.
-
-    Both badges know the same two advertised rosters and encounter key. They
-    therefore select one candidate in each direction and share one chance
-    roll. Either both players receive something the other player had and they
-    did not, or neither does. The lower of the two selected creatures' rarity
-    chances applies, so a creature never spreads more eagerly merely because
-    the creature travelling in the opposite direction is common.
+    Base and rare creatures can travel onward. A legendary is advertised only
+    by the hunter who personally found it; a gatherer who received one is an
+    endpoint and therefore never puts it in the shareable set.
     """
-    own = {cid for cid in own_roster if by_id(cid)}
-    peer = {cid for cid in peer_roster if by_id(cid)}
-    own_key = ",".join(str(cid) for cid in sorted(own))
-    peer_key = ",".join(str(cid) for cid in sorted(peer))
-    if own_key <= peer_key:
-        left, right = own, peer
-        left_key, right_key = own_key, peer_key
-        receive_side = "right"
-    else:
-        left, right = peer, own
-        left_key, right_key = peer_key, own_key
-        receive_side = "left"
+    zelf = set(self_found)
+    result = []
+    for cid in roster:
+        c = by_id(cid)
+        if not c:
+            continue
+        if c["rarity"] != "leg" or (is_hunter and cid in zelf):
+            result.append(cid)
+    return result
 
-    left_only = sorted(left - right)
-    right_only = sorted(right - left)
-    if not left_only or not right_only:
-        return None
 
-    seed = "%s|%s|%s" % (encounter_key, left_key, right_key)
-    left_pick = left_only[_pluk_hash(seed + "|left") % len(left_only)]
-    right_pick = right_only[_pluk_hash(seed + "|right") % len(right_only)]
-    chance = min(
-        _GELUK_PCT.get(by_id(left_pick)["rarity"], 0),
-        _GELUK_PCT.get(by_id(right_pick)["rarity"], 0),
-    )
-    if _pluk_hash(seed + "|chance") % 100 >= chance:
+def select_vonk_creature(
+    sender_shareable,
+    recipient_roster,
+    encounter_key,
+    giver_key,
+    recipient_key,
+    receiver_is_hunter,
+):
+    """Choose one guaranteed eligible introduction in a single direction.
+
+    Each direction resolves independently. No candidate means generated food,
+    never failure of the other direction. Both badges derive the same choice
+    from the shared encounter and directed badge ids.
+    """
+    known = {cid for cid in recipient_roster if by_id(cid)}
+    candidates = []
+    for cid in sender_shareable:
+        c = by_id(cid)
+        if not c or cid in known:
+            continue
+        if c["rarity"] == "leg" and receiver_is_hunter:
+            continue
+        candidates.append(cid)
+    candidates.sort()
+    if not candidates:
         return None
-    return right_pick if receive_side == "right" else left_pick
+    seed = "%s|%s>%s" % (encounter_key, giver_key, recipient_key)
+    return candidates[_pluk_hash(seed) % len(candidates)]
 
 
 # ── plukken: hourly food + one creature roll per camp phase ─────────────────
 PLUK_RELOAD_S = 60 * 60  # a spot reloads for THIS badge in about an hour
 
-# Creature chances mirror vonk-geluk after an invisible 40% opportunity gate:
-# base 45%, rare 15%, legendary 2.5%. The effective per-candidate chances are
-# therefore 18%, 6% and 1%. Pluk has many more opportunities than snuffelen;
-# the gate preserves that rarity curve without flooding a diligent walker.
+# Plukken can introduce base creatures only. Rare and legendary creatures
+# enter through LoRa hunts and eligible snuffel introductions.
 _PLUK_OPPORTUNITY_PERMILLE = 400
-_PLUK_GELUK_PERMILLE = {"norm": 450, "rare": 150, "leg": 25}
+_PLUK_GELUK_PERMILLE = {"norm": 450}
 
 
 def _previous_date(year, month, day):
@@ -943,7 +942,9 @@ def pluk_creature_for(badge_id, bssid, phase, have):
     if _pluk_hash(seed + "|opportunity") % 1000 >= _PLUK_OPPORTUNITY_PERMILLE:
         return None
     known = set(have)
-    cands = [c for c in CREATURES if c["id"] not in known]
+    cands = [
+        c for c in CREATURES if c["rarity"] == "norm" and c["id"] not in known
+    ]
     if not cands:
         return None
     c = cands[_pluk_hash(seed + "|candidate") % len(cands)]

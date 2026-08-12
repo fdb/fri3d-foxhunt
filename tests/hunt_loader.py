@@ -17,7 +17,11 @@ def load_screens_hunt(name="screens_hunt_under_test", **overrides):
     stubs is the dict actually injected, so tests can reach the mocks."""
     mpos = types.ModuleType("mpos")
     mpos.Activity = type("Activity", (), {})
-    mpos.Intent = type("Intent", (), {})
+    class Intent:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    mpos.Intent = Intent
     mpos.ui = MagicMock()
 
     fox_radio = types.ModuleType("fox_radio")
@@ -41,6 +45,14 @@ def load_screens_hunt(name="screens_hunt_under_test", **overrides):
     screens_care.BeastActivity = type("BeastActivity", (), {})
     screens_care.BoekjeActivity = type("BoekjeActivity", (), {})
 
+    foxhunt = types.ModuleType("foxhunt")
+    foxhunt.lazy = MagicMock(
+        side_effect=lambda _name: types.SimpleNamespace(
+            BeastActivity=screens_care.BeastActivity,
+            BoekjeActivity=screens_care.BoekjeActivity,
+        )
+    )
+
     sound = MagicMock()  # also serves `import sound as leds`
 
     stubs = {
@@ -57,6 +69,7 @@ def load_screens_hunt(name="screens_hunt_under_test", **overrides):
         "pluk_radio": pluk_radio,
         "snuffel_link": snuffel_link,
         "screens_care": screens_care,
+        "foxhunt": foxhunt,
     }
     stubs.update(overrides)
 

@@ -28,33 +28,49 @@ class VonkGelukTest(unittest.TestCase):
         with patch.dict(sys.modules, {"mpos": mpos, "mpos.time": mpos_time}):
             spec.loader.exec_module(cls.store)
 
-    def test_both_players_receive_new_creatures_or_neither_does(self):
-        a_roster = [0, 1]
-        b_roster = [2, 3]
-        successes = 0
+    def test_each_direction_is_independent_and_guaranteed(self):
+        self.assertEqual(
+            self.store.select_vonk_creature(
+                [1], [0], "session", "bb", "aa", receiver_is_hunter=False
+            ),
+            1,
+        )
+        self.assertIsNone(
+            self.store.select_vonk_creature(
+                [0], [0, 1], "session", "aa", "bb", receiver_is_hunter=False
+            )
+        )
 
-        for session in range(500):
-            key = "aa@%08x|bb@peer" % session
-            for_a = self.store.roll_vonk_geluk(a_roster, b_roster, key)
-            for_b = self.store.roll_vonk_geluk(b_roster, a_roster, key)
-            self.assertEqual(for_a is None, for_b is None)
-            if for_a is not None:
-                successes += 1
-                self.assertIn(for_a, b_roster)
-                self.assertNotIn(for_a, a_roster)
-                self.assertIn(for_b, a_roster)
-                self.assertNotIn(for_b, b_roster)
+    def test_shareable_roster_applies_legendary_endpoint_rule(self):
+        roster = [0, 16, 12]
+        self.assertEqual(
+            self.store.shareable_roster(roster, [12], is_hunter=True),
+            [0, 16, 12],
+        )
+        self.assertEqual(
+            self.store.shareable_roster(roster, [12], is_hunter=False),
+            [0, 16],
+        )
 
-        self.assertGreater(successes, 0)
+    def test_legendary_only_lands_with_a_gatherer(self):
+        self.assertEqual(
+            self.store.select_vonk_creature(
+                [12], [], "session", "aa", "bb", receiver_is_hunter=False
+            ),
+            12,
+        )
+        self.assertIsNone(
+            self.store.select_vonk_creature(
+                [12], [], "session", "aa", "bb", receiver_is_hunter=True
+            )
+        )
 
-    def test_no_award_when_only_one_roster_has_something_new(self):
-        smaller = [0]
-        larger = [0, 1]
-
-        for session in range(100):
-            key = "session-%d" % session
-            self.assertIsNone(self.store.roll_vonk_geluk(smaller, larger, key))
-            self.assertIsNone(self.store.roll_vonk_geluk(larger, smaller, key))
+    def test_selection_is_stable_for_both_badges(self):
+        args = ([16, 17, 18], [0], "shared-session", "aa", "bb", False)
+        self.assertEqual(
+            self.store.select_vonk_creature(*args),
+            self.store.select_vonk_creature(*args),
+        )
 
     def test_link_builds_the_same_encounter_key_on_both_badges(self):
         from snuffel_link import BaseLink, Peer

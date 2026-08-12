@@ -25,7 +25,7 @@ class PlukScreenTest(unittest.TestCase):
 
     def test_harvest_uses_camp_phase_and_builds_creature_payoff(self):
         self.store.pluk_phase.return_value = "2026-08-07"
-        self.store.record_pluk.return_value = 12  # Knoricorn: legendary
+        self.store.record_pluk.return_value = 0  # Vos: base tier
         screen = MagicMock()
         screen._armed = True
         screen._target.bssid = "aa:bb:cc:dd:ee:ff"
@@ -38,9 +38,9 @@ class PlukScreenTest(unittest.TestCase):
         self.store.record_pluk.assert_called_once_with(
             "aa:bb:cc:dd:ee:ff", {"bes": 2, "noot": 0}
         )
-        self.sound.play.assert_called_once_with("legendary")
+        self.sound.play.assert_called_once_with("caught")
         self.leds.off.assert_called_once_with()
-        screen._build_oogst.assert_called_once_with({"bes": 2, "noot": 0}, 12)
+        screen._build_oogst.assert_called_once_with({"bes": 2, "noot": 0}, 0)
 
     def test_harvest_without_creature_keeps_normal_payoff(self):
         self.store.pluk_phase.return_value = "2026-08-07"

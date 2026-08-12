@@ -18,7 +18,8 @@
 #   findings describe — not built yet.
 #
 # Wire format (ASCII, pipe-separated, one line, <250 bytes):
-#   VJ1|HI|<naam>|<shortcode>|<roster csv>|<session>  broadcast, ~1/s
+#   VJ1|HI|<naam>|<shortcode>|<roster csv>|<session>|<shareable csv>|<J/V>
+#                                                    broadcast, ~1/s
 #   VJ1|SNF|<peer mac>                         broadcast, a few /s for ~3 s
 # Identity is the MAC the frame arrived on; names are display only. The
 # handshake carries no payload: everything a snuffel yields (food, the
@@ -32,6 +33,7 @@
 # (INVITE_DBM). Both sides pay out from one completed streak.
 
 import random
+from creatures import by_id
 
 PROTO = b"VJ1"
 CLOSE_DBM = -50  # the consent boundary (findings section 4)
@@ -44,12 +46,16 @@ _GONE_S = 6  # drop a peer this long after its last beacon
 
 
 class Peer:
-    def __init__(self, mac, naam, code, roster, session=""):
+    def __init__(
+        self, mac, naam, code, roster, session="", shareable=None, role="V"
+    ):
         self.mac = mac  # "aa:bb:..." — the identity
         self.naam = naam  # display only
         self.code = code  # companion shortcode
         self.roster = roster  # creature ids they carry (for vonk-geluk)
+        self.shareable = list(roster if shareable is None else shareable)
         self.session = session  # random per visit; couples both geluk rolls
+        self.is_hunter = role == "J"
         self.rssi = -99
         self.age = 0  # ticks since last beacon
         self.streak = 0  # consecutive CLOSE readings
@@ -67,6 +73,8 @@ class BaseLink:
         self.naam = "?"
         self.code = ""
         self.roster = []
+        self.shareable = []
+        self.is_hunter = False
         self._my_mac = ""
         self._session = ""
         self._announce = None  # [peer mac, ticks left] while resending SNF
@@ -76,10 +84,12 @@ class BaseLink:
         for a few seconds so the peer's side fires too."""
         self._announce = [mac, ANNOUNCE_TICKS]
 
-    def set_identity(self, naam, code, roster):
+    def set_identity(self, naam, code, roster, shareable=None, is_hunter=False):
         self.naam = naam or "?"
         self.code = code or ""
         self.roster = list(roster or [])
+        self.shareable = list(self.roster if shareable is None else shareable)
+        self.is_hunter = bool(is_hunter)
 
     def encounter_key(self, peer):
         """A key both badges derive identically for this snuffel session."""
@@ -90,7 +100,17 @@ class BaseLink:
         ends.sort()
         return "|".join(ends)
 
-    def _seen(self, mac, naam, code, roster, rssi, session=""):
+    def _seen(
+        self,
+        mac,
+        naam,
+        code,
+        roster,
+        rssi,
+        session="",
+        shareable=None,
+        role="V",
+    ):
         # The name is untrusted air bytes bound only by frame size: truncate
         # it here, once, so it can neither overrun the peer row into the
         # DICHTBIJ pill nor bloat the vrienden list it gets persisted into.
@@ -102,8 +122,12 @@ class BaseLink:
             # crowds fit; a full table just ignores NEW macs until age-out.
             if len(self.peers) >= 32:
                 return
-            p = self.peers[mac] = Peer(mac, naam, code, roster, session)
+            p = self.peers[mac] = Peer(
+                mac, naam, code, roster, session, shareable, role
+            )
         p.naam, p.code, p.roster, p.session = naam, code, roster, session
+        p.shareable = list(roster if shareable is None else shareable)
+        p.is_hunter = role == "J"
         # Smoothed, same filter and same reason as pluk_radio._SMOOTH: raw
         # dBm jitters +-5, and the peer list sorts on this — two peers at
         # comparable range would swap order on most beacons, and every swap
@@ -209,6 +233,7 @@ class EspNowLink(BaseLink):
     def tick(self):
         try:
             roster = ",".join(str(c) for c in self.roster[:24])
+            shareable = ",".join(str(c) for c in self.shareable[:24])
             msg = b"|".join(
                 (
                     PROTO,
@@ -217,6 +242,8 @@ class EspNowLink(BaseLink):
                     self.code.encode(),
                     roster.encode(),
                     self._session.encode(),
+                    shareable.encode(),
+                    (b"J" if self.is_hunter else b"V"),
                 )
             )
             self._now.send(_BROADCAST, msg, False)  # broadcast: never acked
@@ -281,7 +308,33 @@ class EspNowLink(BaseLink):
                 except ValueError:
                     pass
         session = parts[5].decode() if len(parts) > 5 else ""
-        self._seen(macs, naam, code, roster, self._rssi_of(mac), session)
+        shareable = []
+        if len(parts) > 6 and parts[6]:
+            for tok in parts[6].decode().split(","):
+                try:
+                    shareable.append(int(tok))
+                except ValueError:
+                    pass
+        elif len(parts) <= 6:
+            # Older badges advertised one combined roster without role/self
+            # provenance. Base and rare remain safely compatible; legendary
+            # must fail closed because its giver cannot be verified locally.
+            shareable = [
+                cid
+                for cid in roster
+                if by_id(cid) and by_id(cid)["rarity"] != "leg"
+            ]
+        role = parts[7].decode() if len(parts) > 7 else "V"
+        self._seen(
+            macs,
+            naam,
+            code,
+            roster,
+            self._rssi_of(mac),
+            session,
+            shareable,
+            role,
+        )
 
     def _rssi_of(self, mac):
         # RSSI comes from OUR radio's peers_table, never from the payload.
@@ -299,9 +352,9 @@ class FakeLink(BaseLink):
     fires by itself after ~8 s), Nora hovers mid-range, Wout at the edge."""
 
     _CAST = (
-        ("Sam", "H01A003C3", (0, 2, 5), -75, 4.5),  # (start dBm, ramp/tick)
-        ("Nora", "H02A103C4", (1, 3), -68, 0.0),
-        ("Wout", "H3A200C0", (0,), -78, 0.0),
+        ("Sam", "H01A003C3", (0, 2, 5, 16), -75, 4.5, "J"),
+        ("Nora", "H02A103C4", (1, 3), -68, 0.0, "V"),
+        ("Wout", "H3A200C0", (0,), -78, 0.0, "J"),
     )
 
     def __init__(self):
@@ -318,12 +371,21 @@ class FakeLink(BaseLink):
         self.peers = {}
 
     def tick(self):
-        for i, (naam, code, roster, base, ramp) in enumerate(self._CAST):
+        for i, (naam, code, roster, base, ramp, role) in enumerate(self._CAST):
             mac = "fa:ke:%02x:00:00:%02x" % (i, i)
             r = self._rssi.get(mac, float(base)) + ramp + random.uniform(-2.5, 2.5)
             r = max(-90.0, min(-42.0, r))
             self._rssi[mac] = r
-            self._seen(mac, naam, code, list(roster), int(r), "cast-%02x" % i)
+            self._seen(
+                mac,
+                naam,
+                code,
+                list(roster),
+                int(r),
+                "cast-%02x" % i,
+                list(roster),
+                role,
+            )
         return self.peers
 
 

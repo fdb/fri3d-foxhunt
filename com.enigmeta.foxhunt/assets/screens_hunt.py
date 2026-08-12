@@ -163,6 +163,7 @@ STATUS = {
     "checking": ("controleren...", ui.GREEN_D),
     "wrong": ("verkeerde code", ui.TERRA_D),
     "used": ("code al gebruikt", ui.TERRA_D),
+    "self": ("al zelf gevonden - +0 punten", ui.TERRA_D),
 }
 
 
@@ -278,6 +279,9 @@ class CodeActivity(Activity):
 
     def _submit(self):
         """Ask the fox network to validate the code; the verdict arrives later."""
+        if self.fox_id in store.zelf_ids():
+            self._on_verdict("self")
+            return
         if accepts_debug_code(self.entry):
             self._on_verdict("ok")
             return
@@ -292,14 +296,12 @@ class CodeActivity(Activity):
             # and the network burnt it the moment it said ok — a player who
             # stepped out during the round trip must not lose the beest to a
             # verdict nobody was looking at (retyping would only get "used").
-            pakket = None
-            if store.is_caught(self.fox_id):
-                # zelf gevonden: re-finding a known creature is an upgrade,
-                # not a dud (GAME_DESIGN.md) — sightings, stamp and pakket
-                # instead of a re-add that would change nothing
-                pakket = store.zelf_gevonden(self.fox_id)
-            else:
+            if not store.is_caught(self.fox_id):
                 store.add_caught(self.fox_id)
+            # Every accepted LoRa find sets the permanent bit and pays exactly
+            # one package, including a first-ever catch. The local guard above
+            # makes an already-set bit an explicit +0 error.
+            pakket = store.zelf_gevonden(self.fox_id)
             # The keypad resets NOW, not on return: coming back from the win
             # screen must land on an empty code, not a full one whose next
             # tap re-submits it and answers "code al gebruikt".
@@ -463,7 +465,7 @@ class WinActivity(Activity):
 # side to complete claims it on the air (SNF) and the other mirrors, so the
 # streaks need not line up. There is
 # nothing to choose and no buttons on the payoff — food shares itself when
-# the pair's cooldown allows (a vonk is a picknick, a repeat inside 4h a
+# the pair's cooldown allows (a vonk is a picknick, a repeat inside 6h a
 # single hapje at most once an hour; inside the hour the handshake pays
 # nothing), and a vonk can spark one of the other player's creatures to
 # introduce itself. The same pair can snuffel again after stepping apart.
@@ -546,10 +548,14 @@ class SnuffelActivity(Activity):
     def onResume(self, screen):
         super().onResume(screen)
         p = store.profile()
+        caught = store.caught_ids()
+        is_hunter = bool(p.get("hunter_id"))
         LINK.set_identity(
             p["name"],
             companion.encode(p["head"], p["accs"], p["bg"]),
-            store.caught_ids(),
+            caught,
+            store.shareable_roster(caught, store.zelf_ids(), is_hunter),
+            is_hunter,
         )
         if not self._handoff:
             LINK.start()
@@ -644,22 +650,43 @@ class SnuffelActivity(Activity):
     def _snuffel(self, peer):
         LINK.claim(peer.mac)  # tell the peer's badge, so both sides pay out
         result = store.record_snuffel(peer.mac, peer.naam, peer.code)
-        geluk = (
-            store.roll_vonk_geluk(LINK.roster, peer.roster, LINK.encounter_key(peer))
-            if result["vonk"]
-            else None
-        )
+        p = store.profile() or {}
+        encounter = LINK.encounter_key(peer)
+        geluk = None
+        sent = None
+        if result["vonk"]:
+            geluk = store.select_vonk_creature(
+                peer.shareable,
+                store.caught_ids(),
+                encounter,
+                peer.mac,
+                LINK._my_mac,
+                bool(p.get("hunter_id")),
+            )
+            sent = store.select_vonk_creature(
+                LINK.shareable,
+                peer.roster,
+                encounter,
+                LINK._my_mac,
+                peer.mac,
+                peer.is_hunter,
+            )
         if geluk is not None:
             store.add_caught(geluk, origin="spoor")
-        if result["vonk"]:
-            # the meeting goes to the server through the outbox — grants a
-            # vonk-geluk creature to the durable record so a restore hands
-            # it back. Queued only: this mode is OFF camp WiFi by design;
-            # registrar.flush drains it once the radio is back home.
-            store.enqueue_report(
-                "snuffel",
-                {"peer": peer.mac, "day": result["dag"], "creature_id": geluk},
-            )
+        # Both sides report the same directed outcome. Base/rare recovery may
+        # remain generous when one badge dies; verified help and legendary
+        # durability require the matching partner report on the server.
+        store.enqueue_report(
+            "snuffel",
+            {
+                "encounter_id": encounter,
+                "peer": peer.mac,
+                "day": result["dag"],
+                "vonk": result["vonk"],
+                "sent_creature_id": sent,
+                "received_creature_id": geluk,
+            },
+        )
         sound.play("legendary" if geluk is not None else "caught")
         self._handoff = True
         self.startActivity(

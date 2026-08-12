@@ -58,7 +58,7 @@ class PlukCreatureTest(unittest.TestCase):
             )
             self.assertNotIn(found, range(11))
 
-    def test_seeded_population_keeps_legendary_encounters_very_rare(self):
+    def test_seeded_population_only_contains_base_creatures(self):
         counts = {"norm": 0, "rare": 0, "leg": 0}
         by_id = {c["id"]: c for c in self.store.CREATURES}
         attempts = 20_000
@@ -70,14 +70,9 @@ class PlukCreatureTest(unittest.TestCase):
             if cid is not None:
                 counts[by_id[cid]["rarity"]] += 1
 
-        # These are deterministic fixture bounds around the design's effective
-        # curve (base 18%, rare 6%, leg 1%, after candidate selection).
-        self.assertGreater(counts["norm"], 1_500)
-        self.assertLess(counts["norm"], 2_300)
-        self.assertGreater(counts["rare"], 200)
-        self.assertLess(counts["rare"], 500)
-        self.assertGreater(counts["leg"], 10)
-        self.assertLess(counts["leg"], 80)
+        self.assertGreater(counts["norm"], 2_000)
+        self.assertEqual(counts["rare"], 0)
+        self.assertEqual(counts["leg"], 0)
 
     def test_hourly_reharvest_does_not_reroll_the_phase_creature(self):
         state = {

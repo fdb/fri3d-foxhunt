@@ -83,6 +83,22 @@ class SnuffelStoreTest(unittest.TestCase):
             ],
         )
 
+    def test_food_rearms_after_one_hour_and_spark_after_six(self):
+        mac = "aa:bb:cc:dd:ee:ff"
+        start = 1_786_100_000
+        with patch.object(self.store, "_now", return_value=start):
+            first = self.store.record_snuffel(mac, "Sam", "H01A000C1")
+        with patch.object(self.store, "_now", return_value=start + 60 * 60):
+            food_only = self.store.record_snuffel(mac, "Sam", "H01A000C1")
+        with patch.object(self.store, "_now", return_value=start + 6 * 60 * 60):
+            next_spark = self.store.record_snuffel(mac, "Sam", "H01A000C1")
+
+        self.assertTrue(first["vonk"])
+        self.assertFalse(food_only["vonk"])
+        self.assertEqual(food_only["amount"], 1)
+        self.assertTrue(next_spark["vonk"])
+        self.assertGreaterEqual(next_spark["amount"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()
