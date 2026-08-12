@@ -15,6 +15,7 @@ export const Layout = ({
   bare,
   description,
   poll,
+  noindex,
   children,
 }: PropsWithChildren<{
   title: string;
@@ -24,6 +25,8 @@ export const Layout = ({
   // Loads htmx, for the one page that live-polls (the scoreboard). Off by
   // default: the other pages run no scripts, so they ship none.
   poll?: boolean;
+  // Unlinked preview/rules pages should not become searchable spoilers.
+  noindex?: boolean;
 }>) => (
   <html lang="nl">
     <head>
@@ -31,6 +34,7 @@ export const Layout = ({
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>{title}</title>
       {description && <meta name="description" content={description} />}
+      {noindex && <meta name="robots" content="noindex,nofollow,noarchive" />}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
       <link

@@ -140,8 +140,8 @@ network `fri3d-badge`. Foraging is **listening** to them:
 - **Yields come from a formula**, `(BSSID, camp phase) → resource`, so different
   spots give different food and every spot re-deals each camp phase — a complete
   pantry requires covering ground, just as a complete roster requires
-  finding every fox. Rare finds are a seeded roll on the same inputs, so
-  rescanning cannot reroll them.
+  finding every fox. Base-tier encounters are a seeded roll on the same
+  inputs, so rescanning cannot reroll them.
 - **Any BSSID that broadcasts the SSID counts — no allowlist.** Someone who
   runs their own `fri3d-badge` hotspot beside their tent has hacked
   themselves some berries; at a hacker camp that is a feature, not a leak.
@@ -156,18 +156,19 @@ another person, plukken encounters one through a place, and jagen encounters
 one through a LoRa fox. All three end with the creature introducing itself;
 their source and provenance stay distinct.
 
-Creature opportunities follow the vonk-geluk shape:
+Creature opportunities follow a narrow, base-tier version of the
+vonk-geluk shape:
 
-1. Select one creature the player does not know.
-2. Apply a rarity-weighted chance.
+1. Select one **base-tier** creature the player does not know.
+2. Apply the seeded encounter chance.
 3. A miss remains invisible; the normal food harvest still pays out.
 4. A hit adds the creature permanently with `pluk` provenance and queues a
    narrow server report so account restore cannot lose it.
 
-Unlike snuffelen, the candidate pool is the complete roster and
-**legendaries are eligible**. Badge id is part of the seeded roll, so a lucky
-legendary is personal — not one globally lucky AP that becomes a queue as soon
-as somebody talks. Repeating the same scan never rerolls it.
+**Rare and legendary creatures are never eligible.** Plukken is the solo
+collection floor and care economy; LoRa hunting and social spread own the
+upper tiers. Badge id remains part of the seed, so repeating the same scan
+never rerolls it.
 
 Food and creatures have separate cadences:
 
@@ -178,24 +179,10 @@ Food and creatures have separate cadences:
   fourth pseudo-day merely because the camp crosses four calendar dates.
 
 With about 70 APs this gives 210 theoretical opportunities, but tuning targets
-real walking routes rather than a full clear. Each opportunity has an invisible
-40% gate, followed by the vonk-like tier chances: base 45%, rare 15%, legendary
-2.5%. Effective per-candidate chances are therefore 18%, 6%, and 1%.
-
-Starting from one base-tier startbeest, the back-of-the-envelope outcomes are:
-
-| Play style | AP-phase rolls | Expected new creatures | Chance of 1+ legendary |
-|---|---:|---:|---:|
-| Casual | 12 | about 1.3 | about 2.3% |
-| Active | 30 | about 3.3 | about 6.0% |
-| Dedicated | 70 | about 7.2 | about 15.2% |
-| Very dedicated | 100 | about 9.7 | about 23.1% |
-| Extreme: all 70 APs in all phases | 210 | about 15.7 | about 56.0% |
-
-For an illustrative 70 WiFi collectors — 40 casual, 22 active and 8 dedicated
-— that is roughly 1,700 rolls, 180 creature introductions, 30 rares and only
-3–4 legendary discoveries across the camp. Legendaries therefore exist for a
-committed verzamelaar without becoming expected or guaranteed.
+real walking routes rather than a full clear. Keep the existing invisible 40%
+opportunity gate and 45% base encounter chance as starting values (18%
+effective per opportunity), then tune against field data. Once a player knows
+every base creature, plukken yields food only.
 
 Camp assignments, movement missions and mini-games stay as alternative food
 sources for players who cannot roam.
@@ -297,62 +284,80 @@ keypad (`screen_code`) is a different mechanic and stays.
 ### What a snuffel carries
 
 Nothing is chosen and nothing is attached: the handshake itself pays out,
-automatically and symmetrically, and the payoff screen has no buttons.
+automatically, and the payoff screen has no decisions. The two directions are
+resolved independently; one player never needs to match the value of what the
+other can share.
 
-- **Food shares itself, on a per-pair cooldown.** A vonk is a picknick —
-  both players gain 2-5 hapjes of one random kind. A repeat meeting shares
-  a single hapje for the road at most **once an hour per pair**; inside the
-  hour the handshake still celebrates but pays nothing. Without the
-  cooldown two badges are an infinite food fountain, and food is supposed
-  to come from working the terrain. The same pair can snuffel again after
-  stepping apart.
-- **A vonk can carry a creature** (vonk-geluk, below): one of the other
-  player's creatures may introduce itself. The chance is mutual: it only
-  fires when both rosters have something new to offer, then both players get
-  a creature the other had and they did not.
+- **Food is generated, never transferred from inventory.** When one direction
+  has no eligible creature, that player fictionally brings a picknick and the
+  recipient gains generated food. The contributor loses nothing. This is a
+  deliberate protection for new and younger players whose pantry must never
+  become the price of participating.
+- **Only a vonk can carry a creature** (vonk-geluk, below). A repeat snuffel
+  without a vonk can generate food, but cannot introduce any creature even if
+  the two books differ. This is the structural anti-spam rule: returning to
+  the same friend every hour helps care, while growing the collection asks
+  players to meet someone new or wait for that pair's next vonk.
+- **Each direction resolves separately.** A new verzamelaar can receive a
+  rare spoor from a jager while sending a generated picknick back. If both
+  directions have eligible creatures, both may travel; if neither does, both
+  receive food.
 - **Speeldate** (any ↔ any) stays a deliberate, longer cooperative
   interaction — the one thing a plain handshake doesn't give you.
 
 ### De vonk (the anti-farming rule)
 
-The *handshake itself* is the scored social event, separate from the payload.
-A snuffel between a given pair produces a **vonk** for both — the
-meet-new-people reward — once the pair's **4-hour cooldown** has passed,
-with a daily cap on top (the first ~10 count). Repeats inside the cooldown
-still share the hourly hapje (siblings and tent-mates can keep topping each
-other up, slowly) but earn no vonk. This gives:
+The handshake and vonk are eligibility events, not points by themselves. A
+verified creature introduction may mark the recipient as **helped** by the
+giver, worth 50 points only the first time that giver helps that player. A
+snuffel between a given pair produces a **vonk** for both immediately on their
+first meeting, then once the
+pair's **6-hour cooldown** has passed. That cadence permits at most four
+vonken for the same pair in any rolling 24 hours. A separate **1-hour food
+cooldown** allows the same pair to share a generated picknick between vonken;
+inside the hour the handshake still celebrates but pays nothing. This gives:
 
 - an incentive to walk up to strangers (new pair → new vonk),
 - no incentive to stand in a corner farming one friend,
 - no hard "never again" wall between friends — utility transfer continues,
-  once an hour; only *score* is pair-and-cap limited,
-- and, because the cooldown is 4h rather than a calendar day, a morning
-  friend is worth a fresh vonk again by the evening campfire.
+  once an hour, but creature transfer waits six hours,
+- and a reason to seek new people: a fresh pair gets a vonk immediately while
+  the familiar pair can offer only food.
 
-The cooldowns are wall-clock and survive midnight — a 23:00 vonk does not
-re-arm at 00:00. The daily cap keeps the optimal strategy "meet some new
-people every day", not "speed-boop the entire dinner queue".
+Both cooldowns are per pair, wall-clock and survive midnight — a 23:00 vonk
+does not re-arm at 00:00. "Four per day" is therefore a rolling consequence
+of the six-hour cadence, not a calendar reset that can be gamed at midnight.
 
 ### Vonk-geluk (the creature chance)
 
-Every vonk also rolls a chance that one of the *other* player's creatures
-takes a liking to you — a **spontaneous spoor**: the creature introduces
-itself, both players keep it, and lineage is preserved exactly as with a
-deliberate spoor. The roll is weighted by rarity: commons spread eagerly,
-rares reluctantly, legendaries never spread on their own. Meeting people is
-therefore one way a gatherer's collection grows — and *who* you meet matters,
-because the pool is the other player's actual roster, not a lottery from
-nowhere. Pluk encounters are the complementary solo route and the only
-verzamelaar route whose pool includes legendaries. The startbeest guarantees
-the snuffel pool is never empty: even two brand-new verzamelaars have something
-to spread from their first handshake.
+On a vonk, each direction selects one eligible creature the recipient does not
+know. If one exists, it introduces itself: both players keep the creature and
+lineage is preserved. The introduction is guaranteed once selected; scarcity
+comes from finding the creature, eligibility, the six-hour pair cadence and
+meeting people, not from a second invisible failure roll. If no candidate is
+eligible, that direction produces a generated picknick instead.
 
-The two directions are coupled into one outcome. Vonk-geluk only fires when
-each player owns at least one creature the other does not; it then chooses one
-such creature in each direction and awards both. A short random session token
-in the presence frame lets both badges derive the same roll without either
-badge choosing the exchange. The stricter rarity chance of the selected pair
-governs the shared roll.
+Eligibility depends on rarity:
+
+- **Base:** any owner may share it with any other player on a vonk.
+- **Rare:** the first social hop is jager → verzamelaar. After that, a rare
+  spoor may continue through the graph: a verzamelaar or jager who received it
+  may share it with either role on a later vonk. Rares spread, but only through
+  real face-to-face vonken. A jager who receives a rare this way owns it but
+  does **not** receive the `zelf gevonden` stamp or its 300 discovery points.
+  They may still relay the rare under this rule. If they later find that
+  creature's LoRa fox themselves, the bridge upgrades it to `zelf gevonden`
+  and awards the 300 points exactly once.
+- **Legendary:** every lineage branch permits exactly one social hop, from a
+  jager who has the creature stamped **zelf gevonden** to a verzamelaar. That
+  self-finding jager may introduce it to other distinct verzamelaars on later
+  eligible vonken, but every recipient is an endpoint. A jager who only
+  received the legendary cannot share it; a receiving verzamelaar cannot
+  forward it; and a legendary never travels to a jager. The `zelf` bit is
+  therefore authoritative eligibility state, not decorative dossier copy.
+
+A short random session token in the presence frame lets both badges derive the
+same directed choices without either badge opening a trade UI.
 
 ### Het vriendenboekje (the permanent layer)
 
@@ -397,26 +402,29 @@ and the dossier preserves the social history:
 > Oorspronkelijk gevonden door Sam
 > 4 speelvrienden
 
-Both players receive a reward for the first successful introduction of a given
-creature between them. Repeating the same exchange does not produce unlimited
-public points (see *De vonk*).
+The recipient receives the creature. The giver receives 50 help points only if
+this is the first verified creature introduction from that giver to that
+recipient; later creatures to the same player earn no more points. If both
+directions introduce a creature, each giver can independently mark the other
+player as helped. A vonk with food only is still useful but score-neutral.
 
 ### How creatures spread socially
 
-Every vonk rolls vonk-geluk against the other player's roster. There is no
-share button — nobody can hand a chosen creature over, and nobody can be
-pestered into one. Social distribution is pure contagion through the graph:
-hunters and plukkers seed new species, commons race through the camp, rares
-trickle, the original source stays credited in the lineage, and everyone
-keeps their creature. A player can also grow a roster without entering this
-graph by walking between plukplekken.
+Every vonk resolves vonk-geluk against the other player's eligible roster.
+There is no share button — nobody can hand a chosen creature over, and nobody
+can be pestered into one. Base creatures spread freely, rares form longer
+person-to-person chains after their first jager → verzamelaar hop, while every
+legendary branch makes only its verified self-found jager → verzamelaar hop. The
+original source stays credited in the lineage and everyone keeps their
+creature. Plukplekken remain an independent source of food and base creatures.
 
 This replaces both the bond-gated mentor-invitation model and the earlier
 finder-only deliberate spoor. It costs the deliberate gift moment and the
 food-for-creature trade; it buys total simplicity, zero exchange UI, and an
-economy that cannot be spammed — the introduction-spam caps fall away with
-the feature. The staff safety valve survives: an organiser badge carrying
-only commons can simply guarantee its geluk roll.
+economy bounded by the vonk itself: a no-vonk repeat can only move food, and
+the same pair waits six hours before another creature may travel. The staff
+safety valve survives: an organiser badge carrying only commons can guarantee
+an eligible introduction on its next vonk.
 
 Playdates remain unlimited because they create shared experiences rather than
 new creature ownership.
@@ -472,11 +480,12 @@ creatures are perpetually sad.
   aren't starved. The gatherer loop must be fully playable by a
   seven-year-old: short Dutch words, big touch targets, forgiving mini-games.
 - **Family units distort the economy.** Siblings will exchange constantly. The
-  vonk rule already handles this (utility yes, repeat score no).
+  vonk rule and one-time helped-player credit handle this (utility yes, repeat
+  score no).
 - **Adults approaching children for points.** Fri3d is a family camp and the
-  incentive is symmetric and mild, but keep the framing "meet fellow players",
-  never "collect people", and keep vonk value modest relative to care and
-  discovery scores.
+  incentive is symmetric and mild, but keep the framing "help fellow players",
+  never "collect people". The one-time 50-point help value stays modest beside
+  the 100/300/800 self-find values.
 
 ## Risks, unknown unknowns and perverse incentives
 
@@ -514,14 +523,16 @@ creatures are perpetually sad.
   come from *time and effort*, not from telling a child "sorry, out of
   clones". Saturation of commons is acceptable if rares keep trickling; the
   endgame shifts to bond depth and communal goals, which is by design.
-- **Introduction spam — resolved by removing deliberate introductions.**
-  Social spread only happens through the vonk-geluk roll, which is bounded by
-  the vonk rules (per-pair cooldown, daily cap); there is no share button to
+- **Introduction spam — bounded by the vonk.** Social spread only happens on
+  a vonk. The same pair gets one immediately and then waits six hours; their
+  hourly repeat can move generated food only. There is no share button to
   spam. Pluk encounters have their own BSSID/phase ledger.
-- **Badge speed-dating.** If vonken dominate scoring, optimal play is booping
-  every stranger in the food queue. Mitigate with the daily vonk cap, modest
-  vonk value, and optionally requiring a 30-second joint payload (mini
-  playdate) so each scored exchange has a time cost and an actual interaction.
+- **Badge speed-dating.** Helping distinct players is intentionally better than
+  farming one friend, but the scoreboard must not turn the food queue into a
+  booping assembly line. Credit each giver/recipient pair once and only after a
+  verified creature introduction; food-only vonken score nothing. Consider a
+  short joint payload if field play shows that the introduction is still too
+  cheap.
 - **Food dumping — resolved by the energy chain.** Bond comes from play, not
   from feeding, so 50 gifted berries make a very full creature, not max bond.
   The playful refusal ("creature is full / tired") is the visible face of a
@@ -555,12 +566,16 @@ determined ones. Respond by making cheating *boring*, not impossible:
 
 - Personal care state is local and forgiving — nothing to steal, nothing worth
   forging.
-- Public score counts only server-verified unique events (pair vonken,
-  first introductions), which the server can dedupe and rate-limit.
+- Public score counts only bridge-verified self-finds and corroborated first
+  helped-player events, which the server can dedupe and rate-limit.
+- Replayed fox codes cannot mint discovery points: the self-found bit for
+  `(player_id, creature_id)` only transitions from 0 to 1 once. Every later
+  submission returns `already_self_found` and has no reward side effects.
 - A forged creature on your own badge is a single-player mod, not an exploit.
-- A forged snuffel report mints at most a spreadable-tier creature on the
-  forger's own profile and no vonk score (score needs the partner's
-  matching report): boring.
+- A forged single-sided snuffel report can at most affect the forger's own
+  forgiving local/base-or-rare collection state and earns no score. A
+  legendary grant requires the matching peer report plus a bridge-verified
+  `zelf gevonden` source, so its one-hop rule cannot be claimed by one badge.
 - A forged pluk report can mint collection state on the forger's own profile,
   but cannot claim a LoRa find or hunter score. BSSID/phase deduplication keeps
   honest retries bounded; generating fake hotspots remains an intentionally
@@ -581,7 +596,7 @@ receiver — receive only, there is no IR transmitter.
 | Mode | Example activity | Reward |
 |---|---|---|
 | **Op avontuur** | A short walk or movement session | Food and expedition postcards |
-| **Plukken** | Walk to `fri3d-badge` hotspots around the terrain | Food, rare finds and materials |
+| **Plukken** | Walk to `fri3d-badge` hotspots around the terrain | Food, base encounters and materials |
 | **Beestenschool** | Tilt maze, rhythm game, Flappy-style game or LED Simon | Skills and bond |
 | **Habitat bouwen** | Gather and spend materials on a small habitat | Decorations and animations |
 | **Onderzoek** | Visual quizzes, behaviour puzzles and pattern matching | Dossier pages and discoveries |
@@ -647,10 +662,11 @@ An earlier draft considered wiping the roster "so there is something to
 hunt"; that breaks the game's one absolute rule (permanent progress is
 safe) and lands on exactly the player most worth rewarding: the kid who got
 hooked without an antenna and then went and got one. What keeps hunting
-meaningful for an upgrader is already in the design — rares and legendaries
-never arrive by vonk-geluk, staged fox activation keeps new species
-entering all weekend, and *zelf vinden* (below) makes re-finding a known
-creature a scored, celebrated event. The upgrade moment is the WORD JAGER
+meaningful for an upgrader is already in the design — plukken never grants
+upper tiers, legendary sharing requires a self-found jager, staged fox
+activation keeps new species entering all weekend, and *zelf vinden* (below)
+makes the first physical find of a socially known creature a scored, celebrated
+event. The upgrade moment is the WORD JAGER
 button above — pressed right after soldering, celebrated on the spot, the
 hunter_id minted through the server. Toggling Jagen off later simply
 leaves the id dormant.
@@ -687,7 +703,7 @@ first morning. It also covers the day-1 jager whose first hunts come home
 empty — direction finding is hard — and it demotes the staff safety valve
 to a true backstop.
 
-### Zelf vinden (the re-find)
+### Zelf vinden (the first physical find)
 
 This is the payoff of the **wordt-jager** upgrade: a verzamelaar whose
 roster grew through snuffels presses WORD JAGER, and every known
@@ -708,6 +724,22 @@ it is an upgrade:
   hunter is chronically short.
 - Nothing is removed, replaced or reset. Bond carries straight through;
   the beest simply knows the player better now.
+
+`Zelf gevonden` is a **once-per-player-per-creature** milestone. Conceptually,
+each player owns a `self_found_mask` with one bit per creature. A successful
+bridge-confirmed fox code performs an atomic test-and-set of that creature's
+bit:
+
+- **Bit was 0:** set it to 1, add the `Zelf gevonden!` stamp, award that tier's
+  100/300/800 points and grant one verzorgingspakket.
+- **Bit was already 1:** change nothing and show an explicit badge error such
+  as `AL ZELF GEVONDEN · +0 PUNTEN`. Award no points and no second package.
+
+This is not a cooldown and never resets. A player may self-find every different
+creature once, but cannot stand beside one fox and submit its code repeatedly.
+The server representation may be a bitmask or an equivalent unique set; the
+semantic key is `(player_id, creature_id)`, enforced atomically server-side so
+retries, reconnects and concurrent duplicate submissions remain idempotent.
 
 ## The first gatherer experience
 
@@ -819,11 +851,10 @@ Two flows, both UI-less, both firing automatically on the same handshake:
 
 - **Food.** Hunters run short by design (about half a day of care); every
   snuffel picknick moves gatherer surplus to them.
-- **Reach.** Hunter score counts *unique players introduced to each
-  creature* — so every vonk-geluk spread of a hunter's find scores for the
-  original finder, forever, through lineage. A gatherer bonding with and
-  spreading a hunter's creature earns the hunter points while they sleep.
-  Surface it hunter-side: "jouw vos heeft 12 nieuwe vrienden gemaakt."
+- **Reach.** Every verified directed creature introduction records who shared
+  which creature with whom. Rares can build chains through later owners;
+  each legendary branch credits only its self-found jager → verzamelaar hop. Surface
+  this as generosity rather than ownership: "jouw spoor hielp 12 spelers."
 
 This is the symmetric want that makes an economy with no trade UI: hunters
 want their finds in the hands of good carers (reach and food), carers want
@@ -839,15 +870,45 @@ The full loop, by timescale:
 
 ## Scoring
 
-Hunter and gatherer accomplishments should remain legible as different kinds
-of mastery rather than being forced into one raw leaderboard.
+The public total combines two kinds of mastery but always shows their breakdown:
+**zelf gevonden** and **spelers geholpen**. A large number should never hide
+whether it came from hunting or generosity.
+
+### Discovery and help score
+
+One transparent score combines verified hunting with social generosity:
+
+> **score = Σ(points for self-found creatures) + 50 × distinct players helped**
+
+Initial self-find values are **base 100, rare 300, legendary 800 points**.
+These and the 50-point help value are tuning values, not protocol constants;
+keep them in server configuration.
+
+Creature ownership alone is score-neutral. A creature contributes discovery
+points only when the LoRa bridge has stamped it **zelf gevonden** for that
+player. A startbeest, pluk encounter or creature received through snuffelen is
+worth zero discovery points until that player personally finds its fox. This
+keeps the score about action rather than luck or collection size. The
+self-found contribution is a set sum, not an event sum: each creature's tier
+value appears at most once per player. Duplicate fox-code submissions return
+`already_self_found`, add zero points and do not grant another care package.
+
+A player is **helped** when they receive a verified, eligible creature directly
+from the scorer. Deduplicate on `(giver, recipient)`: the first corroborated
+introduction is worth 50 points, and every later creature or vonk between that
+pair is worth zero. Rare relays can therefore earn a gatherer help points
+without pretending the relayed creature was self-found. Generated food,
+food-only vonken and merely receiving a creature never score.
+
+Example: one base and one rare creature self-found, plus three distinct players
+helped, scores `100 + 300 + (3 × 50) = 550`.
 
 ### Hunter progress
 
-- Unique creatures discovered — including zelf vinden: re-finding a creature
-  first met through others scores as a discovery, because the score is for
-  finding the fox, not for first ownership.
-- Unique players introduced to each creature, with sensible caps.
+- Unique creatures stamped zelf gevonden: physically finding a creature first met
+  through others scores at its tier value, because the score is for finding
+  the fox, not for first ownership.
+- Distinct players helped, at 50 points once per recipient.
 - Special discoveries and legendary appearances.
 
 ### Gatherer progress
@@ -856,7 +917,7 @@ of mastery rather than being forced into one raw leaderboard.
   display-only, never the ranking key).
 - Variety of forage finds and completed assignments.
 - Skills learned and dossier pages unlocked.
-- Vonken, playdates and creatures spread onward through vonk-geluk.
+- Vonken, playdates and rare creatures spread onward through vonk-geluk.
 
 ### Shared camp progress
 
@@ -913,9 +974,10 @@ transports, in order of universality:
 - The same ESP-NOW link, held open, for richer playdates.
 - Camp WiFi and the cloud server for durable provenance, scoring and recovery.
 
-Public points favour verifiable, unique events (vonken, first introductions,
-cooperative handshakes). Personal care state remains forgiving and locally
-owned.
+Public points favour verifiable, unique milestones: bridge-confirmed self-finds
+and the first corroborated creature introduction from one giver to each
+recipient. Vonken, food and repeat introductions are score-neutral. Personal
+care state remains forgiving and locally owned.
 
 ### How a creature reaches the profile
 
@@ -928,16 +990,22 @@ writer:
   shared, so a badge that registers offline computes the identical creature
   and the records converge on the next sync.
 - **Hunt** — written only by the LoRa bridge, exactly as before; the badge
-  never claims its own catches. If the row already exists from another
-  source, the bridge report *upgrades* it to zelf gevonden instead of
-  duplicating it.
+  never claims its own catches. If the creature row exists from another
+  source, the first bridge report atomically upgrades its self-found bit from
+  0 to 1. If that bit is already 1, the API returns `already_self_found`; it
+  writes no score or package event. A uniqueness constraint or compare-and-set
+  on `(player_id, creature_id)` makes bridge retries and repeated keypad codes
+  idempotent.
 - **Snuffel** — the gap: a verzamelaar has no antenna, so nothing on the
   bridge path ever writes their vonk-geluk creatures, and a restore would
   hand back an account without them. The fix is a narrow badge→server
   **snuffel report**: when the badge next has WiFi it posts its snuffel
-  events (pair, day, and which creature introduced itself). The badge still
+  events (shared encounter id, pair, directed giver/recipient, whether the
+  meeting had a vonk, and which creature introduced itself). The badge still
   never claims a *catch* — it reports a *meeting*, which the server can
-  cross-check against the partner's matching report. Reports queue in an
+  cross-check against the partner's matching report. The report must retain
+  provenance needed by the tier rules: rare lineage and, for legendary
+  sharing, the giver's bridge-verified `zelf gevonden` state. Reports queue in an
   on-badge **outbox** and flush whenever WiFi actually works — woods WiFi
   is spotty, and the outbox is the general mechanism for every
   badge→server report (snuffel events, the bonded count).
@@ -947,17 +1015,17 @@ writer:
   rolls stay local. A pluk report is explicitly not a bridge-verified fox find
   and awards no hunter provenance or hunter score.
 
-**Grants are generous; points are verified.** A single-sided snuffel report
-is enough to store the creature — rate-limited, per-pair-per-day enforced,
-and rarity-capped at the spreadable tiers — because a child must never lose
-a beest to a friend's dead battery or a badge that never reconnects. Vonk
-*score*, by contrast, counts only when both sides' reports corroborate and
-the event falls inside the camp window (see *Buiten het kamp*), consistent
-with the rule that public score counts only server-verified unique events. A
-forged grant report can alter only the forger's collection — spreadable tiers
-through snuffelen, or the wider pool through a claimed pluk — and awards no
-hunter find or verified event points: the same boring single-player mod the
-adversarial section already accepts.
+**Local grants are generous; legendary provenance and points are verified.**
+The recipient sees the offline payoff immediately. A single-sided report may
+preserve a base or rare creature so a child does not lose it to a friend's
+dead battery, but earns no score. A legendary reaches the durable server roster
+only after both reports corroborate and the server confirms that the giver is
+a jager with that creature marked `zelf gevonden`; this enforces its single
+jager → verzamelaar hop. Help points require both reports, a vonk, the camp
+window, tier eligibility and `(giver, recipient)` deduplication. Self-find
+points come only from the LoRa bridge. A forged grant can at most alter the
+forger's forgiving collection state and cannot mint verified help or
+self-find points.
 
 ## Buiten het kamp (before and after)
 
@@ -978,8 +1046,8 @@ already work anywhere — only plukken is camp-bound, because it keys on the
   deliberately: the same screen holds the roster unlocks, so the reveal also
   hands out the skip-the-game buttons. After teardown the stakes are zero —
   your badge, your rules is the point at this camp.
-- **The server fences score to the camp window.** Scored events — vonken,
-  and any future bond-milestone reports — count only when they fall inside
+- **The server fences score to the camp window.** Scored events — self-finds,
+  first helped-player introductions and any future bond-milestone reports — count only when they fall inside
   the camp dates; outside the window the server still accepts grants
   (creature spread, restores) but writes no score. This is a server rule,
   never a badge rule: client toggles cannot guard score, because the
@@ -998,16 +1066,17 @@ Before building a large economy, test a compact experience:
    burst, and a census of `fri3d-badge` BSSIDs on the terrain.
 1. Companion tutorial, ending in the startbeest reveal (server-minted in
    the registration POST).
-2. Creature spread through vonk-geluk over snuffel, with the snuffel
-   report syncing the result to the profile.
+2. Directed creature spread through vonk-geluk over snuffel: base sharing,
+   rare relay, the legendary self-found one-hop rule, generated-picnic
+   fallback and a snuffel report syncing the result to the profile.
 3. Plukken against real `fri3d-badge` hotspots: warmer/colder screen, BSSID
    identity, per-badge food reload and one wild-creature roll per camp phase.
 4. One motion mini-game, such as a tilt maze.
 5. One touch/button game, such as LED Simon or Flappy.
 6. Berry, nut and acorn inventory with favourite-food bonuses.
 7. Bond level 2 unlocks a dossier page and habitat decoration.
-8. One badge-to-badge snuffel: the vonk rule, a vriendenboekje page and the
-   vonk-geluk roll.
+8. One badge-to-badge snuffel: the 1-hour food / 6-hour vonk rules, a
+   vriendenboekje page and directed vonk-geluk.
 9. Separate discovery and bond achievements.
 
 This slice tests the essential questions: is caring for and playing with a
@@ -1026,14 +1095,15 @@ enough delight to carry the social economy?
   finish line (de foto), so the fantasy is a sanctuary of *finished*
   friendships, built one beste vriend at a time.
 - ~~How many mentor invitations may a strong gatherer create?~~
-  → Resolved: the mentor model is replaced by vonk-geluk spread; deliberate
-  sharing is finder-only.
+  → Resolved: the mentor model is replaced by automatic vonk-geluk. Rare
+  sporen may relay; legendary sporen are self-found jager → verzamelaar only.
 - Confirm the estimated roughly 70 `fri3d-badge` BSSIDs on the terrain and
   map how many are distinct physical walking destinations rather than radios
   clustered at one place.
-- Tuning numbers that need playtesting: the vonk-geluk odds per rarity tier,
-  the bond weighting inside a tier, the zin bonus size, the plukplek food
-  reload, the 40%/45%/15%/2.5% encounter curve, and energy cost/restore per
+- Tuning numbers that need playtesting: the self-find values (initially
+  100/300/800) and helped-player value (initially 50), the bond weighting
+  inside a tier, the zin bonus size, the plukplek
+  food reload, the 40%/45% base encounter curve, and energy cost/restore per
   play session.
 - Which rewards remain local and which contribute to public scoring?
 - How many foxes will be deployed, and can their activation be staged across
@@ -1045,8 +1115,8 @@ enough delight to carry the social economy?
   handshake enough?
 - How prominent should competition be compared with the communal sanctuary?
 - ~~Is the startbeest score-neutral (everyone has one) or does it count?~~
-  → Resolved: it counts. Every player starts with one "free" point;
-  uniform, so it never changes a ranking.
+  → Resolved: ownership is score-neutral. Its fox is worth 100 points only if
+  the player later earns the base creature's `zelf gevonden` stamp.
 
 ## Glossary additions
 
@@ -1055,17 +1125,17 @@ Following the one-word-per-thing rule:
 | Code (English) | UI (Dutch) | What it is |
 | --- | --- | --- |
 | **gatherer** | **verzamelaar** | The non-antenna play track: foraging resources for creature care. |
-| **spread** | **vonk-geluk** | The chance, on a vonk, that one of the other player's creatures introduces itself; both keep it. Never "clone" in the UI. The social spread path; wild pluk encounters are independent. |
+| **spread** | **vonk-geluk** | The directed payoff on a vonk: an eligible creature the recipient does not know introduces itself; both keep it. Base spreads freely, rare relays after its first jager→verzamelaar hop, and every legendary branch ends after self-found jager→verzamelaar. Never "clone" in the UI. |
 | **boop / socialize** | **snuffelen** | The face-to-face handshake over ESP-NOW, gated at -50 dBm RSSI on both sides — and the home-screen mode named after it. |
-| **spark** | **vonk** | The mutual reward for a snuffel, per pair every ~4 hours, capped per day. |
+| **spark** | **vonk** | The mutual creature-sharing window: immediate for a new pair, then per pair every 6 hours (at most four in a rolling 24h). A no-vonk repeat can share generated food only. |
 | **friend book** | **vriendenboekje** | The permanent collection: one page per first-ever meeting between two badges. |
 | **forage** | **plukken** | Passively scanning for `fri3d-badge` hotspots and harvesting a nearby one. |
 | **forage spot** | **plukplek** | One physical hotspot, identified by its BSSID, with hourly food and one creature roll per camp phase. |
 | **reload** | — | The per-badge cooldown before the same plukplek yields food again. It does not reroll its phase creature. |
 | **starter** | **startbeest** | The one base-tier creature every player receives at registration, deterministic per badge; the tutorial creature for both tracks. |
-| **self-found** | **zelf gevonden** | The dossier upgrade when a hunter finds the fox of a creature they already knew. Scores as a discovery and pays a verzorgingspakket; nothing is removed. |
+| **self-found** | **zelf gevonden** | The permanent per-player/per-creature bit set by the first bridge-confirmed fox find, including for a creature already known. Scores once at the tier value (100/300/800) and pays one verzorgingspakket. Repeating the code returns `already_self_found`, changes nothing and awards zero. |
 | **care package** | **verzorgingspakket** | The food bundle a zelf-gevonden creature hands over, weighted toward its favourite. |
-| **snuffel report** | — | The badge→server sync of a snuffel event (pair, day, vonk-geluk outcome). Grants are single-sided and rarity-capped; score needs both sides. |
+| **snuffel report** | — | The badge→server sync of a directed snuffel event (encounter, pair, vonk, giver/recipient, creature and provenance). Base/rare recovery may be single-sided; legendary durability and the 50-point first-help credit need corroboration. |
 | **star** | **ster** | The band-5 finish mark on grid tile and beest page. A creature can be *finished*: its stats freeze and play is free forever. |
 | **photo** | **foto** | Parked (not 2026): a dated beste-vrienden dossier page at band 5. |
 | **daily want** | **zin** | Parked (not 2026): a creature's seeded daily craving — one food or one game. Bonus band to fulfil; free to ignore. |

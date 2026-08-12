@@ -257,8 +257,8 @@ export const Home = () => (
             <p>
               Op het terrein hangen WiFi-hotspots. Je badge luistert ernaar en
               jij loopt erheen: hetzelfde warmer-kouder-gevoel als de jacht,
-              maar zonder antenne. Soms laat een onbekend beest zich daar zien;
-              zelfs een legendarisch beest, al is dat bijzonder zeldzaam.
+              maar zonder antenne. Soms laat een onbekend beest zich daar zien.
+              Niet elk beest kom je op dezelfde manier tegen.
             </p>
           </div>
           <div class="card">

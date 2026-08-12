@@ -3,6 +3,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import type { Bindings, GameEvent, Player, ScoreRow } from "../types";
 import { Layout } from "../components/Layout";
 import { Home } from "../components/Home";
+import { SnuffelRules } from "../components/SnuffelRules";
 import { Companion } from "../components/Companion";
 import { decodeCompanion } from "../lib/companion";
 import { CREATURES, RARITY_LABEL, creatureById } from "../lib/creatures";
@@ -153,6 +154,21 @@ pageRoutes.get("/", (c) =>
       bare
     >
       <Home />
+    </Layout>,
+  ),
+);
+
+// Unlinked rules preview. It is intentionally absent from Home and the public
+// navigation: players only reach it when somebody gives them the URL.
+pageRoutes.get("/snuffelregels", (c) =>
+  c.html(
+    <Layout
+      title="Snuffelregels — Vossenjacht"
+      description="De nieuwe regels voor snuffelen, vonken, beesten delen en punten."
+      bare
+      noindex
+    >
+      <SnuffelRules />
     </Layout>,
   ),
 );
