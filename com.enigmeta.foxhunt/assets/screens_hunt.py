@@ -682,6 +682,7 @@ class SnuffelActivity(Activity):
                 "encounter_id": encounter,
                 "peer": peer.mac,
                 "day": result["dag"],
+                "occurred_at": result["at"],
                 "vonk": result["vonk"],
                 "sent_creature_id": sent,
                 "received_creature_id": geluk,

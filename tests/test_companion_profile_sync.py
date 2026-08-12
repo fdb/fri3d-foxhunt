@@ -110,7 +110,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
 
     # The outbox drain (_ROUTES) lives in registrar.py since sync.py was
     # merged into it for LittleFS block economy.
-    def _load_routes(self, name):
+    def _load_registrar(self, name):
         lvgl = types.ModuleType("lvgl")
         mpos = types.ModuleType("mpos")
         mpos.TaskManager = MagicMock()
@@ -118,7 +118,29 @@ class CompanionProfileSyncTest(unittest.TestCase):
         registrar = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, {"lvgl": lvgl, "mpos": mpos}):
             spec.loader.exec_module(registrar)
-        return registrar._ROUTES
+        return registrar
+
+    def _load_routes(self, name):
+        return self._load_registrar(name)._ROUTES
+
+    def test_restore_preserves_self_found_provenance(self):
+        registrar = self._load_registrar("registrar_restore_self_under_test")
+        store = MagicMock()
+        store.restore_caught.return_value = [0, 16]
+        companion = types.ModuleType("companion")
+        companion.decode = MagicMock(return_value=("vos", [], 0))
+
+        with patch.dict(sys.modules, {"store": store, "companion": companion}):
+            registrar.adopt(
+                "aa:bb:cc:dd:ee:ff",
+                {
+                    "name": "Sam",
+                    "creatures": [0, 16],
+                    "self_found": [16],
+                },
+            )
+
+        store.restore_caught.assert_called_once_with([0, 16], [16])
 
     def test_profile_report_uses_auth_user_patch(self):
         routes = self._load_routes("registrar_profile_under_test")

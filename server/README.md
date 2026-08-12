@@ -15,10 +15,11 @@ anti-cheat: finding a fox means having been within radio range of it, and the
 bridge is the only thing that can vouch for that.
 
 Other acquisition tracks deliberately have narrow badge-facing reports:
-snuffelen reports a meeting; plukken reports a seeded BSSID/camp-phase wild
-encounter. They make permanent collection progress restorable, but never mint
-`zelf gevonden` provenance or hunter score. Forging them is bounded personal
-collection modification, not a forged radio achievement.
+snuffelen reports both directed outcomes of one shared encounter; plukken
+reports a seeded BSSID/camp-phase base-creature encounter. They make permanent
+collection progress restorable, but never mint `zelf gevonden` provenance.
+Help score is created only from matching reports from both badges; legendary
+sharing additionally requires a bridge-verified self-found hunter source.
 
 So the badge's traffic is asymmetric, on purpose:
 
@@ -29,19 +30,19 @@ So the badge's traffic is asymmetric, on purpose:
 
 ## Routes
 
-| Route                   | Method | Description                                                         |
-| ----------------------- | ------ | ------------------------------------------------------------------- |
-| `/api/v1/auth/register` | POST   | Register a badge: `{ badge_id, name, hunter_id?, profile_pic? }`    |
-| `/api/v1/auth/user`     | GET    | Restore by `?badge_id=...`: account + `creatures` (404 = new badge) |
-| `/api/v1/auth/user`     | PATCH  | Update account by `badge_id`: `{ name?, hunter_id?, profile_pic? }` |
-| `/api/v1/auth/user`     | DELETE | Wipe the account: `{ badge_id }` — see "Wiping an account"          |
-| `/api/v1/player/found`  | POST   | Bridge relay reports `{ hunter_id, fox_id }` (Bearer `BRIDGE_KEY`)  |
-| `/api/v1/player/snuffel`| POST   | Badge reports a meeting and optional spreadable creature grant     |
-| `/api/v1/player/pluk`   | POST   | Badge reports `{ bssid, phase, creature_id }` wild encounter       |
-| `/api/v1/player/visitor`| POST   | Badge reports `{ slot, creature_id }` base-tier visitor grant      |
-| `/`                     | GET    | Public landing page: what the game is, both play tracks             |
-| `/scores`               | GET    | Public dashboard, auto-refreshing scoreboard                        |
-| `/debug/log`            | GET    | Event log — HTML table, or JSON with `Accept: application/json`     |
+| Route                    | Method | Description                                                         |
+| ------------------------ | ------ | ------------------------------------------------------------------- |
+| `/api/v1/auth/register`  | POST   | Register a badge: `{ badge_id, name, hunter_id?, profile_pic? }`    |
+| `/api/v1/auth/user`      | GET    | Restore by `?badge_id=...`: account + `creatures` (404 = new badge) |
+| `/api/v1/auth/user`      | PATCH  | Update account by `badge_id`: `{ name?, hunter_id?, profile_pic? }` |
+| `/api/v1/auth/user`      | DELETE | Wipe the account: `{ badge_id }` — see "Wiping an account"          |
+| `/api/v1/player/found`   | POST   | Bridge relay reports `{ hunter_id, fox_id }` (Bearer `BRIDGE_KEY`)  |
+| `/api/v1/player/snuffel` | POST   | Badge reports encounter id, spark and both directed outcomes        |
+| `/api/v1/player/pluk`    | POST   | Badge reports `{ bssid, phase, creature_id }` base encounter        |
+| `/api/v1/player/visitor` | POST   | Badge reports `{ slot, creature_id }` base-tier visitor grant       |
+| `/`                      | GET    | Public landing page: what the game is, both play tracks             |
+| `/scores`                | GET    | Public dashboard, auto-refreshing scoreboard                        |
+| `/debug/log`             | GET    | Event log — HTML table, or JSON with `Accept: application/json`     |
 
 ### `fox_id` is the creature id, not the FID byte
 

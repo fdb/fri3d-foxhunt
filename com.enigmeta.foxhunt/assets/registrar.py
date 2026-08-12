@@ -90,7 +90,7 @@ def adopt(badge, account, name=None, code=None):
     flow raises when the badge turns out to be known already.
 
     `account` is the payload restore() documents — name, hunter_id, companion,
-    creatures. `name`/`code` override the first two fields for the player who
+    creatures and self_found. `name`/`code` override the first two fields for the player who
     chose to overwrite the account instead of adopting it as it stands.
 
     The catch list is not optional here. The maatje's accessory unlocks are
@@ -115,7 +115,11 @@ def adopt(badge, account, name=None, code=None):
             "synced": True,
         }
     )
-    return len(store.restore_caught(account.get("creatures") or []))
+    return len(
+        store.restore_caught(
+            account.get("creatures") or [], account.get("self_found") or []
+        )
+    )
 
 
 def resync():
@@ -532,6 +536,7 @@ class HttpRegistrar(Registrar):
             # "" is how the server spells "this account never sent one".
             "companion": data.get("profile_pic") or None,
             "creatures": creatures,
+            "self_found": data.get("self_found") or [],
         }
 
     async def _register(self, name, badge, companion, st, on_update):
@@ -677,6 +682,7 @@ class HttpRegistrar(Registrar):
                 # "" is how the server spells "this account never sent one".
                 "companion": data.get("profile_pic") or None,
                 "creatures": data.get("creatures") or [],
+                "self_found": data.get("self_found") or [],
                 "error": None,
             }
         )

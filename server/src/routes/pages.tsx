@@ -42,6 +42,15 @@ pageRoutes.use("/debug/*", async (c, next) => {
 // count comes from the roster itself so adding a beest moves the goalposts
 // once, here, and not in a constant somebody forgets.
 const ROSTER_SIZE = CREATURES.length;
+const BASE_IDS = CREATURES.filter((c) => c.rarity === "norm")
+  .map((c) => c.id)
+  .join(",");
+const RARE_IDS = CREATURES.filter((c) => c.rarity === "rare")
+  .map((c) => c.id)
+  .join(",");
+const LEGENDARY_IDS = CREATURES.filter((c) => c.rarity === "leg")
+  .map((c) => c.id)
+  .join(",");
 
 // HOW MANY, never WHICH. The scoreboard is public and the roster is the
 // player's to discover (CLAUDE.md, "Server pages"), so this query counts
@@ -55,12 +64,33 @@ async function fetchScores(db: D1Database): Promise<ScoreRow[]> {
     .prepare(
       `SELECT p.id, p.name, p.hunter_id, p.profile_pic,
               COUNT(pc.creature_id) AS creatures_found,
+              COALESCE(SUM(CASE WHEN pc.self_found = 1 THEN 1 ELSE 0 END), 0)
+                AS self_found,
+              (SELECT COUNT(*) FROM helped_players hp WHERE hp.giver_id = p.id)
+                AS players_helped,
+              COALESCE(SUM(
+                CASE
+                  WHEN pc.self_found = 1
+                   AND pc.dt_self_found >= '2026-08-06T13:00:00Z'
+                   AND pc.dt_self_found <  '2026-08-09T13:00:00Z'
+                  THEN CASE
+                    WHEN pc.creature_id IN (${BASE_IDS}) THEN 100
+                    WHEN pc.creature_id IN (${RARE_IDS}) THEN 300
+                    WHEN pc.creature_id IN (${LEGENDARY_IDS}) THEN 800
+                    ELSE 0
+                  END
+                  ELSE 0
+                END
+              ), 0) + 50 *
+                (SELECT COUNT(*) FROM helped_players hp WHERE hp.giver_id = p.id)
+                AS score,
               MAX(pc.dt_found) AS last_found
        FROM players p
        LEFT JOIN players_creatures pc ON pc.player_id = p.id
        WHERE p.dt_deleted IS NULL
        GROUP BY p.id
-       ORDER BY creatures_found DESC, last_found ASC, p.name ASC`,
+       ORDER BY score DESC, self_found DESC, players_helped DESC,
+                creatures_found DESC, p.name ASC`,
     )
     .all<ScoreRow>();
   return results;
@@ -106,6 +136,9 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
           <th>Maatje</th>
           <th>Speler</th>
           <th>Hunter</th>
+          <th>Score</th>
+          <th>Zelf</th>
+          <th>Geholpen</th>
           <th>Beesten</th>
           <th>Laatst</th>
         </tr>
@@ -119,6 +152,9 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
             </td>
             <td>{s.name}</td>
             <td class="muted">{s.hunter_id ?? "—"}</td>
+            <td class="score">{s.score}</td>
+            <td>{s.self_found}</td>
+            <td>{s.players_helped}</td>
             <td class="beesten">
               <span class="meter">
                 <span
@@ -135,7 +171,7 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
         ))}
         {scores.length === 0 && (
           <tr>
-            <td class="empty" colspan={6}>
+            <td class="empty" colspan={9}>
               Nog geen spelers geregistreerd.
             </td>
           </tr>
@@ -285,10 +321,16 @@ pageRoutes.get("/debug/players/:id", async (c) => {
 
   const [caught, events] = await Promise.all([
     c.env.DB.prepare(
-      "SELECT creature_id, dt_found FROM players_creatures WHERE player_id = ? ORDER BY dt_found",
+      `SELECT creature_id, dt_found, self_found, dt_self_found
+       FROM players_creatures WHERE player_id = ? ORDER BY dt_found`,
     )
       .bind(id)
-      .all<{ creature_id: number; dt_found: string }>(),
+      .all<{
+        creature_id: number;
+        dt_found: string;
+        self_found: number;
+        dt_self_found: string | null;
+      }>(),
     // The event log is append-only and every entry this player caused carries
     // its player_id in the payload — json_extract is the only way back in.
     c.env.DB.prepare(
@@ -363,6 +405,7 @@ pageRoutes.get("/debug/players/:id", async (c) => {
               <th>ID</th>
               <th>Naam</th>
               <th>Zeldzaamheid</th>
+              <th>Zelf gevonden</th>
               <th>Gevangen</th>
             </tr>
           </thead>
@@ -381,13 +424,16 @@ pageRoutes.get("/debug/players/:id", async (c) => {
                   <td class="muted">
                     {creature ? RARITY_LABEL[creature.rarity] : "—"}
                   </td>
+                  <td class="muted">
+                    {r.self_found ? fullTime(r.dt_self_found) : "—"}
+                  </td>
                   <td class="muted">{fullTime(r.dt_found)}</td>
                 </tr>
               );
             })}
             {caught.results.length === 0 && (
               <tr>
-                <td class="empty" colspan={4}>
+                <td class="empty" colspan={5}>
                   Nog geen beesten gevangen.
                 </td>
               </tr>

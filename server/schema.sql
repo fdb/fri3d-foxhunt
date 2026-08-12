@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS players_creatures (
   player_id INTEGER NOT NULL REFERENCES players(id),
   creature_id INTEGER NOT NULL,
   dt_found TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  self_found INTEGER NOT NULL DEFAULT 0,
+  dt_self_found TEXT,
   PRIMARY KEY (player_id, creature_id)
 );
 
@@ -49,6 +51,57 @@ CREATE TABLE IF NOT EXISTS snuffels (
   creature_id INTEGER, -- vonk-geluk outcome, NULL when none rolled
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   UNIQUE (player_id, peer, day)
+);
+
+-- One report per badge for a shared ESP-NOW encounter. The matching report
+-- from the peer corroborates directed creature introductions and help score.
+CREATE TABLE IF NOT EXISTS snuffel_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  encounter_id TEXT NOT NULL,
+  peer TEXT NOT NULL,
+  day TEXT NOT NULL,
+  occurred_at INTEGER NOT NULL,
+  had_vonk INTEGER NOT NULL,
+  sent_creature_id INTEGER,
+  received_creature_id INTEGER,
+  received_was_new INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (player_id, encounter_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_snuffel_reports_match
+ON snuffel_reports(encounter_id, player_id);
+
+CREATE TABLE IF NOT EXISTS verified_sparks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  encounter_id TEXT NOT NULL UNIQUE,
+  player_a INTEGER NOT NULL REFERENCES players(id),
+  player_b INTEGER NOT NULL REFERENCES players(id),
+  occurred_at INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_verified_sparks_pair
+ON verified_sparks(player_a, player_b, occurred_at);
+
+CREATE TABLE IF NOT EXISTS creature_shares (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  encounter_id TEXT NOT NULL,
+  giver_id INTEGER NOT NULL REFERENCES players(id),
+  recipient_id INTEGER NOT NULL REFERENCES players(id),
+  creature_id INTEGER NOT NULL,
+  occurred_at INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  UNIQUE (encounter_id, giver_id, recipient_id, creature_id)
+);
+
+CREATE TABLE IF NOT EXISTS helped_players (
+  giver_id INTEGER NOT NULL REFERENCES players(id),
+  recipient_id INTEGER NOT NULL REFERENCES players(id),
+  first_share_id INTEGER NOT NULL REFERENCES creature_shares(id),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (giver_id, recipient_id)
 );
 
 -- Successful wild-creature encounters while plukken. Food remains badge-local;

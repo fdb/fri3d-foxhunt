@@ -376,10 +376,11 @@ export const Home = () => (
             </h3>
             <p>
               Hou twee badges met hun neuzen tegen elkaar en allebei juichen ze
-              tegelijk. Je hoeft niets te kiezen: elke snuffel is vanzelf een{" "}
-              <b>picknick</b> — jullie krijgen allebei eten. En de eerste keer
-              dat twee badges elkaar <i>ooit</i> tegenkomen, schrijven ze elkaar
-              in hun <b>vriendenboekje</b>. Dat boekje raak je nooit kwijt.
+              tegelijk. Je hoeft niets te kiezen: als er iets kan reizen, doet
+              het dat vanzelf. Anders verschijnt er een <b>picknick</b>. De
+              eerste keer dat twee badges elkaar <i>ooit</i> tegenkomen,
+              schrijven ze elkaar in hun <b>vriendenboekje</b>. Dat boekje raak
+              je nooit kwijt.
             </p>
             <p class="fine">
               De technologie hierachter heet ESP-NOW. Ze draagt verder dan een
@@ -397,16 +398,15 @@ export const Home = () => (
               De vonk
             </h3>
             <p>
-              De eerste keer per dag dat je iemand tegenkomt, is het een{" "}
-              <b>vonk</b>: een flinke picknick — en met wat geluk stelt een
-              beest van de ander zich aan jou voor. Zo verspreiden de beesten
-              zich over het kamp, van speler naar speler.
+              Een nieuw duo krijgt meteen een <b>vonk</b>. Heeft de ander een
+              passend beest dat jij nog niet kent, dan stelt het zich aan jou
+              voor. Zo verspreiden beesten zich over het kamp, van speler naar
+              speler.
             </p>
             <p class="fine">
-              Nog eens snuffelen met dezelfde persoon mag altijd (even uit
-              elkaar stappen en opnieuw): je krijgt dan een hapje voor onderweg,
-              maar geen nieuwe vonk. Nieuwe mensen aanspreken loont dus het
-              meest.
+              Na één uur kan hetzelfde duo weer eten krijgen. Voor een nieuwe
+              vonk wachten ze zes uur. Een nieuwe speler ontmoeten geeft meteen
+              een nieuwe vonk.
             </p>
           </article>
         </div>

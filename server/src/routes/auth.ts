@@ -80,11 +80,32 @@ authRoutes.post("/register", async (c) => {
     // player owned goes: the roster, and the hunter_id — the next player on
     // this badge mints their own, and an in-flight bridge report for the old
     // HID must not credit them.
-    // Every per-player table, not just the roster: pluks, snuffels and
+    // Every per-player table, not just the roster: pluks, snuffel reports and
     // visitors are dedupe records, and a row the old owner left behind would
     // keep suppressing the NEW player's grants ("duplicate": true) — the same
     // spot, the same friend, or a visitor slot silently paying out nothing.
-    for (const table of ["players_creatures", "pluks", "snuffels", "visitors"])
+    await c.env.DB.prepare(
+      "DELETE FROM helped_players WHERE giver_id = ? OR recipient_id = ?",
+    )
+      .bind(existing.id, existing.id)
+      .run();
+    await c.env.DB.prepare(
+      "DELETE FROM creature_shares WHERE giver_id = ? OR recipient_id = ?",
+    )
+      .bind(existing.id, existing.id)
+      .run();
+    await c.env.DB.prepare(
+      "DELETE FROM verified_sparks WHERE player_a = ? OR player_b = ?",
+    )
+      .bind(existing.id, existing.id)
+      .run();
+    for (const table of [
+      "players_creatures",
+      "pluks",
+      "snuffels",
+      "snuffel_reports",
+      "visitors",
+    ])
       await c.env.DB.prepare(`DELETE FROM ${table} WHERE player_id = ?`)
         .bind(existing.id)
         .run();
@@ -275,12 +296,17 @@ authRoutes.get("/user", async (c) => {
   // counted straight off this list, so a restore that dropped it would hand
   // the player back an avatar wearing things it says they haven't earned.
   const { results } = await c.env.DB.prepare(
-    "SELECT creature_id FROM players_creatures WHERE player_id = ? ORDER BY creature_id",
+    `SELECT creature_id, self_found FROM players_creatures
+     WHERE player_id = ? ORDER BY creature_id`,
   )
     .bind(player.id)
-    .all<{ creature_id: number }>();
+    .all<{ creature_id: number; self_found: number }>();
 
-  return c.json({ ...player, creatures: results.map((r) => r.creature_id) });
+  return c.json({
+    ...player,
+    creatures: results.map((r) => r.creature_id),
+    self_found: results.filter((r) => r.self_found).map((r) => r.creature_id),
+  });
 });
 
 // PATCH /api/v1/auth/user

@@ -253,7 +253,7 @@ def add_caught(cid, origin="vangst"):
     e.commit()
 
 
-def restore_caught(ids):
+def restore_caught(ids, self_found=None):
     """Adopt the catch list the server handed back (screen_restore).
 
     A union, never a replace: the server only hears about a catch when the
@@ -267,6 +267,7 @@ def restore_caught(ids):
     Returns the caught list afterwards."""
     prefs = SharedPreferences(_APP)
     have = prefs.get_list("caught", [])
+    zelf = prefs.get_list("zelf", [])
     beast = prefs.get_dict("beast", {})
     e = prefs.edit()
     changed = False
@@ -280,8 +281,13 @@ def restore_caught(ids):
             e.put_dict_item(
                 "beast", str(cid), pet.default_state(_today(), _PLACE, _now())
             )
+    for cid in self_found or []:
+        if by_id(cid) and cid in have and cid not in zelf:
+            zelf.append(cid)
+            changed = True
     if changed:
         e.put_list("caught", have)
+        e.put_list("zelf", zelf)
     e.commit()
     return have
 
@@ -817,6 +823,7 @@ def record_snuffel(mac, naam, code):
         "new_friend": new_friend,
         "vonk": vonk,
         "dag": dag,
+        "at": now,
         "food": food,
         "amount": amount,
     }

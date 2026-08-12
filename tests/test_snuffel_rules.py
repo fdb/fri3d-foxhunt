@@ -39,6 +39,7 @@ class SnuffelRulesTest(unittest.TestCase):
             "new_friend": True,
             "vonk": True,
             "dag": "2026-08-07",
+            "at": 1_786_100_000,
             "food": "bes",
             "amount": 2,
         }
@@ -55,6 +56,7 @@ class SnuffelRulesTest(unittest.TestCase):
                 "encounter_id": "shared-encounter",
                 "peer": "bb:bb:bb:bb:bb:bb",
                 "day": "2026-08-07",
+                "occurred_at": 1_786_100_000,
                 "vonk": True,
                 "sent_creature_id": 16,
                 "received_creature_id": 1,
@@ -66,6 +68,7 @@ class SnuffelRulesTest(unittest.TestCase):
             "new_friend": False,
             "vonk": False,
             "dag": "2026-08-07",
+            "at": 1_786_103_600,
             "food": "noot",
             "amount": 1,
         }
