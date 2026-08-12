@@ -241,7 +241,7 @@ class HomeActivity(Activity):
             sp = art.creature_panel(cell, c, 2, silhouette=not is_caught)
             sp.align(lv.ALIGN.TOP_MID, 0, 1)
             if is_caught and cid in zelf:
-                art.self_found_badge(cell, 2).set_pos(2, 2)
+                art.self_found_badge(cell, 2).set_pos(1, 1)
             elif is_caught and c["rarity"] == "leg":
                 art.icon(cell, "spark", 1).set_pos(2, 2)
             if cid in beste:
