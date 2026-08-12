@@ -11,8 +11,8 @@
 # ═════════════════════════ screen_beast ═════════════════════════
 # screen_beast.py — BEEST-PAGINA: the hub for a caught creature.
 #
-# Portrait card with nickname on the left; Band hearts + Energie/Honger
-# segment meters + found facts on the right; a 4-button action bar (VOER / AAI /
+# Portrait card with nickname on the left; Band hearts + Energie segment meter
+# + found facts on the right; a 4-button action bar (VOER / AAI /
 # SPEEL / DOSSIER). A finished friend (bond maxed) trades its meters for the
 # beste-vriend star and refuses food gently — play stays, free forever.
 # Layout follows the design (detail.jsx PxDetail).
@@ -33,7 +33,6 @@ _ACTS = (
     ("ball", "SPEEL", "spelen"),
     ("book", "DOSSIER", "dossier"),
 )
-_SEG = (("energy", "Energie", ui.GREEN),)
 # rarity tag on the portrait card; "norm" gets none. Dark variants of the home
 # grid's rarity frame colours (rare=terra, leg=gold), for text on the light card.
 _RARITY_TAG = {
@@ -105,11 +104,15 @@ class BeastActivity(Activity):
             ui.label(g, "Beste vriend!", 24, 48, ui.GOLD_D, ui.font_label())
             ui.label(g, "speelt altijd mee", 24, 64, ui.TEXT_MUTED, ui.font_small())
         else:
-            for i, (k, lab, col) in enumerate(_SEG):
-                shown = (
-                    pet.energy_segments(st[k]) if k == "energy" else pet.segments(st[k])
-                )
-                ui.seg_bar(g, 0, 44 + i * 22, lab, shown, col)
+            ui.seg_bar(
+                g,
+                0,
+                44,
+                "Energie",
+                pet.energy_segments(st["energy"]),
+                ui.GREEN,
+                stacked=True,
+            )
         ui.label(
             g,
             "gevonden " + st.get("date", "?"),

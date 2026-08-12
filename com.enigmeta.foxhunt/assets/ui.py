@@ -250,13 +250,32 @@ def row(parent, x, y, w, h, gap=GAP_M, wrap=False, bg=None):
 
 
 def seg_bar(
-    parent, x, y, text, lit, color, total=5, seg_w=16, seg_h=11, gap=GAP_S, label_w=56
+    parent,
+    x,
+    y,
+    text,
+    lit,
+    color,
+    total=5,
+    seg_w=16,
+    seg_h=11,
+    gap=GAP_S,
+    label_w=56,
+    stacked=False,
 ):
-    """Label + a row of `total` segment cells, `lit` of them coloured. Mirrors
-    the device's 5-LED look. Returns the list of cells for live updates."""
+    """Label + a row of `total` segment cells, `lit` of them coloured.
+
+    Set ``stacked`` to put the cells below the label instead of beside it.
+    Mirrors the device's 5-LED look. Returns the cells for live updates.
+    """
     label(parent, text, x, y, INK, font_small())
     track = row(
-        parent, x + label_w, y, total * seg_w + (total - 1) * gap, seg_h, gap=gap
+        parent,
+        x if stacked else x + label_w,
+        y + 16 if stacked else y,
+        total * seg_w + (total - 1) * gap,
+        seg_h,
+        gap=gap,
     )
     cells = []
     for i in range(total):
