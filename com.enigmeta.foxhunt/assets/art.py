@@ -52,7 +52,7 @@ SELF_FOUND_BADGE = [
     "roooodr.",
     "rododor.",
     "roodoor.",
-    ".rooorr..",
+    ".rooor...",
     "..ror...",
     "...r....",
 ]
