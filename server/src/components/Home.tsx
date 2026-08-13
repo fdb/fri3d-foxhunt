@@ -499,24 +499,18 @@ export const Home = () => (
         <h2>Gemaakt door</h2>
         <div class="cards cards-3">
           <div class="card">
-            <h3>
-              Frederik De Bleser
-            </h3>
+            <h3>Frederik De Bleser</h3>
             <p>Badge-app, spelregels en server.</p>
           </div>
           <div class="card">
-            <h3>
-              Hans Robbeers
-            </h3>
+            <h3>Hans Robbeers</h3>
             <p>
-              LoRa-kant: het radiowerk dat een verstopte zender een vos maakt
-              om op te jagen.
+              LoRa-kant: het radiowerk dat een verstopte zender een vos maakt om
+              op te jagen.
             </p>
           </div>
           <div class="card">
-            <h3>
-              Erlin, Fran en Fien
-            </h3>
+            <h3>Erlin, Fran en Fien</h3>
             <p>De pixelkunst: de beesten, de maatjes, animaties.</p>
           </div>
         </div>

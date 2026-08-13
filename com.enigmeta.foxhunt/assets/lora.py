@@ -48,33 +48,33 @@ import lvgl as lv
 FREQ_MHZ = 869.4625
 BW_KHZ = 125.0
 SF = 7
-CR = 5            # 4/5; the driver takes the denominator, RadioLib convention
+CR = 5  # 4/5; the driver takes the denominator, RadioLib convention
 SYNC_WORD = 0x12  # expands to 0x1424, RadioLib's private sync word
 PREAMBLE = 8
-TCXO_V = 3.0       # this board's TCXO (fri3d_2026); the XIAO carrier wants 1.8V
+TCXO_V = 3.0  # this board's TCXO (fri3d_2026); the XIAO carrier wants 1.8V
 CURRENT_LIMIT = 140.0  # copied from the known-working main.py bring-up; the
-                        # spec's 120 mA (§7) is sized for HP (+14 dBm) TX,
-                        # which this app never does — LP (§7, -9 dBm, the
-                        # SX1262 minimum) is the only power CODE_ENTRY ever
-                        # uses, so 140 mA is harmless headroom, not a risk.
-LP_POWER = 4      # dBm; hunter devices only ever transmit at LP (spec §6.2)
+# spec's 120 mA (§7) is sized for HP (+14 dBm) TX,
+# which this app never does — LP (§7, -9 dBm, the
+# SX1262 minimum) is the only power CODE_ENTRY ever
+# uses, so 140 mA is harmless headroom, not a risk.
+LP_POWER = 4  # dBm; hunter devices only ever transmit at LP (spec §6.2)
 
-RF_SW_PIN = 46            # fri3d_2026: high = receive path enabled
+RF_SW_PIN = 46  # fri3d_2026: high = receive path enabled
 REG_LORA_SYNC_WORD_MSB = 0x0740
 PACKET_TYPE_LORA = 0x01
 MODE_RX = 5
 CHIP_MODES = {2: "STBY_RC", 3: "STBY_XOSC", 4: "FS", 5: "RX", 6: "TX"}
 
-SETTLE_MS = 1000          # let the activity transition finish before touching SPI
+SETTLE_MS = 1000  # let the activity transition finish before touching SPI
 # Suggested cadence for whoever calls LINK.poll() from their own tick — tight
 # enough to keep up with ~30 ms airtime packets (§3) without demanding it.
 # HuntActivity already ticks at this rate for its own reasons (screens_hunt.py).
 SUGGESTED_POLL_MS = 250
-MODE_CHECK_MS = 1000      # real elapsed time between health checks, not a
-                          # call count — poll() is called at whatever cadence
-                          # each screen's own tick happens to run at
+MODE_CHECK_MS = 1000  # real elapsed time between health checks, not a
+# call count — poll() is called at whatever cadence
+# each screen's own tick happens to run at
 MAX_REJECTS_BEFORE_RESET = 20  # ~0.5 s of unreadable status before re-arming
-TX_DEADLINE_MS = 120       # generous vs. 31.0 ms airtime (§3) for TX_DONE to land
+TX_DEADLINE_MS = 120  # generous vs. 31.0 ms airtime (§3) for TX_DONE to land
 
 # sx1262.py's SPItransfer() waits for the chip's BUSY pin with a hardcoded
 # `timeout=5000` (ms) default -- TWICE per command (its own comment: once
@@ -97,7 +97,7 @@ SPI_BUSY_TIMEOUT_MS = 300
 # underscore-prefixed constants — see main.py, same convention).
 IRQ_RX_ANY = 0b0000000010 | 0b0000100000 | 0b0001000000  # RX_DONE|HEADER_ERR|CRC_ERR
 IRQ_TX_DONE = 0b0000000001
-IRQ_TX_ANY = IRQ_TX_DONE | 0b1000000000                   # TX_DONE|TIMEOUT
+IRQ_TX_ANY = IRQ_TX_DONE | 0b1000000000  # TX_DONE|TIMEOUT
 
 # CH32 expander config byte (fri3d_2026 only; see main.py):
 #   bit 4 = LoRa reset (1 = released)   bit 1 = LCD reset   bit 0 = AUX 3v3
@@ -105,20 +105,20 @@ EXPANDER_LORA_HELD = 0x03
 EXPANDER_LORA_RUN = 0x13
 
 STALE_MS = 90000  # ~1.7x the biggest example T_CYCLE (52s @ N_SLOTS=4, §4.1).
-                   # A fox this quiet is out of range, off, or orphaned (§4.3.4)
-                   # — not worth showing as "awake" to the player.
+# A fox this quiet is out of range, off, or orphaned (§4.3.4)
+# — not worth showing as "awake" to the player.
 
-LQ_PERIOD_MS = 300   # nominal fox broadcast cadence. Not part of the wire
-                          # format itself, just what the 5-LED "link quality"
-                          # meter (fox_radio.FoxReading.link) counts against.
+LQ_PERIOD_MS = 300  # nominal fox broadcast cadence. Not part of the wire
+# format itself, just what the 5-LED "link quality"
+# meter (fox_radio.FoxReading.link) counts against.
 LQ_WINDOW_MS = 5 * LQ_PERIOD_MS  # trailing window link_quality() scans
 
 # ───────────────────────────── wire format (spec §3) ────────────────────────
 TYPE_BEACON = 0x1
 TYPE_CODE_ENTRY = 0x2
 TYPE_PROOF = 0x3
-TYPE_FOUND = 0x4    # fox<->central only; hunter overhears and ignores it
-TYPE_ACK = 0x5      # fox<->central only; hunter overhears and ignores it
+TYPE_FOUND = 0x4  # fox<->central only; hunter overhears and ignores it
+TYPE_ACK = 0x5  # fox<->central only; hunter overhears and ignores it
 TYPE_PENDING = 0x6
 TYPE_FAIL = 0x7
 
@@ -227,18 +227,18 @@ def code_to_otc(code):
 # That's "busy", matching §5.3's "on FAIL or timeout -> network busy —
 # press to retry", kept apart from "wrong" so the player isn't told their
 # correct code was wrong.
-T_PEND_INITIAL = 3000        # ms; no PENDING yet on the first send -> start
-                              # repeating CODE_ENTRY (§5.3)
+T_PEND_INITIAL = 3000  # ms; no PENDING yet on the first send -> start
+# repeating CODE_ENTRY (§5.3)
 T_CODE_RETRY_INTERVAL = 1000  # ms between repeats after that (§5.3 "1 s intervals")
-N_CODE_RETRY = 5              # max CODE_ENTRY attempts before giving up (§5.3)
+N_CODE_RETRY = 5  # max CODE_ENTRY attempts before giving up (§5.3)
 T_VERIFY_HUNTER = 8500  # ms after PENDING to wait for PROOF/FAIL. Spec's
-                         # own §5.2 fox-side T_VERIFY is 12s, so this is
-                         # deliberately shorter than that margin: chosen for
-                         # a snappier UI at the cost of occasionally showing
-                         # "wrong" for a claim that was genuinely still in
-                         # flight and would have succeeded a moment later
-                         # (the late PROOF/FAIL is then silently dropped by
-                         # on_packet's self.done check). Trade accepted.
+# own §5.2 fox-side T_VERIFY is 12s, so this is
+# deliberately shorter than that margin: chosen for
+# a snappier UI at the cost of occasionally showing
+# "wrong" for a claim that was genuinely still in
+# flight and would have succeeded a moment later
+# (the late PROOF/FAIL is then silently dropped by
+# on_packet's self.done check). Trade accepted.
 
 
 class _Claim:
@@ -318,7 +318,7 @@ class LoRaLink:
         self.rf_sw = None
         self.is_fri3d = False
         self.available = False  # a radio chip is fitted at all
-        self.ready = False      # configured, verified, in continuous RX
+        self.ready = False  # configured, verified, in continuous RX
 
         self._last_health_check = 0
         self._consecutive_rejects = 0
@@ -327,15 +327,15 @@ class LoRaLink:
         self._stalls = 0
         self._resets = 0
 
-        self._last_fid = {}      # char -> last full FID byte seen in a BEACON
+        self._last_fid = {}  # char -> last full FID byte seen in a BEACON
         self._last_reading = {}  # char -> (rssi, ticks_ms) of that BEACON
-        self._recv_times = {}    # char -> deque of ticks_ms for every BEACON
-                                  # actually heard, pruned to LQ_WINDOW_MS.
-                                  # Kept separate from _last_reading above,
-                                  # which only remembers the single newest
-                                  # sample -- link_quality() needs the whole
-                                  # trailing set so it can literally count them.
-        self._claim = None       # the one in-flight CODE_ENTRY, or None
+        self._recv_times = {}  # char -> deque of ticks_ms for every BEACON
+        # actually heard, pruned to LQ_WINDOW_MS.
+        # Kept separate from _last_reading above,
+        # which only remembers the single newest
+        # sample -- link_quality() needs the whole
+        # trailing set so it can literally count them.
+        self._claim = None  # the one in-flight CODE_ENTRY, or None
 
     # ------------------------------------------------------------ lifecycle
 
@@ -396,10 +396,19 @@ class LoRaLink:
             print("lora: SPItransfer not found, busy-timeout patch skipped")
             return
 
-        def _fast_transfer(cmd, cmdLen, write, dataOut, dataIn, numBytes,
-                            waitForBusy, timeout=SPI_BUSY_TIMEOUT_MS):
-            return orig(cmd, cmdLen, write, dataOut, dataIn, numBytes,
-                        waitForBusy, timeout)
+        def _fast_transfer(
+            cmd,
+            cmdLen,
+            write,
+            dataOut,
+            dataIn,
+            numBytes,
+            waitForBusy,
+            timeout=SPI_BUSY_TIMEOUT_MS,
+        ):
+            return orig(
+                cmd, cmdLen, write, dataOut, dataIn, numBytes, waitForBusy, timeout
+            )
 
         self.radio.SPItransfer = _fast_transfer
 
@@ -432,11 +441,19 @@ class LoRaLink:
 
     def configure(self):
         self.radio.begin(
-            freq=FREQ_MHZ, bw=BW_KHZ, sf=SF, cr=CR,
-            syncWord=SYNC_WORD, preambleLength=PREAMBLE,
-            implicit=False, crcOn=True,
-            tcxoVoltage=TCXO_V, useRegulatorLDO=False,
-            blocking=True, currentLimit=CURRENT_LIMIT, power=LP_POWER,
+            freq=FREQ_MHZ,
+            bw=BW_KHZ,
+            sf=SF,
+            cr=CR,
+            syncWord=SYNC_WORD,
+            preambleLength=PREAMBLE,
+            implicit=False,
+            crcOn=True,
+            tcxoVoltage=TCXO_V,
+            useRegulatorLDO=False,
+            blocking=True,
+            currentLimit=CURRENT_LIMIT,
+            power=LP_POWER,
         )
         # No callback: drops straight into continuous receive (setRx
         # 0xFFFFFF) with DIO1 action cleared. We poll from LINK.poll(), never IRQ.
@@ -493,7 +510,9 @@ class LoRaLink:
 
         detail = "mode=%s sync=%02x%02x devErr=0x%04x" % (
             "DEAD" if mode is None else CHIP_MODES.get(mode, mode),
-            sync[0], sync[1], deverr,
+            sync[0],
+            sync[1],
+            deverr,
         )
         ok = mode == MODE_RX and sync[0] == 0x14 and sync[1] == 0x24 and deverr == 0
         return ok, detail
@@ -510,8 +529,10 @@ class LoRaLink:
             return self.bring_up(allow_hard_reset=False)
 
         self._stalls += 1
-        print("lora: found chip in %s, re-arming (stall #%d)"
-              % (CHIP_MODES.get(mode, mode), self._stalls))
+        print(
+            "lora: found chip in %s, re-arming (stall #%d)"
+            % (CHIP_MODES.get(mode, mode), self._stalls)
+        )
         try:
             self.radio.startReceive()
         except Exception as e:
@@ -534,7 +555,10 @@ class LoRaLink:
         try:
             if self.rx_pending():
                 self.read_packet()
-            elif time.ticks_diff(time.ticks_ms(), self._last_health_check) >= MODE_CHECK_MS:
+            elif (
+                time.ticks_diff(time.ticks_ms(), self._last_health_check)
+                >= MODE_CHECK_MS
+            ):
                 self._last_health_check = time.ticks_ms()
                 if not self.health_check():
                     self.ready = False
@@ -556,13 +580,17 @@ class LoRaLink:
             self._consecutive_rejects = 0
             return False
 
-        if (self.radio.getIrqStatus() != irq
-                or self.radio.getPacketType() != PACKET_TYPE_LORA):
+        if (
+            self.radio.getIrqStatus() != irq
+            or self.radio.getPacketType() != PACKET_TYPE_LORA
+        ):
             self._rejects += 1
             self._consecutive_rejects += 1
             if self._consecutive_rejects >= MAX_REJECTS_BEFORE_RESET:
-                print("lora: %d consecutive unreadable status reads, re-arming"
-                      % self._consecutive_rejects)
+                print(
+                    "lora: %d consecutive unreadable status reads, re-arming"
+                    % self._consecutive_rejects
+                )
                 self._consecutive_rejects = 0
                 self.soft_recover()
             return False
@@ -592,7 +620,7 @@ class LoRaLink:
             fid = parsed[1]
             if _fid_seq(fid) == 0:
                 return  # central's own beacon (§3.1) -- not a creature, and
-                         # this app has no TDMA role to sync it against (§4)
+                # this app has no TDMA role to sync it against (§4)
             char = _fid_char(fid)
             now = time.ticks_ms()
             self._last_fid[char] = fid
@@ -681,7 +709,8 @@ class LoRaLink:
         of "awake", since there is no compiled-in deployment list (§6.2)."""
         now = time.ticks_ms()
         return [
-            c for c, (_, seen) in self._last_reading.items()
+            c
+            for c, (_, seen) in self._last_reading.items()
             if time.ticks_diff(now, seen) <= STALE_MS
         ]
 

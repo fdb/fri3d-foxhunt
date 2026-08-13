@@ -72,9 +72,7 @@ def show(name):
     if name == "welkom":
         return _launch("screens_onboarding", "WelcomeActivity")
     if name in ("maatje-kop", "maatje-extra"):
-        activity = _launch(
-            "screens_onboarding", "CompanionActivity", {"name": "Robin"}
-        )
+        activity = _launch("screens_onboarding", "CompanionActivity", {"name": "Robin"})
         if name == "maatje-extra":
             activity._switch_tab(1)
         return activity

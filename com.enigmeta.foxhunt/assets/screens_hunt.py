@@ -42,9 +42,9 @@ from fox_radio import RADIO, rssi_to_bpm
 # yet" -- same idea as a laptop's sleep light. Phase comes from
 # time.ticks_ms(), not this screen's own 150ms tick count, so the breathing
 # rate stays the same regardless of poll cadence.
-SLEEP_PERIOD_MS = 2400   # one full breath in + out
+SLEEP_PERIOD_MS = 2400  # one full breath in + out
 SLEEP_COLOR = (0xB0, 0x22, 0x18)
-SLEEP_FLOOR = 0.06        # never fully black -- stays visibly "alive"
+SLEEP_FLOOR = 0.06  # never fully black -- stays visibly "alive"
 
 
 def _sleep_colors():
@@ -157,7 +157,7 @@ class HuntActivity(Activity):
             # eventually pushed it somewhere new.
             RADIO.reset_level(self.fox_id)
             level = 0  # mirror reads as "koud" too; r.level itself is just
-                       # a stale rssi carried forward, not a real signal
+            # a stale rssi carried forward, not a real signal
         else:
             leds.show_level(r.link)
             level = r.level

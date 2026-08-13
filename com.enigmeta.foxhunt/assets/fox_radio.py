@@ -1,4 +1,4 @@
-# fox_radio.py — the STUB boundary for the real LoRa / ARDF backend.
+# fox_radio.py — the screen-facing boundary for the LoRa / ARDF backend.
 #
 # fox_radio.RADIO is what every screen codes against (see FoxRadio below).
 # Two implementations: FakeFoxRadio, which drives the whole UI on desktop
@@ -51,13 +51,13 @@ def rssi_to_bpm(rssi):
 # logic, per fox, driving the 5 LEDs instead of a terminal bar. bpm above is
 # deliberately NOT changed to match — it stays the plain, fixed-span reading.
 LEVEL_WINDOW_MS = 8000  # shorter than the meter's 20s default: a hunt is
-                         # tens of seconds, not minutes, and an 8s-old sample
-                         # from a different approach shouldn't still be
-                         # setting today's range
-RANGE_PAD_DB = 1.0       # same padding as the meter, either side of observed
-MIN_SPAN_DB = 4.0        # same floor — never auto-range narrower than this
-LEVEL_GAMMA = 2.0         # same power-law default: expands peaks, so the
-                          # last stretch into a fox reads as clearly hotter
+# tens of seconds, not minutes, and an 8s-old sample
+# from a different approach shouldn't still be
+# setting today's range
+RANGE_PAD_DB = 1.0  # same padding as the meter, either side of observed
+MIN_SPAN_DB = 4.0  # same floor — never auto-range narrower than this
+LEVEL_GAMMA = 2.0  # same power-law default: expands peaks, so the
+# last stretch into a fox reads as clearly hotter
 
 
 def _clamp01(x):
@@ -76,7 +76,10 @@ class _LevelTracker:
     def push(self, rssi):
         now = time.ticks_ms()
         self._samples.append((now, rssi))
-        while self._samples and time.ticks_diff(now, self._samples[0][0]) > LEVEL_WINDOW_MS:
+        while (
+            self._samples
+            and time.ticks_diff(now, self._samples[0][0]) > LEVEL_WINDOW_MS
+        ):
             self._samples.popleft()
 
         lo, hi = self._range()
@@ -99,11 +102,11 @@ class FoxReading:
         self.fox_id = fox_id
         self.rssi = rssi  # dBm, the one measured value — feeds bpm, untouched
         self.level = level  # 0..5 hot/cold, auto-ranged (above) — home's
-                             # heat bars and other observers still read this
+        # heat bars and other observers still read this
         self.link = link  # 0..5 BEACONs actually received in the trailing
-                           # link-quality window -> HuntActivity's 5 LEDs
-                           # (screens_hunt.py); level above still drives
-                           # everything else that reads .level unchanged
+        # link-quality window -> HuntActivity's 5 LEDs
+        # (screens_hunt.py); level above still drives
+        # everything else that reads .level unchanged
         self.bearing = bearing  # degrees; present but UI ignores it (classic ARDF)
 
 
@@ -207,13 +210,13 @@ class FoxRadio:
 # counts real BEACONs; FakeFoxRadio has no real packets to count, so
 # _FakeLinkSim fabricates the same kind of arrival/drop history at the same
 # cadence, driven by the existing walk-toward-the-fox `_strength`.
-LINK_DROP_MIN = 0.0   # best-case per-broadcast drop chance, right on top of the fox
+LINK_DROP_MIN = 0.0  # best-case per-broadcast drop chance, right on top of the fox
 LINK_DROP_MAX = 0.65  # worst-case, at the edge of the simulated approach
-SILENCE_CHANCE = 0.004        # per simulated broadcast slot, chance the fox
-                               # goes quiet for a while — so the fade/ramp
-                               # behaviour has something to actually show on
-                               # desktop, not just gradually-improving reception
-SILENCE_MS = (2000, 6000)     # random length of a simulated silent stretch
+SILENCE_CHANCE = 0.004  # per simulated broadcast slot, chance the fox
+# goes quiet for a while — so the fade/ramp
+# behaviour has something to actually show on
+# desktop, not just gradually-improving reception
+SILENCE_MS = (2000, 6000)  # random length of a simulated silent stretch
 
 
 class _FakeLinkSim:
@@ -272,7 +275,7 @@ class FakeFoxRadio(FoxRadio):
     def active_foxes(self):
         ids = {c["id"] for c in CREATURES}
         act = [b for b in _AWAKE if b in ids]
-        return act[:self.active_cnt]
+        return act[: self.active_cnt]
 
     def start(self, fox_id):
         self._strength[fox_id] = 0.12
@@ -290,7 +293,7 @@ class FakeFoxRadio(FoxRadio):
         self._strength[fox_id] = max(0.0, min(1.0, s))
 
     def poll(self):
-        self.active_cnt = (self.active_cnt+1)%5 # ranges [0-4]
+        self.active_cnt = (self.active_cnt + 1) % 5  # ranges [0-4]
 
     def reading(self, fox_id):
         s = self._strength.get(fox_id, 0.12)
@@ -298,7 +301,9 @@ class FakeFoxRadio(FoxRadio):
         s = max(0.0, min(1.0, s))
         self._strength[fox_id] = s
         rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
-        return FoxReading(fox_id, rssi, self._level(fox_id, rssi), link=self._link(fox_id, s))
+        return FoxReading(
+            fox_id, rssi, self._level(fox_id, rssi), link=self._link(fox_id, s)
+        )
 
     def peek(self, fox_id):
         # No drift: reading() simulates walking toward the fox, and the home
@@ -311,7 +316,9 @@ class FakeFoxRadio(FoxRadio):
         # not a screen is watching — so ticking it here is harmless too.
         s = self._strength.get(fox_id, 0.12)
         rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
-        return FoxReading(fox_id, rssi, self._level(fox_id, rssi), link=self._link(fox_id, s))
+        return FoxReading(
+            fox_id, rssi, self._level(fox_id, rssi), link=self._link(fox_id, s)
+        )
 
     def submit_code(self, fox_id, code, on_result):
         # A one-shot timer stands in for the round trip; the verdict is decided

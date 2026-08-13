@@ -29,8 +29,9 @@ LVGL are all MIT.
 
 The drawn assets and everything mechanically derived from them. Sources first:
 
-- `artwork/**` — the Aseprite files and PNGs: `animals/` (the creatures),
-  `companions/` (maatje heads, accessories), `title-screen/`.
+- `artwork/**` — the Aseprite/Acorn files and PNGs: `animals/` (the creatures),
+  `companions/` (maatje heads and accessories), `icons/`, `title-screen/`, and
+  the promotional collage.
 
 Then the generated derivatives, which carry the same licence as what they were
 baked from even though they look like code:
@@ -39,6 +40,8 @@ baked from even though they look like code:
   atlas and its palette index (`scripts/bake_sprites.sh`).
 - `com.enigmeta.foxhunt/assets/title-screen/title-screen.png` — palettized mirror
   of the banner.
+- `com.enigmeta.foxhunt/assets/icons/own-discovery-check.png` — palettized mirror
+  of the provenance icon.
 - `server/static/art/silhouettes/*.png`, `server/static/vos.png` — the public
   site's silhouettes and favicon.
 - `server/src/lib/companion-art.ts` — companion layers inlined as data URIs

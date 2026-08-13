@@ -2,6 +2,7 @@ import importlib.util
 import sys
 import unittest
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 
@@ -23,6 +24,26 @@ class FakeTimer:
         self.callback(self)
 
 
+class FakeTime(ModuleType):
+    def __init__(self):
+        super().__init__("time")
+        self.now = 0
+
+    def ticks_ms(self):
+        return self.now
+
+    @staticmethod
+    def ticks_diff(left, right):
+        return left - right
+
+    @staticmethod
+    def ticks_add(value, delta):
+        return value + delta
+
+    def advance(self, milliseconds):
+        self.now += milliseconds
+
+
 class FoxRadioTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -37,15 +58,19 @@ class FoxRadioTest(unittest.TestCase):
             return timer
 
         lv.timer_create = timer_create
+        cls.time = FakeTime()
         spec = importlib.util.spec_from_file_location(
             "fox_radio_under_test", ASSETS / "fox_radio.py"
         )
         cls.module = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, {"lvgl": lv}):
             spec.loader.exec_module(cls.module)
+        cls.module.time = cls.time
 
     def setUp(self):
         self.timers.clear()
+        self.time.now = 0
+        self.module.random.seed(0)
         self.radio = self.module.FakeFoxRadio()
 
     def test_submit_is_pending_for_half_a_second(self):
@@ -79,19 +104,40 @@ class FoxRadioTest(unittest.TestCase):
         self.assertEqual(self.module.rssi_to_bpm(-40), 215)
         self.assertEqual(self.module.rssi_to_bpm(-120), 135)
 
-    def test_level_spans_the_whole_bar_across_the_rssi_range(self):
-        self.assertEqual(self.module.rssi_to_level(self.module.RSSI_NEAR), 5)
-        self.assertEqual(self.module.rssi_to_level(self.module.RSSI_FAR), 0)
-        # out of range on either side clamps, never wraps past the bar
-        self.assertEqual(self.module.rssi_to_level(-10), 5)
-        self.assertEqual(self.module.rssi_to_level(-200), 0)
+    def test_level_auto_ranges_each_fox_independently(self):
+        first = self.radio._level(3, -100)
+        self.time.advance(100)
+        warmer = self.radio._level(3, -70)
 
-    def test_reading_reports_an_rssi_that_agrees_with_its_level(self):
+        # The same absolute signal is the first sample in fox 4's own window,
+        # so it starts near the middle instead of inheriting fox 3's hot end.
+        other_fox = self.radio._level(4, -70)
+
+        self.assertLess(first, warmer)
+        self.assertEqual(warmer, 5)
+        self.assertEqual(other_fox, first)
+
+    def test_level_window_forgets_old_extremes(self):
+        tracker = self.module._LevelTracker()
+        baseline = tracker.push(-100)
+        self.time.advance(100)
+        self.assertEqual(tracker.push(-70), 5)
+
+        self.time.advance(self.module.LEVEL_WINDOW_MS + 1)
+        self.assertEqual(tracker.push(-70), baseline)
+
+    def test_reading_reports_bounded_levels_that_rise_with_the_walk(self):
         self.radio.start(3)
+        readings = []
         for _ in range(20):
             r = self.radio.reading(3)
             self.assertTrue(self.module.RSSI_FAR <= r.rssi <= self.module.RSSI_NEAR)
-            self.assertEqual(r.level, self.module.rssi_to_level(r.rssi))
+            self.assertTrue(0 <= r.level <= 5)
+            readings.append(r)
+            self.time.advance(100)
+
+        self.assertGreater(readings[-1].rssi, readings[0].rssi)
+        self.assertGreater(readings[-1].level, readings[0].level)
 
     def _verdict(self, fox_id, code):
         results = []

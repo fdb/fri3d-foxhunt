@@ -3,9 +3,10 @@
 # Two legs, and only one of them is built. HttpRegistrar does the cloud leg
 # for real: WiFi + JSON against server/ (Hono on Cloudflare Workers). The
 # bridge leg — asking the LoRa bridge to mint a hunter id over the air — has
-# no protocol yet, the same way fox_radio is still a stub, so it reports
-# "skip": exactly what a badge with no antenna already does, and the server
-# has always treated hunter_id as NULL-until-an-antenna-is-attached.
+# no protocol yet, so it reports "skip": exactly what a badge with no antenna
+# already does, and the server has always treated hunter_id as
+# NULL-until-an-antenna-is-attached. Fox hunting itself does have a real LoRa
+# path; only registration's bridge leg is absent.
 #
 # FakeRegistrar stays for offline work and for walking the error paths its
 # flags describe. Swap REGISTRAR at the bottom of this file.

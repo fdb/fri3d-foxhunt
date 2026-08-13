@@ -2,21 +2,31 @@
   "profile": {
     "name": "Robin",
     "head": "vos",
-    "accs": ["bril"],
+    "accs": [
+      "bril"
+    ],
     "bg": 1,
     "badge_id": "a4:cf:12:9b:03:7f",
     "hunter_id": 42,
     "synced": true,
     "since": 1786352400
   },
-  "caught": [0, 1, 2, 3],
+  "caught": [
+    0,
+    1,
+    2,
+    3
+  ],
   "origins": {
     "0": "vangst",
     "1": "start",
     "2": "vangst",
     "3": "spoor"
   },
-  "zelf": [0, 2],
+  "zelf": [
+    0,
+    2
+  ],
   "zelf_dates": {
     "0": "2026-08-08",
     "2": "2026-08-09"
@@ -78,7 +88,9 @@
       "dag": "2026-08-09"
     }
   ],
-  "flags": ["uitleg_gezien"],
+  "flags": [
+    "uitleg_gezien"
+  ],
   "visitor": {
     "started": 1786352400,
     "slot": 0,
