@@ -4,7 +4,7 @@
   "short_description": "Vang de beesten van het bos!",
   "long_description": "Jaag op verstopte LoRa-zenders met je antenne en verzamel alle beesten in je boek.",
   "fullname": "com.enigmeta.foxhunt",
-  "version": "0.10.0",
+  "version": "1.0.0",
   "category": "games",
   "activities": [
     {
