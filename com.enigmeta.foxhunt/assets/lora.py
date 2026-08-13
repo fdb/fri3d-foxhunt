@@ -76,6 +76,23 @@ MODE_CHECK_MS = 1000      # real elapsed time between health checks, not a
 MAX_REJECTS_BEFORE_RESET = 20  # ~0.5 s of unreadable status before re-arming
 TX_DEADLINE_MS = 120       # generous vs. 31.0 ms airtime (§3) for TX_DONE to land
 
+# sx1262.py's SPItransfer() waits for the chip's BUSY pin with a hardcoded
+# `timeout=5000` (ms) default -- TWICE per command (its own comment: once
+# before CS goes low, once after) -- and nothing in the call chain we use
+# (getStatus, getIrqStatus, readRegister, SPIwriteCommand, SPIreadCommand)
+# forwards a timeout up to its caller, so there is no legitimate parameter
+# to lower it with. We don't own that file (see _patch_busy_timeout, called
+# from start()), so this is a monkeypatched INSTANCE override, not a driver
+# change. 5000ms is sized to eventually give up on a genuinely dead chip,
+# not to stay responsive: BUSY on a healthy SX126x clears in the low single
+# digit milliseconds even for the slowest operations (calibration, TCXO
+# startup) -- this leaves that generous headroom while cutting how long a
+# truly wedged chip takes to be noticed (health_check's chip_mode(), and
+# every rx_pending() poll -- measured at 5000-5003ms per call before this
+# fix) from seconds down to a fraction of one. Tune upward if a real board
+# legitimately needs longer for some command this app happens to exercise.
+SPI_BUSY_TIMEOUT_MS = 300
+
 # Bit values taken from sx1262.py (kept local rather than importing the
 # underscore-prefixed constants — see main.py, same convention).
 IRQ_RX_ANY = 0b0000000010 | 0b0000100000 | 0b0001000000  # RX_DONE|HEADER_ERR|CRC_ERR
@@ -337,6 +354,7 @@ class LoRaLink:
             print("lora: no LoRa radio fitted (LoRaManager.radioChip is None)")
             return
         self.available = True
+        self._patch_busy_timeout()  # before ANY SPI traffic -- see constant above
 
         self.is_fri3d = DeviceInfo.hardware_id == "fri3d_2026"
         if self.is_fri3d:
@@ -354,6 +372,36 @@ class LoRaLink:
         # lv.timer costs nothing and needs no thread.
         t = lv.timer_create(lambda _t: self.bring_up(), SETTLE_MS, None)
         t.set_repeat_count(1)
+
+    def _patch_busy_timeout(self):
+        """Rebind sx1262.py's SPItransfer() BUSY-wait timeout down to
+        SPI_BUSY_TIMEOUT_MS (see that constant for why) -- on this radio
+        INSTANCE only, since sx1262.py itself isn't ours to edit.
+
+        `orig` is grabbed while SPItransfer is still resolved through the
+        class, so it comes back as a normal bound method (self already
+        curried in). Assigning the wrapper onto self.radio.SPItransfer
+        afterward puts a plain function in the INSTANCE's __dict__, which
+        shadows the class method without going through the descriptor
+        protocol -- so every internal self.SPItransfer(...) call inside
+        sx1262.py (SPIreadCommand, SPIwriteCommand, readRegister) finds the
+        instance attribute first and calls it as a plain function, no
+        implicit self, which is exactly why the wrapper below doesn't take
+        one either -- its parameter list has to match SPItransfer's own,
+        self excluded.
+        """
+        try:
+            orig = self.radio.SPItransfer
+        except AttributeError:
+            print("lora: SPItransfer not found, busy-timeout patch skipped")
+            return
+
+        def _fast_transfer(cmd, cmdLen, write, dataOut, dataIn, numBytes,
+                            waitForBusy, timeout=SPI_BUSY_TIMEOUT_MS):
+            return orig(cmd, cmdLen, write, dataOut, dataIn, numBytes,
+                        waitForBusy, timeout)
+
+        self.radio.SPItransfer = _fast_transfer
 
     def bring_up(self, allow_hard_reset=True):
         detail = "not attempted"
