@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release to BadgeHub"
+  short_description: "Check, package, and document BadgeHub releases"
+  default_prompt: "Use $release-to-badgehub to prepare the current version for a BadgeHub upload."

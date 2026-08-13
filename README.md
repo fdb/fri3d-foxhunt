@@ -89,6 +89,21 @@ The app never touches a pin. The MicroPythonOS **board layer**
 (`mpos.lights`, the buzzer audio output) is gated: we call it, check the return,
 and fall back (on-screen LED mirror, silent audio) on desktop.
 
+## Build a BadgeHub package
+
+Build the uploadable, bytecode-only `.mpk` from the version in the app manifest:
+
+```bash
+scripts/build_mpk.sh
+```
+
+The artifact is written to `dist/com.enigmeta.foxhunt_<version>.mpk`. Before a
+release, run `scripts/prepare_badgehub_release.sh`; it performs the full local
+gate, verifies a second build is byte-identical, inspects the archive, and
+collects the Git context used for release notes. The repository's
+`release-to-badgehub` skill guides the remaining code review and hardware smoke
+test.
+
 ## Credits
 
 - **Frederik De Bleser** — the game: badge app, server.
