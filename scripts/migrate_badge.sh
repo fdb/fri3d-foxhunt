@@ -211,8 +211,21 @@ fi
 
 if [[ "$old_app" == "True" || "$old_prefs" == "True" ]]; then
 phase "Removing $OLD_ID..."
+# Deleting the files is not enough: MicroPythonOS runs one interpreter, so
+# the old app's modules sit in sys.modules with __file__ pointing at a
+# package that no longer exists, and keep serving their code to anything
+# that imports them. The deploy's own eviction cannot help — it matches
+# __file__ against ITS app dir, so the old package's modules are invisible
+# to it and it truthfully reports evicting 0. Measured: after a migration
+# the badge still answered from apps/$OLD_ID/assets/pluk_radio.mpy while
+# the correct module sat on flash unread.
 "${MP[@]}" exec "
-import os
+import os, sys
+gone = [n for n, m in sys.modules.items()
+        if '$OLD_ID' in str(getattr(m, '__file__', ''))]
+for n in gone:
+    del sys.modules[n]
+print('evicted', len(gone), 'stale module(s)')
 def rmtree(p):
     try:
         entries = os.listdir(p)
