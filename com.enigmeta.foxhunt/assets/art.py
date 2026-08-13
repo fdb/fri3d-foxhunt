@@ -27,18 +27,19 @@ HEART = [
     "...krk...",
     "....k....",
 ]
-# The upright battery uses HEART's 9x8 footprint so both five-icon rows align
-# exactly. The caller supplies a green fill for charged cells and a pale fill
-# for empty cells; the terminal and case keep their dark outline in both.
+# The horizontal battery uses HEART's 9x8 footprint so both five-icon rows
+# align exactly. Its two-pixel terminal makes the silhouette recognisable even
+# at 2x scale. The caller supplies a green fill for charged cells and a pale
+# fill for empty cells; the terminal and case keep their dark outline in both.
 BATTERY = [
-    "...kkk...",
-    "..kgggk..",
-    ".kgggggk.",
-    ".kgggggk.",
-    ".kgggggk.",
-    ".kgggggk.",
-    ".kgggggk.",
-    ".kkkkkkk.",
+    ".........",
+    "kkkkkkk..",
+    "kgggggk..",
+    "kgggggkkk",
+    "kgggggkkk",
+    "kgggggk..",
+    "kkkkkkk..",
+    ".........",
 ]
 
 # A hunter's proof-of-discovery check, authored in
