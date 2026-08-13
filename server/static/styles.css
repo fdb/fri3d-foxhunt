@@ -143,9 +143,8 @@ th {
   background: var(--surface-soft);
 }
 
-/* The public scoreboard is a big-screen view: two genuinely separate boards,
-   with each player placed by hunter_id. They collapse only when the viewport
-   can no longer give both tables a useful amount of room. */
+/* The public scoreboard fills a landscape display with two separate top-ten
+   boards, followed by two compact social podiums. */
 #scoreboard {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -199,7 +198,7 @@ main .scoreboard-heading h2 {
 }
 
 #scoreboard table {
-  min-width: 760px;
+  min-width: 720px;
 }
 
 #scoreboard td.score {
@@ -214,6 +213,108 @@ main .scoreboard-heading h2 {
 
 #scoreboard .meter {
   width: 72px;
+}
+
+.scoreboard-spotlights {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.spotlight {
+  overflow: hidden;
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+}
+
+.spotlight-heading {
+  padding: 0.75rem 0.9rem;
+  background: var(--gold);
+  border-bottom: 3px solid var(--ink);
+}
+
+.spotlight-social .spotlight-heading {
+  background: var(--terra);
+  color: var(--cream);
+}
+
+main .spotlight-heading h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.spotlight-heading p {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.spotlight ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.spotlight li {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.8rem;
+  border-right: 2px solid var(--border-rest);
+}
+
+.spotlight li:last-child {
+  border-right: 0;
+}
+
+.spotlight-rank {
+  color: var(--gold-d);
+  font-family: var(--font-pixel);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.spotlight-player {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.spotlight-player strong,
+.spotlight-value {
+  font-family: var(--font-pixel);
+}
+
+.spotlight-player strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spotlight-player small {
+  color: var(--text-muted);
+}
+
+.spotlight-value {
+  grid-column: 3;
+  color: var(--green-d);
+  font-size: 1rem;
+}
+
+.spotlight-social .spotlight-value {
+  color: var(--terra-d);
+}
+
+.spotlight li.empty {
+  display: block;
+  grid-column: 1 / -1;
+  border: 0;
 }
 
 td.rank {
@@ -389,8 +490,20 @@ td .tag-starter {
 }
 
 @media (max-width: 1200px) {
-  #scoreboard {
+  #scoreboard,
+  .scoreboard-spotlights {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .spotlight ol {
+    grid-template-columns: 1fr;
+  }
+
+  .spotlight li {
+    border-right: 0;
+    border-bottom: 2px solid var(--border-rest);
   }
 }
 

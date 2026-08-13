@@ -41,6 +41,7 @@ export interface ScoreRow {
   players_helped: number;
   pluks_scored: number;
   players_met: number;
+  sparks: number;
   bonded: number;
   // The two ranking keys — computed in fetchScores from lib/scoring values,
   // never mixed: a jager ranks on hunter_score, a verzamelaar on
@@ -55,4 +56,6 @@ export interface ScoreRow {
 export interface ScoreBoards {
   jagers: ScoreRow[];
   verzamelaars: ScoreRow[];
+  most_helpful: ScoreRow[];
+  most_social: ScoreRow[];
 }

@@ -97,6 +97,7 @@ interface ScoreCountRow {
   players_helped: number;
   pluks_scored: number;
   players_met: number;
+  sparks: number;
   bonded: number;
   last_found: string | null;
 }
@@ -146,6 +147,11 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
                   AND vs.occurred_at >= ${CAMP_START_S}
                   AND vs.occurred_at <  ${CAMP_END_S})
                 AS players_met,
+              (SELECT COUNT(*) FROM verified_sparks vs
+                WHERE (vs.player_a = p.id OR vs.player_b = p.id)
+                  AND vs.occurred_at >= ${CAMP_START_S}
+                  AND vs.occurred_at <  ${CAMP_END_S})
+                AS sparks,
               MIN(p.bonded, ${ROSTER_SIZE}) AS bonded,
               MAX(pc.dt_found) AS last_found
        FROM players p
@@ -175,7 +181,6 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
         b.hunter_score - a.hunter_score ||
         b.self_found - a.self_found ||
         b.players_helped - a.players_helped ||
-        b.creatures_found - a.creatures_found ||
         a.name.localeCompare(b.name),
     );
   const verzamelaars = rows
@@ -188,7 +193,25 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
         b.creatures_found - a.creatures_found ||
         a.name.localeCompare(b.name),
     );
-  return { jagers, verzamelaars };
+  const most_helpful = jagers
+    .filter((r) => r.players_helped > 0)
+    .sort(
+      (a, b) =>
+        b.players_helped - a.players_helped ||
+        b.hunter_score - a.hunter_score ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 3);
+  const most_social = rows
+    .filter((r) => r.sparks > 0)
+    .sort(
+      (a, b) =>
+        b.sparks - a.sparks ||
+        b.players_met - a.players_met ||
+        a.name.localeCompare(b.name),
+    )
+    .slice(0, 3);
+  return { jagers, verzamelaars, most_helpful, most_social };
 }
 
 // "2026-08-02T12:34:56.789Z" -> "12:34"
@@ -231,6 +254,43 @@ const BeestenMeter = ({ found }: { found: number }) => (
   </td>
 );
 
+const Spotlight = ({
+  title,
+  subtitle,
+  scores,
+  value,
+  empty,
+  kind,
+}: {
+  title: string;
+  subtitle: string;
+  scores: ScoreRow[];
+  value: (score: ScoreRow) => string;
+  empty: string;
+  kind: "helpful" | "social";
+}) => (
+  <article class={`spotlight spotlight-${kind}`}>
+    <div class="spotlight-heading">
+      <h2>{title}</h2>
+      <p>{subtitle}</p>
+    </div>
+    <ol>
+      {scores.map((s, i) => (
+        <li>
+          <span class="spotlight-rank">{i + 1}</span>
+          <Companion code={s.profile_pic} size={48} />
+          <span class="spotlight-player">
+            <strong>{s.name}</strong>
+            <small>{hunterLabel(s.hunter_id)}</small>
+          </span>
+          <strong class="spotlight-value">{value(s)}</strong>
+        </li>
+      ))}
+      {scores.length === 0 && <li class="empty">{empty}</li>}
+    </ol>
+  </article>
+);
+
 // Two boards, two ranking keys, never one total (GAME_DESIGN.md, Scoring).
 // Each table shows its score's own breakdown beside the total, and nothing
 // of the other game's.
@@ -255,14 +315,13 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
               <th>Speler</th>
               <th>Hunter</th>
               <th>Score</th>
-              <th>Zelf</th>
               <th>Geholpen</th>
               <th>Beesten</th>
               <th>Laatst</th>
             </tr>
           </thead>
           <tbody>
-            {scores.jagers.map((s, i) => (
+            {scores.jagers.slice(0, 10).map((s, i) => (
               <tr>
                 <td class="rank">{i + 1}</td>
                 <td>
@@ -271,15 +330,14 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
                 <td>{s.name}</td>
                 <td class="muted">{hunterLabel(s.hunter_id)}</td>
                 <td class="score">{s.hunter_score}</td>
-                <td>{s.self_found}</td>
                 <td>{s.players_helped}</td>
-                <BeestenMeter found={s.creatures_found} />
+                <BeestenMeter found={s.self_found} />
                 <td class="muted">{shortTime(s.last_found)}</td>
               </tr>
             ))}
             {scores.jagers.length === 0 && (
               <tr>
-                <td class="empty" colspan={9}>
+                <td class="empty" colspan={8}>
                   Nog geen jagers met een antenne.
                 </td>
               </tr>
@@ -310,7 +368,7 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
             </tr>
           </thead>
           <tbody>
-            {scores.verzamelaars.map((s, i) => (
+            {scores.verzamelaars.slice(0, 10).map((s, i) => (
               <tr>
                 <td class="rank">{i + 1}</td>
                 <td>
@@ -335,6 +393,25 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
           </tbody>
         </table>
       </div>
+    </div>
+
+    <div class="scoreboard-spotlights">
+      <Spotlight
+        title="Meest behulpzaam"
+        subtitle="Jagers die de meeste spelers hielpen met hun eigen vondsten"
+        scores={scores.most_helpful}
+        value={(s) => `${s.players_helped} geholpen`}
+        empty="Nog niemand geholpen."
+        kind="helpful"
+      />
+      <Spotlight
+        title="Meeste vonken"
+        subtitle="De sociaalste spelers, over jagers en verzamelaars samen"
+        scores={scores.most_social}
+        value={(s) => `${s.sparks} vonken`}
+        empty="Nog geen vonken geregistreerd."
+        kind="social"
+      />
     </div>
   </section>
 );
