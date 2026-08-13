@@ -309,7 +309,8 @@ other can share.
 
 The handshake and vonk are eligibility events, not points by themselves. A
 verified creature introduction may mark the recipient as **helped** by the
-giver, worth 50 points only the first time that giver helps that player. A
+giver, worth 50 points only the first time that giver helps that player, and
+only when the giver shares an own find (see *Scoring*). A
 snuffel between a given pair produces a **vonk** for both immediately on their
 first meeting, then once the
 pair's **6-hour cooldown** has passed. That cadence permits at most four
@@ -404,9 +405,12 @@ and the dossier preserves the social history:
 
 The recipient receives the creature. The giver receives 50 help points only if
 this is the first verified creature introduction from that giver to that
-recipient; later creatures to the same player earn no more points. If both
-directions introduce a creature, each giver can independently mark the other
-player as helped. A vonk with food only is still useful but score-neutral.
+recipient **and** the creature is the giver's own find (stamped `zelf
+gevonden`); later creatures to the same player, and any reshared creature,
+earn no points. If both directions introduce an own find, each giver can
+independently mark the other player as helped. A vonk with food only is still
+useful but score-neutral — though a first vonk with a new player counts on the
+verzamelaarslijst (see *Scoring*).
 
 ### How creatures spread socially
 
@@ -529,10 +533,12 @@ creatures are perpetually sad.
   spam. Pluk encounters have their own BSSID/phase ledger.
 - **Badge speed-dating.** Helping distinct players is intentionally better than
   farming one friend, but the scoreboard must not turn the food queue into a
-  booping assembly line. Credit each giver/recipient pair once and only after a
-  verified creature introduction; food-only vonken score nothing. Consider a
-  short joint payload if field play shows that the introduction is still too
-  cheap.
+  booping assembly line. Credit each giver/recipient pair once, only after a
+  verified introduction of the giver's own find; food-only vonken score no
+  help points. The verzamelaar's 25-point ontmoeting is likewise once per
+  pair and needs a corroborated vonk, so a boop line pays each pairing once
+  and then never again. Consider a short joint payload if field play shows
+  that meetings are still too cheap.
 - **Food dumping — resolved by the energy chain.** Bond comes from play, not
   from feeding, so 50 gifted berries make a very full creature, not max bond.
   The playful refusal ("creature is full / tired") is the visible face of a
@@ -828,11 +834,13 @@ out in this order — the first two ship in 2026, the rest are parked.
   than the costs being waived, so the meters never show a hungry creature
   happily playing.
 - **The bonded count (ships 2026).** The scoreboard shows how many
-  creatures each player has fully bonded, next to their catch count. The
-  badge reports the number itself (through the report outbox, below) —
-  self-claimed, display-only, and never the ranking key, so it stays
-  consistent with "public score counts only server-verified events" by not
-  being score at all: it is a public shelf for private care.
+  creatures each player has fully bonded. The badge reports the number
+  itself (through the report outbox, below) — self-claimed and bounded by
+  the server (capped at the roster size), and since the scoring split it is
+  one of the three scored components of the **verzamelaarsscore** (see
+  *Scoring*). It never touches the jager board, and the trust trade-off is
+  accepted there explicitly: care is local by design, so the server bounds
+  the claim rather than verifying it.
 
 ### Parked bond ideas (not 2026)
 
@@ -870,54 +878,93 @@ The full loop, by timescale:
 
 ## Scoring
 
-The public total combines two kinds of mastery but always shows their breakdown:
-**zelf gevonden** and **spelers geholpen**. A large number should never hide
-whether it came from hunting or generosity.
+There are **two scoring systems and two lists**, because hunting and gathering
+are different games. The scoreboard shows a **jagerslijst** (players with a
+`hunter_id`, ranked on jagersscore) and a **verzamelaarslijst** (players
+without one, ranked on verzamelaarsscore). The two never mix into one number:
+jager actions score nothing on the verzamelaar list and the other way around,
+so an antenna never buys a place on the children's board. Each player appears
+on exactly one list — the list of their current track. A verzamelaar who
+presses WORD JAGER moves to the jagerslijst; nothing is deleted (every event
+stays recorded), they simply compete as a jager from then on.
 
-### Discovery and help score
+Within each list a large number should never hide where it came from: both
+boards always show the breakdown beside the total.
 
-One transparent score combines verified hunting with social generosity:
+### Jagersscore
 
-> **score = Σ(points for self-found creatures) + 50 × distinct players helped**
+> **jagersscore = Σ(points for self-found creatures)
+> + 50 × distinct players helped with an own find**
 
-Initial self-find values are **base 100, rare 300, legendary 800 points**.
-These and the 50-point help value are tuning values, not protocol constants;
-keep them in server configuration.
+- **Zelf gevonden** — base 100, rare 300, legendary 800 points. A set sum, not
+  an event sum: each creature's tier value appears at most once per player.
+  Duplicate fox-code submissions return `already_self_found`, add zero points
+  and do not grant another care package.
+- **Spelers geholpen** — 50 points the first time this giver introduces a
+  creature to a given recipient, and **only when the introduced creature
+  carries the giver's own `zelf gevonden` stamp** at the moment of sharing.
+  Sharing your own finds is the scored generosity; **resharing scores
+  nothing** — relaying a rare you merely received, or passing on your
+  startbeest, still spreads the creature but earns no points. Deduplicate on
+  `(giver, recipient)`: every later creature or vonk between that pair is
+  worth zero.
 
 Creature ownership alone is score-neutral. A creature contributes discovery
 points only when the LoRa bridge has stamped it **zelf gevonden** for that
 player. A startbeest, pluk encounter or creature received through snuffelen is
 worth zero discovery points until that player personally finds its fox. This
-keeps the score about action rather than luck or collection size. The
-self-found contribution is a set sum, not an event sum: each creature's tier
-value appears at most once per player. Duplicate fox-code submissions return
-`already_self_found`, add zero points and do not grant another care package.
-
-A player is **helped** when they receive a verified, eligible creature directly
-from the scorer. Deduplicate on `(giver, recipient)`: the first corroborated
-introduction is worth 50 points, and every later creature or vonk between that
-pair is worth zero. Rare relays can therefore earn a gatherer help points
-without pretending the relayed creature was self-found. Generated food,
-food-only vonken and merely receiving a creature never score.
+keeps the score about action rather than luck or collection size. Generated
+food, food-only vonken and merely receiving a creature never score.
 
 Example: one base and one rare creature self-found, plus three distinct players
-helped, scores `100 + 300 + (3 × 50) = 550`.
+helped with those finds, scores `100 + 300 + (3 × 50) = 550`.
+
+### Verzamelaarsscore
+
+> **verzamelaarsscore = 50 × verified pluk encounters
+> + 25 × distinct players met with a vonk
+> + 100 × creatures raised to band 5**
+
+- **Plukvangsten** — 50 points per wild creature encounter the server
+  accepted (deduplicated per BSSID and camp phase, inside the report caps).
+  Food harvests stay local and score nothing.
+- **Nieuwe ontmoetingen** — 25 points per distinct player, on the pair's
+  first corroborated vonk. Later vonken with the same player are lovely and
+  score zero, so meeting someone new always beats farming a friend.
+- **Beste vrienden** — 100 points per creature at band 5, from the
+  badge-reported bonded count (capped at the roster size). This is the one
+  self-claimed component: care is local by design, so the server bounds it
+  rather than verifies it, and the cap plus "make cheating boring" carry the
+  trust. (This supersedes the earlier display-only rule in *What bond buys*:
+  the bonded count now ranks — but only inside the verzamelaarslijst.)
+
+The gatherer board deliberately rests on badge reports (pluk reports,
+corroborated snuffel reports, the bonded count) where the jager board rests on
+bridge attestation. That asymmetry is accepted: the gatherer game is the
+forgiving, local-first half, its reports are deduplicated, capped and fenced
+to the camp window, and a forged gatherer score is a boring single-player mod
+that never touches hunter provenance.
+
+All six values (100/300/800, 50 help, 50 pluk, 25 meet, 100 bonded) are tuning
+values, not protocol constants; keep them in server configuration, mirrored on
+the badge so the profile screen predicts the same numbers the board shows.
 
 ### Hunter progress
 
 - Unique creatures stamped zelf gevonden: physically finding a creature first met
   through others scores at its tier value, because the score is for finding
   the fox, not for first ownership.
-- Distinct players helped, at 50 points once per recipient.
+- Distinct players helped with an own find, at 50 points once per recipient.
 - Special discoveries and legendary appearances.
 
 ### Gatherer progress
 
-- Fully bonded creatures — the scoreboard's bonded count (self-reported,
-  display-only, never the ranking key).
+- The three scored components above: pluk encounters, new people met, and
+  fully bonded creatures.
 - Variety of forage finds and completed assignments.
 - Skills learned and dossier pages unlocked.
-- Vonken, playdates and rare creatures spread onward through vonk-geluk.
+- Playdates and rare creatures spread onward through vonk-geluk — score-free
+  reach, surfaced as generosity.
 
 ### Shared camp progress
 
@@ -974,9 +1021,11 @@ transports, in order of universality:
 - The same ESP-NOW link, held open, for richer playdates.
 - Camp WiFi and the cloud server for durable provenance, scoring and recovery.
 
-Public points favour verifiable, unique milestones: bridge-confirmed self-finds
-and the first corroborated creature introduction from one giver to each
-recipient. Vonken, food and repeat introductions are score-neutral. Personal
+Public points favour verifiable, unique milestones. On the jager board:
+bridge-confirmed self-finds and the first corroborated own-find introduction
+from one giver to each recipient. On the verzamelaar board: deduplicated pluk
+encounters, first-per-pair corroborated vonken and the bounded bonded count.
+Food, repeat introductions and reshared creatures are score-neutral. Personal
 care state remains forgiving and locally owned.
 
 ### How a creature reaches the profile
@@ -1047,9 +1096,12 @@ already work anywhere — only plukken is camp-bound, because it keys on the
   hands out the skip-the-game buttons. After teardown the stakes are zero —
   your badge, your rules is the point at this camp.
 - **The server fences score to the camp window.** Scored events — self-finds,
-  first helped-player introductions and any future bond-milestone reports — count only when they fall inside
-  the camp dates; outside the window the server still accepts grants
-  (creature spread, restores) but writes no score. This is a server rule,
+  first helped-player introductions, pluk encounters and first-per-pair
+  vonken — count only when they fall inside the camp dates; outside the
+  window the server still accepts grants (creature spread, restores) but
+  writes no score. (The bonded count is a running total rather than an
+  event, so it is bounded by the roster cap instead of the window until bond
+  milestones become reported events.) This is a server rule,
   never a badge rule: client toggles cannot guard score, because the
   protocol is public by Saturday. Pre-camp play therefore costs the
   scoreboard nothing — a kid who arrives with a full pantry and a loved
@@ -1101,10 +1153,16 @@ enough delight to carry the social economy?
   map how many are distinct physical walking destinations rather than radios
   clustered at one place.
 - Tuning numbers that need playtesting: the self-find values (initially
-  100/300/800) and helped-player value (initially 50), the bond weighting
-  inside a tier, the zin bonus size, the plukplek
+  100/300/800) and helped-player value (initially 50), the verzamelaarsscore
+  values (initially 50 per pluk encounter, 25 per new person, 100 per beste
+  vriend), the bond weighting inside a tier, the zin bonus size, the plukplek
   food reload, the 40%/45% base encounter curve, and energy cost/restore per
   play session.
+- Should vonk-geluk *prefer* the giver's own (`zelf gevonden`) creatures when
+  more than one candidate is eligible, now that only own-find introductions
+  score? Doing it deterministically on both badges needs a self-found bit per
+  advertised roster entry in the snuffel presence frame — a protocol change,
+  like the parked ambassadeurschap bit. Revisit together.
 - Which rewards remain local and which contribute to public scoring?
 - How many foxes will be deployed, and can their activation be staged across
   the weekend? How many players will have antennas? (Both numbers gate the
@@ -1141,5 +1199,7 @@ Following the one-word-per-thing rule:
 | **daily want** | **zin** | Parked (not 2026): a creature's seeded daily craving — one food or one game. Bonus band to fulfil; free to ignore. |
 | **best friend** | **beste vriend** | The band-5 state of one creature (the star). The per-creature scoreboard title is parked (not 2026); the scoreboard shows the bonded *count* instead. |
 | **report outbox** | — | The on-badge queue of badge→server reports (snuffel events, bonded count), flushed whenever WiFi works. |
+| **hunter score** | **jagersscore** | The jagerslijst's ranking key: Σ self-found tier points + 50 per distinct player helped with an own find. Resharing scores nothing. |
+| **gatherer score** | **verzamelaarsscore** | The verzamelaarslijst's ranking key: 50 per verified pluk encounter + 25 per distinct player met with a vonk + 100 per band-5 creature. Never mixed with the jagersscore. |
 
 Retired: **foerageren** (say plukken).
