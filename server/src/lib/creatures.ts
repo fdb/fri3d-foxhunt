@@ -43,6 +43,7 @@ export const CREATURES: Creature[] = [
   { id: 13, naam: "Glitch Vos", rarity: "leg" },
   { id: 14, naam: "Party Vos", rarity: "leg" },
   { id: 15, naam: "Zwarte Vos", rarity: "leg" },
+  { id: 25, naam: "Dolfenix", rarity: "leg" },
 ];
 
 const BY_ID = new Map(CREATURES.map((c) => [c.id, c]));

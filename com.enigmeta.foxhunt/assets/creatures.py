@@ -325,6 +325,19 @@ CREATURES = [
         "favoriet": "noot",
         "weetje": "De Zwarte Vos zie je pas als hij dat wil.",
     },
+    {
+        "id": 25,
+        "naam": "Dolfenix",
+        "rarity": "leg",
+        "code": "2608",
+        "beacon": 25,
+        "img": "3_dolfenix.png",
+        "anim": True,
+        "soort": "Vuurvin",
+        "biotoop": "Vulkanische zee",
+        "favoriet": "bes",
+        "weetje": "De Dolfenix duikt door golven en herrijst uit het schuim.",
+    },
 ]
 
 

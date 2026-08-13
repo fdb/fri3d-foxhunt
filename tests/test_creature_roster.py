@@ -19,6 +19,15 @@ def load_badge_roster():
     return module.CREATURES
 
 
+def load_atlas():
+    spec = importlib.util.spec_from_file_location(
+        "atlas_under_test", ASSETS / "atlas.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.SPRITES
+
+
 def load_server_roster():
     source = SERVER_ROSTER.read_text()
     return [
@@ -43,6 +52,13 @@ class CreatureRosterTest(unittest.TestCase):
         animal_images = {path.name for path in ANIMALS.glob("[123]_*.png")}
 
         self.assertEqual(roster_images, animal_images)
+
+    def test_every_creature_sprite_sheet_is_marked_animated(self):
+        atlas = load_atlas()
+
+        for creature in load_badge_roster():
+            _, frames = atlas["animals/" + creature["img"]]
+            self.assertEqual(creature.get("anim", False), frames > 1, creature["naam"])
 
     def test_server_roster_matches_badge_identity_name_and_rarity(self):
         badge = [
