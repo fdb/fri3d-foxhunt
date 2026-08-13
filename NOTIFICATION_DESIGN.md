@@ -72,7 +72,7 @@ projection of it, same as the scoreboard.
 
 ### FoxhuntNotifierService (new: `assets/notifier.py`)
 
-Declared in `META-INF/MANIFEST.JSON`:
+Declared in `MANIFEST.JSON`:
 
 ```json
 "services": [{"entrypoint": "assets/notifier.py",

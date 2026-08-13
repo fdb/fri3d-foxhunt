@@ -641,7 +641,7 @@ def _build_info(base=None):
     if base is None:
         base = __file__.rsplit("/", 2)[0]
     try:
-        with open(base + "/META-INF/MANIFEST.JSON") as fh:
+        with open(base + "/MANIFEST.JSON") as fh:
             version = json.load(fh).get("version", "?")
     except (OSError, ValueError):
         version = "?"

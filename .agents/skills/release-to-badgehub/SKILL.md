@@ -23,7 +23,7 @@ Read [references/release-review.md](references/release-review.md) completely and
 
 Always inspect the actual contents of these files:
 
-- `com.enigmeta.foxhunt/META-INF/MANIFEST.JSON`
+- `com.enigmeta.foxhunt/MANIFEST.JSON`
 - `scripts/build_mpk.sh` and `scripts/get_mpy_cross.sh`
 - `.github/workflows/build-mpk.yml`
 - the manifest entrypoint and its activity class

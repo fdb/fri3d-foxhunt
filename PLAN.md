@@ -155,14 +155,14 @@ App-structuur (Android-achtig model):
 
 ```
 com.enigmeta.foxhunt/
-├── META-INF/MANIFEST.JSON      # name, fullname, version, activities[]
+├── MANIFEST.JSON               # name, fullname, version, activities[]
 ├── assets/
 │   ├── foxhunt.py         # Activity-subclass, onCreate() → setContentView
 │   ├── screens.py              # 4 schermen, bouwt LVGL-objecten op de coords van §4
 │   ├── sprites.py              # SH-shapes, PALS-paletten, roster
 │   ├── pixel.py                # sprite → lv.canvas (pixel-blit met palet)
 │   └── hunt.py                 # RSSI-lezen, mapping, simulator
-└── res/mipmap-mdpi/icon_64x64.png
+└── icon_64x64.png
 ```
 
 - **UI**: elk scherm = een `lv.obj()` root; kinderen met absolute `set_pos(x,y)` /

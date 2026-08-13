@@ -26,11 +26,8 @@ class BuildInfoTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.app = Path(self.temp.name)
-        (self.app / "META-INF").mkdir()
         (self.app / "assets").mkdir()
-        (self.app / "META-INF" / "MANIFEST.JSON").write_text(
-            json.dumps({"version": "0.9.0"})
-        )
+        (self.app / "MANIFEST.JSON").write_text(json.dumps({"version": "0.9.0"}))
         self.build_info = load_build_info()
 
     def tearDown(self):

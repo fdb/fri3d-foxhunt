@@ -19,7 +19,7 @@ same source.
 
 ```
 com.enigmeta.foxhunt/      # the MicroPythonOS app (the thing that ships)
-  META-INF/MANIFEST.JSON
+  MANIFEST.JSON
   assets/                    # all the Python; assets/ is on sys.path at runtime
     foxhunt.py          # entry: FoxhuntActivity — splash + registered? router
     screen_home.py           # the "boek" grid, profile header, nearby foxes
@@ -34,7 +34,7 @@ com.enigmeta.foxhunt/      # the MicroPythonOS app (the thing that ships)
     leds.py                  # 5 NeoPixels hot/cold (no-op on desktop)
     sound.py                 # buzzer RTTTL jingles (no-op on desktop)
     store.py                 # caught-set persistence (SharedPreferences)
-  res/mipmap-mdpi/icon_64x64.png
+  icon_64x64.png
 layout/foxhunt-layout.html   # pixel-exact 320x240 layout spec (source of truth)
 PLAN.md                           # architecture + decisions
 proposal.md / app.md              # original workshop brief

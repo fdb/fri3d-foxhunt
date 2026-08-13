@@ -12,7 +12,7 @@ cd ..
 # source tree faithfully.
 
 APP_DIR="com.enigmeta.foxhunt"
-MANIFEST="$APP_DIR/META-INF/MANIFEST.JSON"
+MANIFEST="$APP_DIR/MANIFEST.JSON"
 DIST="dist"
 base_override=""
 allow_dirty=0
@@ -126,7 +126,7 @@ if printf '%s\n' "$archive_entries" | rg -q '(^|/)(__pycache__|\.DS_Store)(/|$)'
     echo "error: package contains development artifacts" >&2
     exit 1
 fi
-cmp -s "$MANIFEST" <(unzip -p "$mpk" "$app_id/META-INF/MANIFEST.JSON") || { echo "error: packaged manifest differs from source" >&2; exit 1; }
+cmp -s "$MANIFEST" <(unzip -p "$mpk" "$app_id/MANIFEST.JSON") || { echo "error: packaged manifest differs from source" >&2; exit 1; }
 
 while IFS= read -r source; do
     relative="${source#"$APP_DIR/"}"

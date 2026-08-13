@@ -35,14 +35,14 @@ cd "$(dirname "$0")/.."
 # Usage: scripts/mpk_to_badge.sh [--mpk PATH] [--port /dev/cu.usbmodemXXX]
 #
 #   --mpk PATH       package to install (default: dist/<fullname>_<version>.mpk
-#                    for the version in META-INF/MANIFEST.JSON)
+#                    for the version in MANIFEST.JSON)
 #   --port PORT      serial port (default: auto-detect /dev/cu.usbmodem*)
 #
 # Env overrides:
 #   BADGE_PORT       same as --port
 
 APP_DIR_SRC="com.enigmeta.foxhunt"
-MANIFEST="$APP_DIR_SRC/META-INF/MANIFEST.JSON"
+MANIFEST="$APP_DIR_SRC/MANIFEST.JSON"
 
 MPK=""
 PORT="${BADGE_PORT:-}"
@@ -182,7 +182,7 @@ def count_files(p):
     return n
 
 print("installed files:", count_files(dest))
-with open(dest + "/META-INF/MANIFEST.JSON") as fh:
+with open(dest + "/MANIFEST.JSON") as fh:
     m = json.load(fh)
 print("installed version:", m["version"], m["fullname"])
 AppManager.refresh_apps()

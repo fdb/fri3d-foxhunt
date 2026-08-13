@@ -65,7 +65,7 @@ fi
 MPY_CROSS="${MPY_CROSS:-$(scripts/get_mpy_cross.sh)}"
 [[ -x "$MPY_CROSS" ]] || { echo "error: mpy-cross not found at $MPY_CROSS (set MPY_CROSS, or let scripts/get_mpy_cross.sh build one)" >&2; exit 1; }
 
-version=$(uv run python -c "import json; print(json.load(open('$APP_SRC/META-INF/MANIFEST.JSON'))['version'])")
+version=$(uv run python -c "import json; print(json.load(open('$APP_SRC/MANIFEST.JSON'))['version'])")
 
 # ── Stage a badge-clean copy, compiled to .mpy (same as deploy_to_badge) ──
 STAGE_ROOT="$(mktemp -d)"
