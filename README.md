@@ -74,3 +74,10 @@ The app never touches a pin. The MicroPythonOS **board layer**
 320×240 display, input, LEDs and audio. Hardware that only exists on the badge
 (`mpos.lights`, the buzzer audio output) is gated: we call it, check the return,
 and fall back (on-screen LED mirror, silent audio) on desktop.
+
+## Licence
+
+Code is **GPL-2.0-only**, artwork is **CC BY-NC-SA 4.0**, and the fonts are
+third-party under the **OFL-1.1**. Which file is which — the bakes put artwork
+in code directories, so it is not a directory rule — is in
+[`LICENSING.md`](LICENSING.md).
