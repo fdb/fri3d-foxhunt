@@ -9,9 +9,22 @@
 # (stored zip, fixed mtimes, sorted entries).
 name: build
 
+# Work arrives through pull requests, so a bare `push:` alongside `pull_request:`
+# ran everything twice on every PR commit — once for the branch, once for the
+# merge. The usual shape, and the one here: PRs are the gate, and main is built
+# on push so the default branch always has a package of its own.
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
+
+# Superseded PR runs are pointless — a force-push or a follow-up commit makes
+# the previous answer irrelevant. Cancel those, but never cancel main: its runs
+# are the record of what the default branch built, and each commit deserves its
+# own artifact.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Kept a separate job from the packaging: a formatting slip and a broken
@@ -19,8 +32,8 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
       - run: scripts/format.sh --check
 
   # The suite is pure Python against the app's modules with mpos/lvgl stubbed,
@@ -30,24 +43,24 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
       - run: uvx pytest tests/ -q
 
   mpk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # build_mpk.sh reads the manifest version through `uv run python`.
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
 
       # Only the compiler binary is worth caching (~440 KB). The 100+ MB of
       # shallow git sources under src/ is deleted below before the post-run
       # cache save, so a warm run restores a single executable and skips both
       # the pin resolution and the make.
       - name: Cache mpy-cross
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/foxhunt/mpy-cross
           key: mpy-cross-${{ hashFiles('scripts/get_mpy_cross.sh') }}
@@ -58,7 +71,7 @@ jobs:
         if: always()
         run: rm -rf ~/.cache/foxhunt/mpy-cross/src
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: foxhunt-mpk-${{ github.sha }}
           path: dist/*.mpk

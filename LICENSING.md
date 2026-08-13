@@ -10,9 +10,8 @@ the directory is not a reliable guide.
 | Artwork | **CC BY-NC-SA 4.0** | [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt) |
 | Fonts (third-party) | **OFL-1.1** | [`LICENSES/OFL-1.1.txt`](LICENSES/OFL-1.1.txt) |
 
-Copyright © 2026 Frederik De Bleser and contributors. The LoRa side of the game
-— the radio that makes a hidden fox findable — is the work of Hans Robbeers, who
-holds the copyright in his contributions; see [Credits](#credits).
+Copyright © 2026 Frederik De Bleser and Hans Robbeers. Who made what is under
+[Credits](#credits).
 
 ## Code — GPL-2.0-only
 
