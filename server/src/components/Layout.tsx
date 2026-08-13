@@ -13,6 +13,7 @@ export const Layout = ({
   title,
   right,
   bare,
+  wide,
   description,
   poll,
   noindex,
@@ -21,6 +22,9 @@ export const Layout = ({
   title: string;
   right?: string;
   bare?: boolean;
+  // The live scoreboard is meant for a large shared display and needs room
+  // for its two boards. Debug pages keep the narrower reading column.
+  wide?: boolean;
   description?: string;
   // Loads htmx, for the one page that live-polls (the scoreboard). Off by
   // default: the other pages run no scripts, so they ship none.
@@ -62,7 +66,11 @@ export const Layout = ({
           </a>
         </header>
       )}
-      {bare ? children : <main>{children}</main>}
+      {bare ? (
+        children
+      ) : (
+        <main class={wide ? "wide" : undefined}>{children}</main>
+      )}
     </body>
   </html>
 );

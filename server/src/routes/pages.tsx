@@ -241,87 +241,101 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
     hx-trigger="every 5s"
     hx-swap="outerHTML"
   >
-    <h2>Jagers</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Maatje</th>
-          <th>Speler</th>
-          <th>Hunter</th>
-          <th>Score</th>
-          <th>Zelf</th>
-          <th>Geholpen</th>
-          <th>Beesten</th>
-          <th>Laatst</th>
-        </tr>
-      </thead>
-      <tbody>
-        {scores.jagers.map((s, i) => (
-          <tr>
-            <td class="rank">{i + 1}</td>
-            <td>
-              <Companion code={s.profile_pic} size={32} />
-            </td>
-            <td>{s.name}</td>
-            <td class="muted">{hunterLabel(s.hunter_id)}</td>
-            <td class="score">{s.hunter_score}</td>
-            <td>{s.self_found}</td>
-            <td>{s.players_helped}</td>
-            <BeestenMeter found={s.creatures_found} />
-            <td class="muted">{shortTime(s.last_found)}</td>
-          </tr>
-        ))}
-        {scores.jagers.length === 0 && (
-          <tr>
-            <td class="empty" colspan={9}>
-              Nog geen jagers met een antenne.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+    <div class="scoreboard-column scoreboard-hunters">
+      <div class="scoreboard-heading">
+        <h2>Jagers</h2>
+        <span>{scores.jagers.length}</span>
+      </div>
+      <div class="scoreboard-table">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Maatje</th>
+              <th>Speler</th>
+              <th>Hunter</th>
+              <th>Score</th>
+              <th>Zelf</th>
+              <th>Geholpen</th>
+              <th>Beesten</th>
+              <th>Laatst</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scores.jagers.map((s, i) => (
+              <tr>
+                <td class="rank">{i + 1}</td>
+                <td>
+                  <Companion code={s.profile_pic} size={32} />
+                </td>
+                <td>{s.name}</td>
+                <td class="muted">{hunterLabel(s.hunter_id)}</td>
+                <td class="score">{s.hunter_score}</td>
+                <td>{s.self_found}</td>
+                <td>{s.players_helped}</td>
+                <BeestenMeter found={s.creatures_found} />
+                <td class="muted">{shortTime(s.last_found)}</td>
+              </tr>
+            ))}
+            {scores.jagers.length === 0 && (
+              <tr>
+                <td class="empty" colspan={9}>
+                  Nog geen jagers met een antenne.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-    <h2>Verzamelaars</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Maatje</th>
-          <th>Speler</th>
-          <th>Score</th>
-          <th>Pluk</th>
-          <th>Ontmoet</th>
-          <th>Sterren</th>
-          <th>Beesten</th>
-          <th>Laatst</th>
-        </tr>
-      </thead>
-      <tbody>
-        {scores.verzamelaars.map((s, i) => (
-          <tr>
-            <td class="rank">{i + 1}</td>
-            <td>
-              <Companion code={s.profile_pic} size={32} />
-            </td>
-            <td>{s.name}</td>
-            <td class="score">{s.gatherer_score}</td>
-            <td>{s.pluks_scored}</td>
-            <td>{s.players_met}</td>
-            <td>{s.bonded}</td>
-            <BeestenMeter found={s.creatures_found} />
-            <td class="muted">{shortTime(s.last_found)}</td>
-          </tr>
-        ))}
-        {scores.verzamelaars.length === 0 && (
-          <tr>
-            <td class="empty" colspan={9}>
-              Nog geen verzamelaars geregistreerd.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+    <div class="scoreboard-column scoreboard-gatherers">
+      <div class="scoreboard-heading">
+        <h2>Verzamelaars</h2>
+        <span>{scores.verzamelaars.length}</span>
+      </div>
+      <div class="scoreboard-table">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Maatje</th>
+              <th>Speler</th>
+              <th>Score</th>
+              <th>Pluk</th>
+              <th>Ontmoet</th>
+              <th>Sterren</th>
+              <th>Beesten</th>
+              <th>Laatst</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scores.verzamelaars.map((s, i) => (
+              <tr>
+                <td class="rank">{i + 1}</td>
+                <td>
+                  <Companion code={s.profile_pic} size={32} />
+                </td>
+                <td>{s.name}</td>
+                <td class="score">{s.gatherer_score}</td>
+                <td>{s.pluks_scored}</td>
+                <td>{s.players_met}</td>
+                <td>{s.bonded}</td>
+                <BeestenMeter found={s.creatures_found} />
+                <td class="muted">{shortTime(s.last_found)}</td>
+              </tr>
+            ))}
+            {scores.verzamelaars.length === 0 && (
+              <tr>
+                <td class="empty" colspan={9}>
+                  Nog geen verzamelaars geregistreerd.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </section>
 );
 
@@ -358,7 +372,7 @@ pageRoutes.get("/scores", async (c) => {
   const scores = await fetchScores(c.env.DB);
   const count = scores.jagers.length + scores.verzamelaars.length;
   return c.html(
-    <Layout title="Scorebord" right={`${count} spelers`} poll>
+    <Layout title="Scorebord" right={`${count} spelers`} wide poll>
       <Scoreboard scores={scores} />
     </Layout>,
   );

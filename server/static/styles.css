@@ -98,6 +98,10 @@ main {
   margin: 0 auto;
 }
 
+main.wide {
+  max-width: 1920px;
+}
+
 /* Card panel: 2px ink frame + tiny radius, like ui.panel().
    Scoped to <main> — the landing page's full-bleed <section> bands must stay
    square, or their rounded corners collide where two bands meet. */
@@ -134,9 +138,82 @@ th {
   border-bottom: 3px solid var(--ink);
 }
 
-/* Top of the leaderboard gets the soft green card interior */
+/* Top of each leaderboard gets the soft green card interior */
 #scoreboard tbody tr:first-child td {
   background: var(--surface-soft);
+}
+
+/* The public scoreboard is a big-screen view: two genuinely separate boards,
+   with each player placed by hunter_id. They collapse only when the viewport
+   can no longer give both tables a useful amount of room. */
+#scoreboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+}
+
+.scoreboard-column {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+}
+
+.scoreboard-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.85rem;
+  color: var(--cream);
+  background: var(--green-d);
+  border-bottom: 3px solid var(--ink);
+}
+
+.scoreboard-gatherers .scoreboard-heading {
+  background: var(--terra-d);
+}
+
+main .scoreboard-heading h2 {
+  margin: 0;
+  color: inherit;
+  font-size: 1.35rem;
+}
+
+.scoreboard-heading span {
+  min-width: 2rem;
+  padding: 0.1rem 0.45rem;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  text-align: center;
+}
+
+.scoreboard-table {
+  overflow-x: auto;
+}
+
+#scoreboard table {
+  min-width: 760px;
+}
+
+#scoreboard td.score {
+  color: var(--green-d);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+#scoreboard .scoreboard-gatherers td.score {
+  color: var(--terra-d);
+}
+
+#scoreboard .meter {
+  width: 72px;
 }
 
 td.rank {
@@ -308,6 +385,12 @@ td .tag-starter {
   }
   .meter-count {
     margin-left: 0.35rem;
+  }
+}
+
+@media (max-width: 1200px) {
+  #scoreboard {
+    grid-template-columns: 1fr;
   }
 }
 
