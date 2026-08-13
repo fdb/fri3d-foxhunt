@@ -12,8 +12,8 @@
 # screen_beast.py — BEEST-PAGINA: the hub for a caught creature.
 #
 # Portrait card with nickname on the left; Band hearts + Energie segment meter
-# + found facts on the right; a 4-button action bar (VOER / AAI /
-# SPEEL / DOSSIER). A finished friend (bond maxed) trades its meters for the
+# + found facts on the right; a 3-button action bar (VOER / SPEEL /
+# DOSSIER). A finished friend (bond maxed) trades its meters for the
 # beste-vriend star and refuses food gently — play stays, free forever.
 # Layout follows the design (detail.jsx PxDetail).
 
@@ -26,10 +26,11 @@ import store
 import pet
 from creatures import by_id
 
-# action-bar buttons: (icon, label, kind)
+# action-bar buttons: (icon, label, kind). Three, all of them doors to
+# another screen — the free inline AAI tap that used to sit second is gone:
+# it changed no stat and taught nothing, so it was a button that did nothing.
 _ACTS = (
     ("food", "VOER", "feed"),
-    ("paw", "AAI", "aaien"),
     ("ball", "SPEEL", "spelen"),
     ("book", "DOSSIER", "dossier"),
 )
@@ -73,8 +74,10 @@ class BeastActivity(Activity):
         self.stats = ui.box(s, 150, 34, 164, 148)
 
         # ── action bar ──────────────────────────────────────────────────
-        bw = 73
-        bar = ui.row(s, 6, 198, 4 * bw + 3 * 5, 36, gap=5)
+        # the three buttons share the same 307 px the four used to, so the
+        # bar still spans the screen instead of leaving a gap where AAI was
+        bw = 99
+        bar = ui.row(s, 6, 198, 3 * bw + 2 * 5, 36, gap=5)
         for ic, lab, kind in _ACTS:
             b = ui.panel(bar, 0, 0, bw, 36, ui.CARD, border=ui.BORDER_REST)
             art.icon(b, ic, 2).align(lv.ALIGN.TOP_MID, 0, 3)
@@ -141,34 +144,26 @@ class BeastActivity(Activity):
         )
 
     def _press(self, kind):
+        sound.play("tap")
         if kind == "feed":
             st = store.beast_state(self.fox_id)
             if st and pet.finished(st):
                 # no refusal screen for a beste vriend — just the fact
-                sound.play("tap")
                 self._flash("hoeft niet meer te eten")
                 return
-            sound.play("tap")
             self.startActivity(
                 Intent(activity_class=FeedActivity, extras={"fox_id": self.fox_id})
-            )
-        elif kind == "dossier":
-            sound.play("tap")
-            self.startActivity(
-                Intent(activity_class=DossierActivity, extras={"fox_id": self.fox_id})
             )
         elif kind == "spelen":
             # spelen is no longer a free inline tap: it opens the
             # beestenschool, where a session costs energy and earns band
-            sound.play("tap")
             self.startActivity(
                 Intent(activity_class=SchoolActivity, extras={"fox_id": self.fox_id})
             )
-        else:  # aaien — inline care, always free (basic affection)
-            st, ok, msg = store.do_action(self.fox_id, kind)
-            sound.play("tap" if ok else "error")
-            self._flash(msg)
-            self._refresh()
+        else:  # dossier
+            self.startActivity(
+                Intent(activity_class=DossierActivity, extras={"fox_id": self.fox_id})
+            )
 
     def _flash(self, text):
         self.bubble.set_text(text)
@@ -185,7 +180,7 @@ class BeastActivity(Activity):
         super().onDestroy(screen)
         # The flash timer must not outlive the screen: teardown deletes the
         # bubble, and a surviving timer would set_text on freed memory —
-        # AAI, back-swipe within the 1.1s window, crash.
+        # flash a message, back-swipe within the 1.1s window, crash.
         if self._bubble_timer:
             self._bubble_timer.delete()
             self._bubble_timer = None

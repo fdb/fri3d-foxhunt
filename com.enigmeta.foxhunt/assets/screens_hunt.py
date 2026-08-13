@@ -880,7 +880,7 @@ class VonkActivity(Activity):
 
     def _open_beest(self):
         # straight into the normal creature flow: the geluk beast's page,
-        # with VOER / AAI / SPEEL / DOSSIER like any caught creature
+        # with VOER / SPEEL / DOSSIER like any caught creature
         sound.play("tap")
         beast = lazy("screens_care").BeastActivity
         self.startActivity(Intent(activity_class=beast, extras={"fox_id": self.geluk}))

@@ -107,18 +107,6 @@ def decay(state, now):
     return s
 
 
-def act(state, action, now):
-    """Apply a free inline action. Returns (new_state, ok, message).
-
-    Only 'aaien' remains: pure affection, no stats — warmth is free and
-    unlimited, progression is not (feed() and play() are the economy)."""
-    s = dict(state)
-    if action != "aaien":
-        return s, False, ""
-    s["last"] = now
-    return s, True, "spint van plezier"
-
-
 def feed(state, food, favoriet, now):
     """Feed a specific hapje. Returns (new_state, ok, message, is_favourite).
     Food IS the energy refill — eating is how a tired creature gets to play
@@ -175,12 +163,6 @@ if __name__ == "__main__":
     assert "hunger" not in st
     aged = decay(st, 1000 + 24 * 3600)  # +24h
     assert aged["energy"] == 0, aged  # 75 - 4*24, clamped
-    # aaien: pure affection — ok, message, zero stat change
-    pet_, ok, msg = act(aged, "aaien", aged["last"])
-    assert ok and msg == "spint van plezier"
-    assert all(pet_[k] == aged[k] for k, _ in STATS), pet_
-    _, ok, _ = act(aged, "voeden", aged["last"])
-    assert not ok  # feed()/play() are the economy; act() is aaien only
     # presentation helpers: 25-point levels, 5 only at max
     assert segments(0) == 0 and segments(100) == 5 and segments(50) == 3, segments(50)
     assert energy_segments(19) == 0 and energy_segments(20) == 1

@@ -121,8 +121,8 @@ export const Home = () => (
           <div class="card">
             <h3>Verzorg</h3>
             <p>
-              Voeren, aaien, spelen. De band groeit, het dossier vult zich, je
-              beest leert je kennen.
+              Voeren en spelen. De band groeit, het dossier vult zich, je beest
+              leert je kennen.
             </p>
           </div>
         </div>
@@ -338,7 +338,7 @@ export const Home = () => (
           <Shot
             src="beest"
             alt="Beestscherm met band en energie"
-            caption="Band en energie — plus de knoppen om te voeren, aaien, spelen."
+            caption="Band en energie — plus de knoppen: voeren, spelen, dossier."
           />
           <Shot
             src="voeren"

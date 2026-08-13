@@ -415,17 +415,6 @@ def beast_state(cid):
     return state
 
 
-def do_action(cid, action):
-    """Apply a pet action; persist; return (state, ok, message)."""
-    prefs = SharedPreferences(_APP)
-    raw = _raw_state(prefs, cid)
-    if raw is None:
-        return None, False, ""
-    state, ok, msg = pet.act(pet.decay(raw, _now()), action, _now())
-    prefs.edit().put_dict_item("beast", str(cid), state).commit()
-    return state, ok, msg
-
-
 def do_feed(cid, food):
     """Feed a hapje ('bes'|'noot'|'eikel') FROM THE VOORRAAD; persist;
     (state, ok, msg, is_fav). An empty pantry refuses before the creature
