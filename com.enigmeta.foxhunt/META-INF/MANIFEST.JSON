@@ -1,10 +1,10 @@
 {
   "name": "Foxhunt",
-  "publisher": "Fri3d Camp",
+  "publisher": "Frederik De Bleser",
   "short_description": "Vang de beesten van het bos!",
   "long_description": "Jaag op verstopte LoRa-zenders met je antenne en verzamel alle beesten in je boek.",
   "fullname": "com.enigmeta.foxhunt",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "category": "games",
   "activities": [
     {

@@ -7,18 +7,29 @@ cd "$(dirname "$0")/.."
 # An .mpk is a stored zip of the app dir that the OS streams straight into
 # apps/<fullname> (AppManager.download_and_install_package). The store's own
 # bundler (MicroPythonOS scripts/bundle_apps.sh) zips the source tree as-is:
-# for this app that is ~516 KB of .py, most of it comments — which the badge
+# for this app that is 473 KB of .py, most of it comments — which the badge
 # then keeps on LittleFS and re-compiles on every cold start. This script
-# stages the same badge-clean copy the USB deploy ships (mpy-cross -O2,
-# -march=xtensawin) and zips THAT: ~272 KB installed, no compile at start.
+# stages the same badge-clean copy the USB deploy ships (mpy-cross,
+# -march=xtensawin) and zips THAT: 145 KB installed, no compile at start.
 # The manifest's "assets/foxhunt.py" entrypoint still works — the OS imports
 # by module name, so foxhunt.mpy loads the same (proven by the USB deploy).
 #
+# BYTECODE IS THE ONLY FLAVOUR WE SHIP, and that is settled rather than
+# pending. A source .mpk is the portable one — it survives a firmware whose
+# bytecode version moved — so it keeps looking like the safer thing to also
+# publish. It was tried and it does not fit: 473 KB against 145 KB installed,
+# 528 KB against 197 KB once LittleFS bills its 4 KB per file, on a 7 MiB
+# partition a factory badge arrives with nearly full (Size budget in
+# CLAUDE.md). The compile at every cold start wants the heap as well, on a
+# device that already spends a second on a mark-sweep. Do not add a --source
+# mode to "cover" other badges; cover them by matching their bytecode.
+#
 # Two couplings to know about:
-#   - The .mpy format must match the firmware's bytecode version, so this
-#     uses the in-tree mpy-cross from the same checkout that built the
-#     firmware. A badge on a different MicroPythonOS build may refuse it;
-#     source .mpk's don't have that problem.
+#   - The .mpy format must match the firmware's bytecode version. This uses
+#     the in-tree mpy-cross from the checkout that built the firmware when
+#     there is one, else scripts/get_mpy_cross.sh rebuilds exactly that
+#     compiler from MicroPythonOS's own submodule pins — same bytes, no
+#     checkout needed, which is what lets CI produce the package.
 #   - art_fast.mpy carries xtensawin native code. On any non-ESP32-S3 device
 #     its import fails, which art.py already catches (desktop fallback).
 #
@@ -42,8 +53,17 @@ APP_SRC="$PWD/$APP_ID"
 DIST="$PWD/dist"
 
 command -v uv >/dev/null || { echo "error: 'uv' is required (https://docs.astral.sh/uv/)" >&2; exit 1; }
-MPY_CROSS="${MPY_CROSS:-/Users/fdb/Source/MicroPythonOS/lvgl_micropython/lib/micropython/mpy-cross/build/mpy-cross}"
-[[ -x "$MPY_CROSS" ]] || { echo "error: mpy-cross not found at $MPY_CROSS (build the firmware checkout first, or set MPY_CROSS)" >&2; exit 1; }
+
+# mpy-cross, in order of preference: an explicit override, the developer's own
+# firmware checkout (already there, nothing to build), else fetch-and-build one
+# from the pins MicroPythonOS publishes. That last leg is what lets a build
+# server produce the package at all — see scripts/get_mpy_cross.sh.
+IN_TREE_MPY_CROSS="$HOME/Source/MicroPythonOS/lvgl_micropython/lib/micropython/mpy-cross/build/mpy-cross"
+if [[ -z "${MPY_CROSS:-}" && -x "$IN_TREE_MPY_CROSS" ]]; then
+    MPY_CROSS="$IN_TREE_MPY_CROSS"
+fi
+MPY_CROSS="${MPY_CROSS:-$(scripts/get_mpy_cross.sh)}"
+[[ -x "$MPY_CROSS" ]] || { echo "error: mpy-cross not found at $MPY_CROSS (set MPY_CROSS, or let scripts/get_mpy_cross.sh build one)" >&2; exit 1; }
 
 version=$(uv run python -c "import json; print(json.load(open('$APP_SRC/META-INF/MANIFEST.JSON'))['version'])")
 
@@ -68,4 +88,6 @@ find "$STAGE_ROOT" -exec touch -t 202501010000.00 {} \;
 
 files=$(find "$STAGE" -type f | wc -l | tr -d ' ')
 echo "built $mpk"
-echo "  $files files, $(stat -f%z "$mpk") bytes ($version, $(git rev-parse --short HEAD 2>/dev/null || echo unversioned))"
+# `wc -c <file` rather than stat: BSD wants -f%z and GNU wants -c%s, and this
+# script now runs on both.
+echo "  $files files, $(wc -c <"$mpk" | tr -d ' ') bytes ($version, $(git rev-parse --short HEAD 2>/dev/null || echo unversioned))"

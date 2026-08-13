@@ -110,9 +110,7 @@ class BeastActivity(Activity):
             ui.label(g, "Energie", 0, 44, ui.INK, ui.font_small())
             ui.energy_row(g, 0, 60, pet.energy_segments(st["energy"]), scale=2)
         profile = store.profile() or {}
-        self_found = (
-            bool(profile.get("hunter_id")) and self.fox_id in store.zelf_ids()
-        )
+        self_found = bool(profile.get("hunter_id")) and self.fox_id in store.zelf_ids()
         found_text = "gevonden " + st.get("date", "?")
         found_x = 0
         if profile.get("hunter_id"):
@@ -229,10 +227,7 @@ class DossierActivity(Activity):
             w=210,
         )
         ui.heart_row(s, 82, 76, pet.hearts(bond), scale=2)
-        if (
-            (store.profile() or {}).get("hunter_id")
-            and self.fox_id in store.zelf_ids()
-        ):
+        if (store.profile() or {}).get("hunter_id") and self.fox_id in store.zelf_ids():
             # the zelf-gevonden stamp: the hunter visited this one at home
             art.self_found_badge(s, 2).set_pos(198, 70)
             ui.label(s, "zelf gevonden", 216, 77, ui.GOLD_D, ui.font_small())

@@ -17,6 +17,7 @@ def load_screens_hunt(name="screens_hunt_under_test", **overrides):
     stubs is the dict actually injected, so tests can reach the mocks."""
     mpos = types.ModuleType("mpos")
     mpos.Activity = type("Activity", (), {})
+
     class Intent:
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)

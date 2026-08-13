@@ -293,9 +293,7 @@ def energy_row(parent, x, y, filled, total=5, scale=2, gap=GAP_S):
     batteries = []
     for i in range(total):
         pal = (
-            {"k": GREEN_D, "g": GREEN}
-            if i < filled
-            else {"k": 0xB0A07E, "g": 0xECE0C2}
+            {"k": GREEN_D, "g": GREEN} if i < filled else {"k": 0xB0A07E, "g": 0xECE0C2}
         )
         batteries.append(art.draw_sprite(track, art.BATTERY, pal, scale))
     return batteries
