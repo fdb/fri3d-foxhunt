@@ -497,40 +497,27 @@ export const Home = () => (
     <section class="band band-soft" id="credits">
       <div class="wrap">
         <h2>Gemaakt door</h2>
-        <p class="intro">
-          Vossenjacht is handwerk: pixel voor pixel, en een radio die een doos
-          in een boom in een vos verandert.
-        </p>
         <div class="cards cards-3">
           <div class="card">
             <h3>
-              <span class="icon">
-                <Icon name="spoor" />
-              </span>
               Frederik De Bleser
             </h3>
-            <p>Het spel: de badge-app en de server.</p>
+            <p>Badge-app, spelregels en server.</p>
           </div>
           <div class="card">
             <h3>
-              <span class="icon">
-                <Icon name="sig" />
-              </span>
               Hans Robbeers
             </h3>
             <p>
-              De LoRa-kant: het radiowerk dat een verstopte zender een vos maakt
+              LoRa-kant: het radiowerk dat een verstopte zender een vos maakt
               om op te jagen.
             </p>
           </div>
           <div class="card">
             <h3>
-              <span class="icon">
-                <Icon name="spark" />
-              </span>
               Erlin, Fran en Fien
             </h3>
-            <p>De pixelkunst: de beesten, de maatjes, het bos.</p>
+            <p>De pixelkunst: de beesten, de maatjes, animaties.</p>
           </div>
         </div>
         <p class="note">
