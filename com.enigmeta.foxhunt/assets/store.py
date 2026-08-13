@@ -148,6 +148,14 @@ def reset_all():
 # ── Debug-code switch (formerly debug_unlock.py; merged for block economy) ──
 # The debug screen itself opens from settings (five taps on the badge id);
 # this is only the session-wide flag that screen makes the keypad honour.
+#
+# A module global and never a stored key, so it cannot be carried to another
+# badge or survive a power cycle — but a module global on MicroPythonOS does
+# survive an app relaunch, which is longer than "a session" is supposed to
+# mean. Two callers keep the lifetime honest, and both are outside this file
+# because neither event is a store event: foxhunt._new_session() on every
+# launch, and reset_all() below for the wipe that hands the badge on without
+# one.
 
 DEBUG_CODE = "1111"
 _debug_code_enabled = False

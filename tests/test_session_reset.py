@@ -5,9 +5,9 @@ sibling module in sys.modules, so a module global set during one launch is
 still set in the next. foxhunt.py is the only code that runs fresh, which
 makes _new_session() the only place a launch can be recognised as a launch.
 
-What it drops is deliberately RAM-only — the fake radio's simulation state —
-which is exactly why store.reset_all, an allowlist over the preferences file,
-cannot reach it.
+Everything it drops is deliberately RAM-only — the debug screen's 1111 code
+and the fake radio's simulation state — which is exactly why store.reset_all,
+an allowlist over the preferences file, cannot reach any of it.
 """
 
 import importlib.util
@@ -34,12 +34,16 @@ def stub_entrypoint_imports():
     creatures = types.ModuleType("creatures")
     creatures.by_id = lambda cid: {"id": cid, "naam": "Vos"}
 
+    store = types.ModuleType("store")
+    store.disarmed = []
+    store.disable_debug_code = lambda: store.disarmed.append(True)
+
     return {
         "lvgl": MagicMock(),
         "mpos": mpos,
         "ui": MagicMock(),
         "art": MagicMock(),
-        "store": MagicMock(),
+        "store": store,
         "registrar": MagicMock(),
         "telemetry": MagicMock(),
         "creatures": creatures,
@@ -79,6 +83,13 @@ class NewSessionTest(unittest.TestCase):
                 sys.modules.pop("fox_radio", None)
             self.foxhunt._new_session()
 
+    def test_a_launch_disarms_the_debug_code(self):
+        # Armed from the debug screen and kept in RAM on purpose, so nothing
+        # in the store wipes it — but it must not be waiting for whoever picks
+        # the badge up next.
+        self.run_session()
+        self.assertEqual(self.stubs["store"].disarmed, [True])
+
     def test_a_launch_resets_a_radio_left_over_from_the_last_one(self):
         radio = FakeRadioModule()
         self.run_session({"fox_radio": radio})
@@ -87,9 +98,10 @@ class NewSessionTest(unittest.TestCase):
     def test_a_cold_launch_does_not_import_the_radio_to_reset_it(self):
         # Nothing loaded holds no session to drop, and pulling fox_radio in
         # here would spend a LittleFS open (~0.25s) of every cold start on an
-        # empty singleton.
+        # empty singleton. The debug code still gets disarmed either way.
         self.run_session()
         self.assertNotIn("fox_radio", sys.modules)
+        self.assertEqual(self.stubs["store"].disarmed, [True])
 
 
 if __name__ == "__main__":

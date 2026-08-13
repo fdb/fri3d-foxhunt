@@ -70,15 +70,20 @@ def _new_session():
     way IN rather than on the way out also covers the launches that follow a
     crash or a kill, where no teardown hook of ours would have run.
 
-    What is dropped here is simulation state the badge deliberately keeps in
-    RAM instead of on flash, which is exactly why store.reset_all — an
-    allowlist over the preferences file — cannot reach it.
+    Everything dropped here is debug or simulation state the badge deliberately
+    keeps in RAM instead of on flash, which is exactly why store.reset_all — an
+    allowlist over the preferences file — cannot reach any of it.
 
     sys.modules.get for the radio, not an import: a module that was never
     loaded holds no session to drop, and importing fox_radio to clear a
     singleton that does not exist yet would cost every cold start a LittleFS
     open (~0.25s) for nothing.
     """
+    # The 1111 test code, armed from the debug screen. It is RAM-only on
+    # purpose and must not outlive the app that armed it: the next player gets
+    # a badge where the code is dead again, and an organiser who wants it back
+    # is five deliberate taps on the badge id away.
+    store.disable_debug_code()
     radio = sys.modules.get("fox_radio")
     if radio is not None:
         radio.RADIO.reset()
