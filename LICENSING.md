@@ -10,7 +10,7 @@ the directory is not a reliable guide.
 | Artwork | **CC BY-NC-SA 4.0** | [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt) |
 | Fonts (third-party) | **OFL-1.1** | [`LICENSES/OFL-1.1.txt`](LICENSES/OFL-1.1.txt) |
 
-Copyright © 2026 Frederik De Bleser and Hans Robbeers. Who made what is under
+Copyright © 2026 Frederik De Bleser and Hans Robeers. Who made what is under
 [Credits](#credits).
 
 ## Code — GPL-2.0-only
@@ -76,7 +76,7 @@ fonts — which is every badge build, since the app draws all its text with them
 ## Credits
 
 - **Frederik De Bleser** — the game: badge app, server.
-- **Hans Robbeers** — the LoRa side: the radio work that turns a transmitter
+- **Hans Robeers** — the LoRa side: the radio work that turns a transmitter
   hidden in a field into a fox this app can hunt.
 - **Erlin, Fran and Fien** — pixel art.
 - **Stefie Justprince** — Pixelify Sans, the font every screen is drawn with

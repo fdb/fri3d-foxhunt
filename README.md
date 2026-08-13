@@ -92,7 +92,7 @@ and fall back (on-screen LED mirror, silent audio) on desktop.
 ## Credits
 
 - **Frederik De Bleser** — the game: badge app, server.
-- **Hans Robbeers** — the LoRa side: the radio work that turns a transmitter
+- **Hans Robeers** — the LoRa side: the radio work that turns a transmitter
   hidden in a field into a fox this app can hunt.
 - **Erlin, Fran and Fien** — pixel art.
 - **Stefie Justprince** — [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans),
