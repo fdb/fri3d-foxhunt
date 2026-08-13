@@ -90,9 +90,12 @@ command -v uvx >/dev/null || { echo "error: 'uvx' is required (https://docs.astr
 
 # ── Auto-detect serial port ──────────────────────────────────────────
 if [[ -z "$PORT" ]]; then
-    ports=(/dev/cu.usbmodem*)
-    if [[ ! -e "${ports[0]}" ]]; then
-        echo "error: no /dev/cu.usbmodem* device found. Is the badge plugged in?" >&2
+    # macOS names it /dev/cu.usbmodem*, Linux /dev/ttyACM*.
+    shopt -s nullglob
+    ports=(/dev/cu.usbmodem* /dev/ttyACM*)
+    shopt -u nullglob
+    if [[ ${#ports[@]} -eq 0 ]]; then
+        echo "error: no /dev/cu.usbmodem* or /dev/ttyACM* device found. Is the badge plugged in?" >&2
         echo "       Pass --port or set BADGE_PORT to override." >&2
         exit 1
     fi
@@ -104,6 +107,22 @@ if [[ -z "$PORT" ]]; then
     PORT="${ports[0]}"
 fi
 [[ -e "$PORT" ]] || { echo "error: serial port not found: $PORT" >&2; exit 1; }
+
+# ── Portable host tools ──────────────────────────────────────────────
+# BSD/macOS and GNU/Linux spell these differently; probe once and wrap.
+if stat -c%s . >/dev/null 2>&1; then
+    fsize() { stat -c%s "$1"; }        # GNU coreutils
+else
+    fsize() { stat -f%z "$1"; }        # BSD / macOS
+fi
+if command -v shasum >/dev/null 2>&1; then
+    sha16() { shasum -a 256 "$1" | cut -c1-16; }
+elif command -v sha256sum >/dev/null 2>&1; then
+    sha16() { sha256sum "$1" | cut -c1-16; }
+else
+    echo "error: need shasum or sha256sum on PATH." >&2
+    exit 1
+fi
 
 # ── Stage a badge-clean copy ─────────────────────────────────────────
 STAGE_ROOT="$(mktemp -d)"
@@ -282,9 +301,14 @@ cut -d' ' -f2- "$STAGE_ROOT/remote.sha" | sort > "$STAGE_ROOT/remote.lst"
 # NEXT run's stat walk validates instead of hashing. Same digest, same
 # truncation, so the two sides are directly comparable.
 (cd "$STAGE" && while IFS= read -r f; do
-    printf '%s %s %s\n' "$(shasum -a 256 "$f" | cut -c1-16)" \
-        "$(stat -f%z "$f")" "$f"
+    printf '%s %s %s\n' "$(sha16 "$f")" "$(fsize "$f")" "$f"
 done < "$STAGE_ROOT/stage.lst") > "$STAGE_ROOT/stage.man"
+# A malformed row (missing hash or size) would silently produce blank paths
+# downstream and "copy" the stage directory itself. Refuse instead.
+if awk 'NF != 3 { exit 1 }' "$STAGE_ROOT/stage.man"; then :; else
+    echo "error: stage manifest is malformed — check the sha16/fsize helpers." >&2
+    exit 1
+fi
 awk '{print $1, $3}' "$STAGE_ROOT/stage.man" | sort > "$STAGE_ROOT/stage.sha"
 
 # On the badge but no longer in the source.
@@ -338,6 +362,7 @@ if [[ "$need_install" -eq 1 ]]; then
     DELTA="$STAGE_ROOT/delta/$APP_ID"
     mkdir -p "$DELTA"
     while IFS= read -r f; do
+        [[ -n "$f" ]] || continue
         mkdir -p "$DELTA/$(dirname "$f")"
         cp "$STAGE/$f" "$DELTA/$f"
     done < "$STAGE_ROOT/changed.lst"

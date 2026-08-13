@@ -9,13 +9,23 @@
 
 
 # ═════════════════════════ screen_hunt ═════════════════════════
-# screen_hunt.py — classic ARDF. Silhouette + heart/bpm + 5-LED hot/cold.
+# screen_hunt.py — classic ARDF. Silhouette + heart/bpm + 5-LED hot/cold,
+# with the physical LEDs (badge) repurposed to show link quality.
 #
 # A timer polls the (faked) radio; the RSSI it reports IS the heart rate
-# (rssi + 255) and also drives the LEDs (warmer = closer).
+# (rssi + 255) and also drives the on-screen 5-LED mirror (warmer = closer),
+# same as always. The physical NeoPixels are the one thing that diverged:
+# they now show link quality instead — how many of the fox's own ~250ms
+# broadcasts actually arrived in the last five of them (fox_radio.FoxReading
+# .link, 0..5; see lora.LoRaLink.link_quality) — so on the badge itself they
+# read as a signal-health meter: full when every expected message lands,
+# fading down over ~1.25s if the fox goes quiet, climbing back the same way
+# once it resumes.
 # There is NO automatic "found": RSSI can't tell you you've physically reached
 # the box. The player walks up, reads the code off the device, and taps
 # "VOER DE CODE IN" themselves.
+
+import time
 
 import lvgl as lv
 from mpos import Activity, Intent
@@ -25,6 +35,26 @@ import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import sound
 from creatures import by_id
 from fox_radio import RADIO, rssi_to_bpm
+
+# ── sleeping animation: link quality 0 looks identical to a frozen app if
+# the physical LEDs just go dark (leds.show_level(0)), so instead we breathe
+# LED 0 gently -- a slow fade in/out, red, for "listening, nothing heard
+# yet" -- same idea as a laptop's sleep light. Phase comes from
+# time.ticks_ms(), not this screen's own 150ms tick count, so the breathing
+# rate stays the same regardless of poll cadence.
+SLEEP_PERIOD_MS = 2400   # one full breath in + out
+SLEEP_COLOR = (0xB0, 0x22, 0x18)
+SLEEP_FLOOR = 0.06        # never fully black -- stays visibly "alive"
+
+
+def _sleep_colors():
+    phase = time.ticks_ms() % SLEEP_PERIOD_MS
+    t = phase / SLEEP_PERIOD_MS
+    tri = 1.0 - abs(2.0 * t - 1.0)  # 0 -> 1 -> 0, linear ramp both ways
+    scale = SLEEP_FLOOR + (1.0 - SLEEP_FLOOR) * tri
+    r, g, b = SLEEP_COLOR
+    lit = (int(r * scale), int(g * scale), int(b * scale))
+    return [lit, leds.OFF, leds.OFF, leds.OFF, leds.OFF]
 
 
 class HuntActivity(Activity):
@@ -89,7 +119,7 @@ class HuntActivity(Activity):
     def onResume(self, screen):
         super().onResume(screen)
         RADIO.start(self.fox_id)  # restart cold on every entry / return
-        self.timer = lv.timer_create(self._tick, 250, None)
+        self.timer = lv.timer_create(self._tick, 150, None)
 
     def onPause(self, screen):
         super().onPause(screen)
@@ -99,8 +129,15 @@ class HuntActivity(Activity):
         leds.off()
 
     def _tick(self, t):
+        # Service the radio FIRST, before any widget update below: on real
+        # hardware this is the one place that reads the SX1262 over SPI, and
+        # doing it ahead of the rest of this tick — rather than off some
+        # independent timer — is what keeps it from ever landing mid-flush
+        # against the display's own SPI traffic (see lora.py). A no-op on
+        # desktop (FakeFoxRadio.poll is inherited and does nothing).
         if not self.has_foreground():
             return
+        RADIO.poll()
         r = RADIO.reading(self.fox_id)
         self.bpm.set_text(str(rssi_to_bpm(r.rssi)))
 
@@ -108,13 +145,28 @@ class HuntActivity(Activity):
         self._beat = not self._beat
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 6 if self._beat else 10)
 
-        leds.show_level(r.level)  # physical LEDs (badge)
+        # Physical LEDs (badge): link quality, or a breathing "listening"
+        # animation when it's flatlined at 0 (see _sleep_colors above) so a
+        # silent fox doesn't read as a frozen app.
+        if r.link == 0:
+            leds.write(_sleep_colors())
+            # A silent fox means the player could be moving around freely,
+            # so keep dropping the auto-range window while it's quiet --
+            # otherwise level would keep reporting wherever that window
+            # happened to be when the beacons stopped, until a fresh BEACON
+            # eventually pushed it somewhere new.
+            RADIO.reset_level(self.fox_id)
+            level = 0  # mirror reads as "koud" too; r.level itself is just
+                       # a stale rssi carried forward, not a real signal
+        else:
+            leds.show_level(r.link)
+            level = r.level
         # Restyle the mirror only when the level moved: every set_style call
-        # invalidates its cell, and at 4 Hz an unchanged level would redraw
+        # invalidates its cell, and at ~7 Hz an unchanged level would redraw
         # all five for nothing (same guard discipline as VliegActivity._drift).
-        if r.level != self._mirror_level:
-            self._mirror_level = r.level
-            cols = leds.colors_for_level(r.level)
+        if level != self._mirror_level:
+            self._mirror_level = level
+            cols = leds.colors_for_level(level)
             for i, seg in enumerate(self.mirror):
                 rr, gg, bb = cols[i]
                 seg.set_style_bg_color(ui.hexc((rr << 16) | (gg << 8) | bb), 0)
@@ -164,6 +216,7 @@ STATUS = {
     "wrong": ("verkeerde code", ui.TERRA_D),
     "used": ("code al gebruikt", ui.TERRA_D),
     "self": ("al zelf gevonden - +0 punten", ui.TERRA_D),
+    "busy": ("probeer opnieuw", ui.TERRA_D),
 }
 
 
@@ -173,6 +226,10 @@ class CodeActivity(Activity):
         self.c = by_id(self.fox_id)
         self.entry = ""
         self.waiting = False  # a verdict is in flight; the keypad is dead
+        # Polls the radio while a claim is outstanding (see _submit /
+        # _on_verdict) -- RADIO.poll() is a no-op on desktop (FakeFoxRadio),
+        # so this timer only ever does real work with hardware fitted.
+        self.timer = None
 
         s = ui.make_screen(0xDFEEBF)
         ui.banner(s, "VOER DE CODE IN", ui.GREEN)
@@ -225,6 +282,11 @@ class CodeActivity(Activity):
         # locked waiting for a reply whose screen side already happened.
         self.waiting = False
         self._set_status("idle")
+        # The poll timer, unlike the keypad lock above, is NOT torn down
+        # here: a claim in flight needs its replies pumped through however
+        # long that takes, on- or off-screen, or the "still banks the catch"
+        # promise above is just wrong on real hardware. It's stopped only in
+        # _on_verdict, once there's nothing left to poll for.
 
     def onResume(self, screen):
         super().onResume(screen)
@@ -287,9 +349,24 @@ class CodeActivity(Activity):
             return
         self.waiting = True
         self._set_status("checking")
+        # Start polling before submitting: on real hardware the reply can in
+        # principle arrive within a couple of poll periods (§5.1 happy path
+        # is 1-3 s), so the timer needs to already be running to catch it.
+        if self.timer is None:
+            self.timer = lv.timer_create(self._tick, 100, None)
         RADIO.submit_code(self.fox_id, self.entry, self._on_verdict)
 
+    def _tick(self, t):
+        # Same discipline as HuntActivity._tick: service the radio first,
+        # before anything else this tick might do. There's no widget work
+        # here either way -- the verdict, when it lands, comes back through
+        # _on_verdict, not through anything read here.
+        RADIO.poll()
+
     def _on_verdict(self, result):
+        if self.timer:
+            self.timer.delete()
+            self.timer = None
         self.waiting = False
         if result == "ok":
             # Bank the catch FIRST, foreground or not. The code is one-time
@@ -323,7 +400,7 @@ class CodeActivity(Activity):
                 extras["pakket"] = pakket
             self.startActivity(Intent(activity_class=WinActivity, extras=extras))
             return
-        # wrong/used: pure feedback, nothing to bank — a late one just drops.
+        # wrong/used/busy: pure feedback, nothing to bank — a late one just drops.
         if not self.has_foreground():
             return
         sound.play("error")
