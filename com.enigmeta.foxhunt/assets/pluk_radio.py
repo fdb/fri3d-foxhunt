@@ -23,10 +23,7 @@ import time
 
 SSID = "fri3d-badge"
 _SSID_B = SSID.encode()
-PLUK_LEVEL = 3  # harvestable at meter level >= 3 (-65 dBm and stronger).
-# Was 4 (-57 dBm), which assumed a hotspot at head height. At the real camp
-# the APs hang high on masts, so standing under one still only reads 3 bars
-# and the meter never armed. One meter segment = 8 dB.
+PLUK_LEVEL = 4  # harvestable at meter level >= 4 (-65 dBm and stronger)
 
 _MAX_SPOTS = 12  # keep the strongest few; a city block can show 40+
 _SCAN_GAP_MS = 1500  # breather between sweeps. A sweep itself blocks the
@@ -41,9 +38,17 @@ _SMOOTH = 0.5  # per-BSSID RSSI smoothing: raw dBm jitters +-5 and would
 
 
 def _level(rssi):
-    """dBm -> the 5-segment hot/cold meter. -85 is the edge of usable,
-    -45 is standing next to it — same span the snuffel bars use."""
-    return max(0, min(5, int((rssi + 85) / 8 + 0.5)))
+    """dBm -> the 5-segment hot/cold meter, 8 dB per segment. -57 is a full
+    meter and -65 arms PLUK!, which is what the terrain hands us: the camp's
+    hotspots hang high on masts, so standing directly under one reads about
+    -57 and nothing ever reads stronger. Anchored to that ceiling instead of
+    to a theoretical -45, which no player could reach — the top two segments
+    were dead and the meter never armed.
+
+    NOT the same span as the snuffel bars (screens_hunt._bars_lit), which it
+    used to share: those are badge-to-badge ESP-NOW, radios at head height
+    with no mast between them, so their span is still honest."""
+    return max(0, min(5, int((rssi + 93) / 8 + 0.5)))
 
 
 class PlukReading:
