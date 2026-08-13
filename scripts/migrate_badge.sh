@@ -146,8 +146,11 @@ fi
 
 # A save already under the new package is the one thing this script must not
 # quietly destroy — it means somebody already played the new build on this
-# badge, and their progress is not in the old file.
-if [[ "$new_prefs" == "True" && "$FORCE" -ne 1 ]]; then
+# badge, and their progress is not in the old file. Only a conflict when
+# there is actually an old save to write over it: on an already-migrated
+# badge that save IS the migrated one, and blocking there would refuse to
+# install on every badge after its first run.
+if [[ "$old_prefs" == "True" && "$new_prefs" == "True" && "$FORCE" -ne 1 ]]; then
     echo "error: $NEW_ID ALREADY has a save on this badge." >&2
     echo "       Migrating would overwrite it with the old package's save," >&2
     echo "       losing whatever was played on the new build. Re-run with" >&2
