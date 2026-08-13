@@ -3,6 +3,7 @@ import type { Bindings, Player } from "../types";
 import { logEvent } from "../lib/events";
 import { validateBadgeId, validateHunterId } from "../lib/validate";
 import { CREATURES } from "../lib/creatures";
+import { CAMP_START_S, CAMP_END_S } from "../lib/scoring";
 
 export const playerRoutes = new Hono<{ Bindings: Bindings }>();
 
@@ -11,8 +12,6 @@ const BASE_CREATURES = new Set(
   CREATURES.filter((c) => c.rarity === "norm").map((c) => c.id),
 );
 const CREATURE_BY_ID = new Map(CREATURES.map((c) => [c.id, c]));
-const CAMP_START_S = 1_786_021_200; // 2026-08-06 15:00 Europe/Brussels
-const CAMP_END_S = CAMP_START_S + 72 * 60 * 60;
 const SPARK_COOLDOWN_S = 6 * 60 * 60;
 
 // Server-owned bounds on the unauthenticated grant routes. The badge's own
@@ -45,25 +44,45 @@ type SnuffelReport = {
   received_was_new: number;
 };
 
+// What the server knows about the giver's claim to a creature: whether they
+// hold it at all, and whether it is their OWN find (self_found). Eligibility
+// to share and eligibility to score split on the second bit: a relay may
+// still spread a rare, but only an own find mints help credit.
+async function giverOwnership(
+  db: D1Database,
+  giverId: number,
+  creatureId: number,
+): Promise<{ owned: boolean; selfFound: boolean }> {
+  const owned = await db
+    .prepare(
+      "SELECT self_found FROM players_creatures WHERE player_id = ? AND creature_id = ?",
+    )
+    .bind(giverId, creatureId)
+    .first<{ self_found: number }>();
+  return { owned: !!owned, selfFound: owned?.self_found === 1 };
+}
+
+function shareEligibleWith(
+  giver: Player,
+  recipient: Player,
+  creatureId: number,
+  own: { owned: boolean; selfFound: boolean },
+): boolean {
+  const creature = CREATURE_BY_ID.get(creatureId);
+  if (!creature || !own.owned) return false;
+  if (creature.rarity === "norm") return true;
+  if (creature.rarity === "rare") return !giver.hunter_id || own.selfFound;
+  return !!giver.hunter_id && !recipient.hunter_id && own.selfFound;
+}
+
 async function shareEligible(
   db: D1Database,
   giver: Player,
   recipient: Player,
   creatureId: number,
 ): Promise<boolean> {
-  const creature = CREATURE_BY_ID.get(creatureId);
-  if (!creature) return false;
-  const owned = await db
-    .prepare(
-      "SELECT self_found FROM players_creatures WHERE player_id = ? AND creature_id = ?",
-    )
-    .bind(giver.id, creatureId)
-    .first<{ self_found: number }>();
-  if (!owned) return false;
-  if (creature.rarity === "norm") return true;
-  if (creature.rarity === "rare")
-    return !giver.hunter_id || owned.self_found === 1;
-  return !!giver.hunter_id && !recipient.hunter_id && owned.self_found === 1;
+  const own = await giverOwnership(db, giver.id, creatureId);
+  return shareEligibleWith(giver, recipient, creatureId, own);
 }
 
 async function pairSparkReady(
@@ -373,8 +392,8 @@ playerRoutes.post("/snuffel", async (c) => {
     ) => {
       const creatureId = giverReport.sent_creature_id;
       if (creatureId === null) return;
-      if (!(await shareEligible(c.env.DB, giver, recipient, creatureId)))
-        return;
+      const own = await giverOwnership(c.env.DB, giver.id, creatureId);
+      if (!shareEligibleWith(giver, recipient, creatureId, own)) return;
 
       const creature = CREATURE_BY_ID.get(creatureId)!;
       let wasNew = recipientReport.received_was_new === 1;
@@ -414,7 +433,10 @@ playerRoutes.post("/snuffel", async (c) => {
         giverReport.occurred_at >= CAMP_START_S &&
         giverReport.occurred_at < CAMP_END_S;
       let helpCredited = false;
-      if (inCamp && shareRow) {
+      // Help credit is for sharing an OWN find (GAME_DESIGN.md, Scoring): a
+      // relayed rare or a passed-on startbeest spreads the creature — the
+      // share row above records that reach — but mints no points.
+      if (inCamp && shareRow && own.selfFound) {
         const help = await c.env.DB.prepare(
           `INSERT OR IGNORE INTO helped_players
              (giver_id, recipient_id, first_share_id)
@@ -431,6 +453,7 @@ playerRoutes.post("/snuffel", async (c) => {
         giver_id: giver.id,
         recipient_id: recipient.id,
         creature_id: creatureId,
+        own_find: own.selfFound,
         help_credited: helpCredited,
       });
     };
@@ -528,10 +551,13 @@ playerRoutes.post("/pluk", async (c) => {
       (counts?.this_phase ?? 0) < PLUK_GRANTS_PER_PHASE;
   }
 
+  // `scored` freezes the cap decision at report time: the verzamelaarsscore
+  // counts these rows, and re-deriving "was it under the caps?" later — when
+  // more rows exist than did at grant time — would move points retroactively.
   const result = await c.env.DB.prepare(
-    "INSERT OR IGNORE INTO pluks (player_id, bssid, phase, creature_id) VALUES (?, ?, ?, ?)",
+    "INSERT OR IGNORE INTO pluks (player_id, bssid, phase, creature_id, scored) VALUES (?, ?, ?, ?, ?)",
   )
-    .bind(player.id, bssid, phase, creatureId)
+    .bind(player.id, bssid, phase, creatureId, allowGrant ? 1 : 0)
     .run();
   const duplicate = result.meta.changes === 0;
 

@@ -418,7 +418,7 @@ import sound
 import store
 import companion
 import registrar
-from creatures import CREATURES, by_id
+from creatures import CREATURES
 from foxhunt import lazy
 
 # CompanionActivity / RegisterActivity load at the navigation edge via
@@ -427,9 +427,6 @@ from foxhunt import lazy
 SCORE_BG = 0xF6E7CD
 SCORE_LABEL = 0x8A6A2E
 BADGE_TX = 0x5C4F38
-
-# Local, provisional scoring until the cloud server owns it: rarer = more.
-_POINTS = {"norm": 100, "rare": 250, "leg": 500}
 
 
 class ProfileActivity(Activity):
@@ -475,8 +472,13 @@ class ProfileActivity(Activity):
         )
         ui.label(s, p.get("badge_id", ""), 124, 78, BADGE_TX, ui.font_small())
 
-        # score: rarity-weighted, local for now (the server will own scoring)
-        score = sum(_POINTS.get(by_id(c)["rarity"], 100) for c in caught if by_id(c))
+        # score: the local mirror of this player's board (GAME_DESIGN.md,
+        # Scoring). Jagers and verzamelaars keep separate scores that never
+        # mix, so the panel shows the one this player competes on — the same
+        # formula and values as the server's scoreboard (store.hunter_score /
+        # gatherer_score), computed over what the badge knows locally.
+        jager = bool(p.get("hunter_id"))
+        score = store.hunter_score() if jager else store.gatherer_score()
         panel = ui.panel(s, 124, 100, 188, 40, bg=SCORE_BG, border=ui.GOLD)
         art.icon(panel, "spark", 2).set_pos(8, 12)
         ui.label(panel, "SCORE", 26, 12, SCORE_LABEL, ui.font_small())
@@ -490,11 +492,19 @@ class ProfileActivity(Activity):
         since = p.get("since")
         now = mpos.time.epoch_seconds()
         days = 1 + max(0, (now - since) // 86400) if since else 1
+        # The fourth tile is the score's social component, per track: a jager
+        # counts players helped with an own find, a verzamelaar the players
+        # met with a vonk (one boekje page each) — both feed their board.
+        social = (
+            (str(len(store.helped_ids())), "GEHOLPEN")
+            if jager
+            else (str(len(store.vrienden())), "ONTMOET")
+        )
         stats = (
             ("%d/%d" % (len(caught), len(CREATURES)), "GEVONDEN", ui.INK),
             (str(band), "BAND", ui.TERRA),
             (str(days), "DAGEN", ui.INK),
-            ("0", "GERUILD", ui.GREEN_D),
+            (social[0], social[1], ui.GREEN_D),
         )
         tiles = ui.row(s, ui.PAD, 146, 304, 44, gap=5)
         for value, label, colour in stats:

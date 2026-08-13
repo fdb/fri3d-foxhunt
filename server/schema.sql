@@ -24,8 +24,10 @@ CREATE TABLE IF NOT EXISTS players (
   -- NULL = live. Every player-facing read filters on it.
   dt_deleted TEXT,
   -- How many creatures this player has fully bonded (band 5). Self-reported
-  -- by the badge through the report outbox — display-only on the scoreboard,
-  -- never the ranking key (GAME_DESIGN.md, "What bond buys").
+  -- by the badge through the report outbox; bounds-checked and capped at the
+  -- roster size. One of the three verzamelaarsscore components — it ranks on
+  -- the verzamelaarslijst only, never on the jager board (GAME_DESIGN.md,
+  -- Scoring).
   bonded INTEGER NOT NULL DEFAULT 0
 );
 
@@ -93,6 +95,10 @@ CREATE TABLE IF NOT EXISTS creature_shares (
   UNIQUE (encounter_id, giver_id, recipient_id, creature_id)
 );
 
+-- First-help credit, deduplicated per (giver, recipient). A row is minted
+-- only for a corroborated introduction of the giver's OWN find (self_found
+-- at share time) inside the camp window — resharing spreads creatures but
+-- never lands here (GAME_DESIGN.md, Scoring).
 CREATE TABLE IF NOT EXISTS helped_players (
   giver_id INTEGER NOT NULL REFERENCES players(id),
   recipient_id INTEGER NOT NULL REFERENCES players(id),
@@ -111,6 +117,10 @@ CREATE TABLE IF NOT EXISTS pluks (
   bssid TEXT NOT NULL,
   phase TEXT NOT NULL, -- YYYY-MM-DD label of the phase's 15:00 start day
   creature_id INTEGER NOT NULL,
+  -- 1 when this report minted scoreboard weight (fresh + under the caps) —
+  -- the verzamelaarsscore counts these rows; over-cap or stale rows keep the
+  -- dedup ledger honest without paying points.
+  scored INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   UNIQUE (player_id, bssid, phase)
 );

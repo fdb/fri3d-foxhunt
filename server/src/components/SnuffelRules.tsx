@@ -361,8 +361,9 @@ export const SnuffelRules = () => (
               <>
                 <b>Sam helpt Mila.</b>
                 <p>
-                  Mila leert Tijghert kennen. Sam kan 50 punten krijgen als hij
-                  Mila nog nooit eerder met een beest hielp.
+                  Mila leert Tijghert kennen. Sam ving Tijghert zelf, dus hij
+                  kan 50 punten krijgen — als hij Mila nog nooit eerder met een
+                  eigen vondst hielp.
                 </p>
               </>
             }
@@ -400,8 +401,10 @@ export const SnuffelRules = () => (
                 <p>
                   Hij krijgt nu 0 vindpunten. Vindt hij later zelf de
                   Tijghert-vos met LoRa? Dan krijgt hij één keer de ZELF-stempel
-                  en 300 punten. Pas dan mag hij Tijghert verder delen. Noor kan
-                  50 punten krijgen omdat ze Wout hielp.
+                  en 300 punten. Pas dan mag hij Tijghert verder delen. Noor
+                  krijgt geen hulppunten: Tijghert is niet haar eigen vondst.
+                  Doorgeven blijft nuttig — het beest reist verder — maar alleen
+                  een eigen vondst delen levert punten op.
                 </p>
               </>
             }
@@ -607,10 +610,15 @@ export const SnuffelRules = () => (
     <section class="band band-paper" id="punten">
       <div class="wrap">
         <p class="rules-section-no">04 · PUNTEN</p>
-        <h2>Punten krijg je door zelf te vinden en anderen te helpen</h2>
+        <h2>Twee scoreborden: jagers en verzamelaars sparen apart</h2>
+        <p class="intro">
+          Jagers en verzamelaars spelen een ander spel, dus ze staan op twee
+          aparte lijsten met elk hun eigen punten. De twee tellen nooit bij
+          elkaar op.
+        </p>
         <div class="rules-score-grid">
           <article class="card rules-score-card">
-            <h3>Zelf gevonden</h3>
+            <h3>Jagers: zelf gevonden</h3>
             <div class="rules-point-chips">
               <span class="base">
                 Gewoon <b>100</b>
@@ -628,22 +636,36 @@ export const SnuffelRules = () => (
             </p>
           </article>
           <article class="card rules-score-card help">
-            <h3>Iemand geholpen</h3>
+            <h3>Jagers: iemand geholpen</h3>
             <strong class="rules-big-points">+50</strong>
             <p>
-              Laat je een beest kennismaken met een nieuwe speler? Dan krijg je
-              één keer 50 punten voor die speler. Nog een beest aan dezelfde
-              speler geven levert geen extra punten op.
+              Laat je een <b>eigen vondst</b> kennismaken met een nieuwe speler?
+              Dan krijg je één keer 50 punten voor die speler. Een beest
+              doorgeven dat je zelf kreeg, of nog een beest aan dezelfde speler
+              geven, levert geen punten op.
             </p>
           </article>
         </div>
         <div class="rules-formula">
           <b>
-            SCORE = ZELF GEVONDEN BEESTEN + 50 × VERSCHILLENDE SPELERS GEHOLPEN
+            JAGERSSCORE = ZELF GEVONDEN BEESTEN + 50 × SPELERS GEHOLPEN MET EEN
+            EIGEN VONDST
           </b>
           <p>
             Voorbeeld: één gewoon en één zeldzaam beest zelf gevonden, plus drie
             spelers geholpen = 100 + 300 + 150 = <strong>550 punten</strong>.
+          </p>
+        </div>
+        <div class="rules-formula">
+          <b>
+            VERZAMELAARSSCORE = 50 × PLUKVANGSTEN + 25 × NIEUWE SNUFFELVRIENDEN
+            + 100 × BESTE VRIENDEN
+          </b>
+          <p>
+            Verzamelaars sparen op hun eigen lijst: 50 punten per wild beest van
+            een plukplek, 25 punten per nieuwe speler waarmee je een vonk deelt
+            (elke speler telt één keer), en 100 punten per beest dat je tot
+            beste vriend maakt.
           </p>
         </div>
         <div class="rules-error">
@@ -713,7 +735,7 @@ export const SnuffelRules = () => (
             <h3>Elk punt telt maar één keer</h3>
             <p>
               Elk beest kun je één keer zelf vinden. Elke andere speler kun je
-              één keer helpen voor 50 punten.
+              één keer helpen voor 50 punten — en alleen met een eigen vondst.
             </p>
           </article>
         </div>
