@@ -1088,6 +1088,7 @@ import ui
 import store
 import sound
 import registrar
+import fox_radio
 
 # What the player has to type. Compared case-insensitively — the OS keyboard
 # opens on lowercase and making people find the shift key is friction that
@@ -1310,6 +1311,13 @@ class WipeActivity(Activity):
         # and the boek finish themselves, and the router (foxhunt.py) shows the
         # welcome screen again.
         store.reset_all()
+        # The radio's session state is not in the store, so reset_all cannot
+        # reach it: the fake burns one-time fox codes in RAM, and a wipe hands
+        # the badge on without an app restart. Without this the next player
+        # walked to a fox and was told AL GEBRUIKT. Qualified as
+        # fox_radio.RADIO because pluk_radio exports a RADIO too and this
+        # module is shared by both (CLAUDE.md, Size budget).
+        fox_radio.RADIO.reset()
         # finish() pops the TOP of the screen stack unconditionally, which is
         # only this screen while it still has the foreground — a late verdict
         # must not close whatever the player is looking at now.
