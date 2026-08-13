@@ -14,10 +14,16 @@ board layer handles the hardware differences.
   (`internal_filesystem`, `lvgl_micropython`, `scripts` — no git) that
   `run_on_mac.sh` downloads by itself and treats as `MPOS_DIR`; it holds the
   emulator's save. `~/Source/MicroPythonOS` is the full clone, kept for exactly
-  one thing the package lacks — the **mpy-cross** that `deploy_to_badge.sh` and
-  `build_mpk.sh` hardcode, which must come from the same checkout as the
-  firmware so the bytecode versions match. Deleting the package costs a
-  re-download; deleting the clone breaks every badge deploy.
+  one thing the package lacks — the **mpy-cross** that `deploy_to_badge.sh`
+  hardcodes, which must come from the same checkout as the firmware so the
+  bytecode versions match. Deleting the package costs a re-download; deleting
+  the clone breaks every badge deploy.
+  `build_mpk.sh` prefers that same binary but no longer requires it:
+  `scripts/get_mpy_cross.sh` rebuilds an identical compiler by walking
+  MicroPythonOS's own submodule pins (MicroPythonOS -> lvgl_micropython ->
+  lib/micropython), so a build server with no checkout can produce the store
+  package. Verified byte-identical output, and 0.12.0 through 0.17.2 all pin
+  the same micropython — the script fails loudly if a future release moves it.
 - The app is symlinked into BOTH checkouts' `internal_filesystem/apps/`, so
   both can launch — which is the trap, because their `internal_filesystem/`
   trees are separate. Only the package has `data/com.enigmeta.foxhunt`.

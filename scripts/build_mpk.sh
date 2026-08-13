@@ -42,8 +42,17 @@ APP_SRC="$PWD/$APP_ID"
 DIST="$PWD/dist"
 
 command -v uv >/dev/null || { echo "error: 'uv' is required (https://docs.astral.sh/uv/)" >&2; exit 1; }
-MPY_CROSS="${MPY_CROSS:-/Users/fdb/Source/MicroPythonOS/lvgl_micropython/lib/micropython/mpy-cross/build/mpy-cross}"
-[[ -x "$MPY_CROSS" ]] || { echo "error: mpy-cross not found at $MPY_CROSS (build the firmware checkout first, or set MPY_CROSS)" >&2; exit 1; }
+
+# mpy-cross, in order of preference: an explicit override, the developer's own
+# firmware checkout (already there, nothing to build), else fetch-and-build one
+# from the pins MicroPythonOS publishes. That last leg is what lets a build
+# server produce the package at all — see scripts/get_mpy_cross.sh.
+IN_TREE_MPY_CROSS="$HOME/Source/MicroPythonOS/lvgl_micropython/lib/micropython/mpy-cross/build/mpy-cross"
+if [[ -z "${MPY_CROSS:-}" && -x "$IN_TREE_MPY_CROSS" ]]; then
+    MPY_CROSS="$IN_TREE_MPY_CROSS"
+fi
+MPY_CROSS="${MPY_CROSS:-$(scripts/get_mpy_cross.sh)}"
+[[ -x "$MPY_CROSS" ]] || { echo "error: mpy-cross not found at $MPY_CROSS (set MPY_CROSS, or let scripts/get_mpy_cross.sh build one)" >&2; exit 1; }
 
 version=$(uv run python -c "import json; print(json.load(open('$APP_SRC/META-INF/MANIFEST.JSON'))['version'])")
 
@@ -68,4 +77,6 @@ find "$STAGE_ROOT" -exec touch -t 202501010000.00 {} \;
 
 files=$(find "$STAGE" -type f | wc -l | tr -d ' ')
 echo "built $mpk"
-echo "  $files files, $(stat -f%z "$mpk") bytes ($version, $(git rev-parse --short HEAD 2>/dev/null || echo unversioned))"
+# `wc -c <file` rather than stat: BSD wants -f%z and GNU wants -c%s, and this
+# script now runs on both.
+echo "  $files files, $(wc -c <"$mpk" | tr -d ' ') bytes ($version, $(git rev-parse --short HEAD 2>/dev/null || echo unversioned))"

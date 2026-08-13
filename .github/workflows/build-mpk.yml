@@ -1,0 +1,45 @@
+# Build the app-store package on a machine that has no MicroPythonOS checkout.
+#
+# This is the whole point of scripts/get_mpy_cross.sh: the .mpy bytecode must
+# match the firmware, which used to mean "build the firmware first" and so kept
+# packaging tied to one developer's laptop. Here the compiler is reconstructed
+# from MicroPythonOS's own submodule pins, so every push produces the exact
+# bytes a BadgeHub upload would carry — measured byte-identical to a run with a
+# hand-built mpy-cross, because the .mpk is deterministic by construction
+# (stored zip, fixed mtimes, sorted entries).
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  mpk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # build_mpk.sh reads the manifest version through `uv run python`.
+      - uses: astral-sh/setup-uv@v5
+
+      # Only the compiler binary is worth caching (~440 KB). The 100+ MB of
+      # shallow git sources under src/ is deleted below before the post-run
+      # cache save, so a warm run restores a single executable and skips both
+      # the pin resolution and the make.
+      - name: Cache mpy-cross
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/foxhunt/mpy-cross
+          key: mpy-cross-${{ hashFiles('scripts/get_mpy_cross.sh') }}
+
+      - run: scripts/build_mpk.sh
+
+      - name: Trim compiler sources from the cache
+        if: always()
+        run: rm -rf ~/.cache/foxhunt/mpy-cross/src
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: foxhunt-mpk-${{ github.sha }}
+          path: dist/*.mpk
+          if-no-files-found: error
