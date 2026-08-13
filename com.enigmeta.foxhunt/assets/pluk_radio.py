@@ -23,7 +23,10 @@ import time
 
 SSID = "fri3d-badge"
 _SSID_B = SSID.encode()
-PLUK_LEVEL = 4  # harvestable at meter level >= 4 (about -55 dBm)
+PLUK_LEVEL = 3  # harvestable at meter level >= 3 (-65 dBm and stronger).
+# Was 4 (-57 dBm), which assumed a hotspot at head height. At the real camp
+# the APs hang high on masts, so standing under one still only reads 3 bars
+# and the meter never armed. One meter segment = 8 dB.
 
 _MAX_SPOTS = 12  # keep the strongest few; a city block can show 40+
 _SCAN_GAP_MS = 1500  # breather between sweeps. A sweep itself blocks the
