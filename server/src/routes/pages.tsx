@@ -1,6 +1,12 @@
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
-import type { Bindings, GameEvent, Player, ScoreRow } from "../types";
+import type {
+  Bindings,
+  GameEvent,
+  Player,
+  ScoreBoards,
+  ScoreRow,
+} from "../types";
 import { Layout } from "../components/Layout";
 import { Home } from "../components/Home";
 import { SnuffelRules } from "../components/SnuffelRules";
@@ -8,6 +14,18 @@ import { Companion } from "../components/Companion";
 import { decodeCompanion } from "../lib/companion";
 import { CREATURES, RARITY_LABEL, creatureById } from "../lib/creatures";
 import { starterFor } from "../lib/starter";
+import {
+  SELF_FOUND_POINTS,
+  HELP_POINTS,
+  PLUK_POINTS,
+  MEET_POINTS,
+  BONDED_POINTS,
+  CAMP_START_S,
+  CAMP_END_S,
+  CAMP_START_ISO,
+  CAMP_END_ISO,
+  CAMP_PHASES,
+} from "../lib/scoring";
 
 export const pageRoutes = new Hono<{ Bindings: Bindings }>();
 
@@ -54,46 +72,123 @@ const LEGENDARY_IDS = CREATURES.filter((c) => c.rarity === "leg")
 
 // HOW MANY, never WHICH. The scoreboard is public and the roster is the
 // player's to discover (CLAUDE.md, "Server pages"), so this query counts
-// players_creatures and never reads a creature_id. profile_pic rides along
-// because the maatje is the player's face on the board.
+// players_creatures and never reads a creature_id out. profile_pic rides
+// along because the maatje is the player's face on the board.
+//
+// Two boards, never mixed (GAME_DESIGN.md, Scoring): the SQL collects the
+// fenced per-tier/self-report COUNTS, TypeScript owns the point values
+// (lib/scoring — one place to tune), and every live player lands on exactly
+// one list, keyed on hunter_id.
 //
 // A wiped account leaves the board the moment it is wiped: taking your name off
 // this page is one of the two reasons the delete exists (auth.ts, DELETE /user).
-async function fetchScores(db: D1Database): Promise<ScoreRow[]> {
+const CAMP_PHASE_LIST = CAMP_PHASES.map((p) => `'${p}'`).join(",");
+
+interface ScoreCountRow {
+  id: number;
+  name: string;
+  hunter_id: number | null;
+  profile_pic: string;
+  creatures_found: number;
+  self_found: number;
+  self_base: number;
+  self_rare: number;
+  self_leg: number;
+  players_helped: number;
+  pluks_scored: number;
+  players_met: number;
+  bonded: number;
+  last_found: string | null;
+}
+
+async function fetchScores(db: D1Database): Promise<ScoreBoards> {
   const { results } = await db
     .prepare(
       `SELECT p.id, p.name, p.hunter_id, p.profile_pic,
               COUNT(pc.creature_id) AS creatures_found,
               COALESCE(SUM(CASE WHEN pc.self_found = 1 THEN 1 ELSE 0 END), 0)
                 AS self_found,
-              (SELECT COUNT(*) FROM helped_players hp WHERE hp.giver_id = p.id)
-                AS players_helped,
               COALESCE(SUM(
                 CASE
                   WHEN pc.self_found = 1
-                   AND pc.dt_self_found >= '2026-08-06T13:00:00Z'
-                   AND pc.dt_self_found <  '2026-08-09T13:00:00Z'
-                  THEN CASE
-                    WHEN pc.creature_id IN (${BASE_IDS}) THEN 100
-                    WHEN pc.creature_id IN (${RARE_IDS}) THEN 300
-                    WHEN pc.creature_id IN (${LEGENDARY_IDS}) THEN 800
-                    ELSE 0
-                  END
-                  ELSE 0
-                END
-              ), 0) + 50 *
-                (SELECT COUNT(*) FROM helped_players hp WHERE hp.giver_id = p.id)
-                AS score,
+                   AND pc.dt_self_found >= '${CAMP_START_ISO}'
+                   AND pc.dt_self_found <  '${CAMP_END_ISO}'
+                   AND pc.creature_id IN (${BASE_IDS})
+                  THEN 1 ELSE 0
+                END), 0) AS self_base,
+              COALESCE(SUM(
+                CASE
+                  WHEN pc.self_found = 1
+                   AND pc.dt_self_found >= '${CAMP_START_ISO}'
+                   AND pc.dt_self_found <  '${CAMP_END_ISO}'
+                   AND pc.creature_id IN (${RARE_IDS})
+                  THEN 1 ELSE 0
+                END), 0) AS self_rare,
+              COALESCE(SUM(
+                CASE
+                  WHEN pc.self_found = 1
+                   AND pc.dt_self_found >= '${CAMP_START_ISO}'
+                   AND pc.dt_self_found <  '${CAMP_END_ISO}'
+                   AND pc.creature_id IN (${LEGENDARY_IDS})
+                  THEN 1 ELSE 0
+                END), 0) AS self_leg,
+              (SELECT COUNT(*) FROM helped_players hp WHERE hp.giver_id = p.id)
+                AS players_helped,
+              (SELECT COUNT(*) FROM pluks pk
+                WHERE pk.player_id = p.id AND pk.scored = 1
+                  AND pk.phase IN (${CAMP_PHASE_LIST}))
+                AS pluks_scored,
+              (SELECT COUNT(DISTINCT
+                  CASE WHEN vs.player_a = p.id THEN vs.player_b
+                       ELSE vs.player_a END)
+                FROM verified_sparks vs
+                WHERE (vs.player_a = p.id OR vs.player_b = p.id)
+                  AND vs.occurred_at >= ${CAMP_START_S}
+                  AND vs.occurred_at <  ${CAMP_END_S})
+                AS players_met,
+              MIN(p.bonded, ${ROSTER_SIZE}) AS bonded,
               MAX(pc.dt_found) AS last_found
        FROM players p
        LEFT JOIN players_creatures pc ON pc.player_id = p.id
        WHERE p.dt_deleted IS NULL
-       GROUP BY p.id
-       ORDER BY score DESC, self_found DESC, players_helped DESC,
-                creatures_found DESC, p.name ASC`,
+       GROUP BY p.id`,
     )
-    .all<ScoreRow>();
-  return results;
+    .all<ScoreCountRow>();
+
+  const rows: ScoreRow[] = results.map((r) => ({
+    ...r,
+    hunter_score:
+      r.self_base * SELF_FOUND_POINTS.norm +
+      r.self_rare * SELF_FOUND_POINTS.rare +
+      r.self_leg * SELF_FOUND_POINTS.leg +
+      r.players_helped * HELP_POINTS,
+    gatherer_score:
+      r.pluks_scored * PLUK_POINTS +
+      r.players_met * MEET_POINTS +
+      r.bonded * BONDED_POINTS,
+  }));
+
+  const jagers = rows
+    .filter((r) => r.hunter_id !== null)
+    .sort(
+      (a, b) =>
+        b.hunter_score - a.hunter_score ||
+        b.self_found - a.self_found ||
+        b.players_helped - a.players_helped ||
+        b.creatures_found - a.creatures_found ||
+        a.name.localeCompare(b.name),
+    );
+  const verzamelaars = rows
+    .filter((r) => r.hunter_id === null)
+    .sort(
+      (a, b) =>
+        b.gatherer_score - a.gatherer_score ||
+        b.players_met - a.players_met ||
+        b.bonded - a.bonded ||
+        b.creatures_found - a.creatures_found ||
+        a.name.localeCompare(b.name),
+    );
+  return { jagers, verzamelaars };
 }
 
 // "2026-08-02T12:34:56.789Z" -> "12:34"
@@ -122,13 +217,31 @@ const NotFound = ({ what }: { what: string }) => (
   </Layout>
 );
 
-const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
+const BeestenMeter = ({ found }: { found: number }) => (
+  <td class="beesten">
+    <span class="meter">
+      <span
+        class="meter-fill"
+        style={`width:${Math.min(100, (found / ROSTER_SIZE) * 100)}%`}
+      />
+    </span>
+    <span class="meter-count">
+      {found}/{ROSTER_SIZE}
+    </span>
+  </td>
+);
+
+// Two boards, two ranking keys, never one total (GAME_DESIGN.md, Scoring).
+// Each table shows its score's own breakdown beside the total, and nothing
+// of the other game's.
+const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
   <section
     id="scoreboard"
     hx-get="/scoreboard"
     hx-trigger="every 5s"
     hx-swap="outerHTML"
   >
+    <h2>Jagers</h2>
     <table>
       <thead>
         <tr>
@@ -144,35 +257,66 @@ const Scoreboard = ({ scores }: { scores: ScoreRow[] }) => (
         </tr>
       </thead>
       <tbody>
-        {scores.map((s, i) => (
+        {scores.jagers.map((s, i) => (
           <tr>
             <td class="rank">{i + 1}</td>
             <td>
               <Companion code={s.profile_pic} size={32} />
             </td>
             <td>{s.name}</td>
-            <td class="muted">{s.hunter_id ?? "—"}</td>
-            <td class="score">{s.score}</td>
+            <td class="muted">{hunterLabel(s.hunter_id)}</td>
+            <td class="score">{s.hunter_score}</td>
             <td>{s.self_found}</td>
             <td>{s.players_helped}</td>
-            <td class="beesten">
-              <span class="meter">
-                <span
-                  class="meter-fill"
-                  style={`width:${Math.min(100, (s.creatures_found / ROSTER_SIZE) * 100)}%`}
-                />
-              </span>
-              <span class="meter-count">
-                {s.creatures_found}/{ROSTER_SIZE}
-              </span>
-            </td>
+            <BeestenMeter found={s.creatures_found} />
             <td class="muted">{shortTime(s.last_found)}</td>
           </tr>
         ))}
-        {scores.length === 0 && (
+        {scores.jagers.length === 0 && (
           <tr>
             <td class="empty" colspan={9}>
-              Nog geen spelers geregistreerd.
+              Nog geen jagers met een antenne.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+
+    <h2>Verzamelaars</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Maatje</th>
+          <th>Speler</th>
+          <th>Score</th>
+          <th>Pluk</th>
+          <th>Ontmoet</th>
+          <th>Sterren</th>
+          <th>Beesten</th>
+          <th>Laatst</th>
+        </tr>
+      </thead>
+      <tbody>
+        {scores.verzamelaars.map((s, i) => (
+          <tr>
+            <td class="rank">{i + 1}</td>
+            <td>
+              <Companion code={s.profile_pic} size={32} />
+            </td>
+            <td>{s.name}</td>
+            <td class="score">{s.gatherer_score}</td>
+            <td>{s.pluks_scored}</td>
+            <td>{s.players_met}</td>
+            <td>{s.bonded}</td>
+            <BeestenMeter found={s.creatures_found} />
+            <td class="muted">{shortTime(s.last_found)}</td>
+          </tr>
+        ))}
+        {scores.verzamelaars.length === 0 && (
+          <tr>
+            <td class="empty" colspan={9}>
+              Nog geen verzamelaars geregistreerd.
             </td>
           </tr>
         )}
@@ -212,8 +356,9 @@ pageRoutes.get("/snuffelregels", (c) =>
 // Public dashboard
 pageRoutes.get("/scores", async (c) => {
   const scores = await fetchScores(c.env.DB);
+  const count = scores.jagers.length + scores.verzamelaars.length;
   return c.html(
-    <Layout title="Scorebord" right={`${scores.length} spelers`} poll>
+    <Layout title="Scorebord" right={`${count} spelers`} poll>
       <Scoreboard scores={scores} />
     </Layout>,
   );

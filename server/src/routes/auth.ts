@@ -371,8 +371,10 @@ authRoutes.patch("/user", async (c) => {
   }
   if (body.bonded !== undefined) {
     // The badge's bonded count (band-5 creatures), via the report outbox.
-    // Self-claimed and display-only — never a ranking key — so a plain
-    // bounds check is all the trust it needs.
+    // Self-claimed, and since the scoring split one of the verzamelaarsscore
+    // components (GAME_DESIGN.md, Scoring) — bounded here and capped at the
+    // roster size by the scoreboard query, which is all the trust the
+    // forgiving gatherer board asks for.
     const bonded = body.bonded;
     if (
       typeof bonded !== "number" ||

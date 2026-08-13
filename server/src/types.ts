@@ -34,11 +34,25 @@ export interface ScoreRow {
   name: string;
   hunter_id: number | null;
   profile_pic: string;
-  // A count, never a list: the scoreboard is public and which beesten a player
+  // Counts, never lists: the scoreboard is public and which beesten a player
   // holds is a spoiler. See fetchScores.
   creatures_found: number;
   self_found: number;
   players_helped: number;
-  score: number;
+  pluks_scored: number;
+  players_met: number;
+  bonded: number;
+  // The two ranking keys — computed in fetchScores from lib/scoring values,
+  // never mixed: a jager ranks on hunter_score, a verzamelaar on
+  // gatherer_score (GAME_DESIGN.md, Scoring).
+  hunter_score: number;
+  gatherer_score: number;
   last_found: string | null;
+}
+
+// The two boards /scores renders: every live player appears on exactly one,
+// keyed on whether they hold a hunter_id.
+export interface ScoreBoards {
+  jagers: ScoreRow[];
+  verzamelaars: ScoreRow[];
 }
