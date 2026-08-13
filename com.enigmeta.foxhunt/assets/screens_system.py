@@ -1021,8 +1021,9 @@ class DebugActivity(Activity):
         label.set_style_text_color(ui.hexc(ui.CREAM if enabled else ui.INK), 0)
 
     def _toggle_cheat(self, key, button, label):
-        # store.debug_cheat, not a setting: settings survive ALLES WISSEN,
-        # and an armed cheat must not outlive the player who armed it.
+        # store.debug_cheat, not a setting: a setting is written to flash and
+        # survives ALLES WISSEN, and an armed cheat must not outlive the run
+        # that armed it — it expires with the app (foxhunt._new_session).
         sound.play("tap")
         enabled = not store.debug_cheat(key)
         store.set_debug_cheat(key, enabled)

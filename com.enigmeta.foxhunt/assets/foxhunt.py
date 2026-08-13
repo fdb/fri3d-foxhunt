@@ -79,11 +79,13 @@ def _new_session():
     singleton that does not exist yet would cost every cold start a LittleFS
     open (~0.25s) for nothing.
     """
-    # The 1111 test code, armed from the debug screen. It is RAM-only on
-    # purpose and must not outlive the app that armed it: the next player gets
-    # a badge where the code is dead again, and an organiser who wants it back
-    # is five deliberate taps on the badge id away.
+    # Everything the debug screen can arm: the 1111 test code, and the cheats
+    # (pluk_any, nooit_moe). All RAM-only on purpose, and none of it may
+    # outlive the app that armed it — the next player gets a badge where the
+    # code is dead and nothing is cheating, and an organiser who wants any of
+    # it back is five deliberate taps on the badge id away.
     store.disable_debug_code()
+    store.clear_debug_cheats()
     radio = sys.modules.get("fox_radio")
     if radio is not None:
         radio.RADIO.reset()
