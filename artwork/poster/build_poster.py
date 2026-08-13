@@ -38,19 +38,40 @@ def font(path: Path, size: int):
 
 def cover(im: Image.Image, size: tuple[int, int]) -> Image.Image:
     scale = max(size[0] / im.width, size[1] / im.height)
-    resized = im.resize((round(im.width * scale), round(im.height * scale)), Image.Resampling.LANCZOS)
+    resized = im.resize(
+        (round(im.width * scale), round(im.height * scale)), Image.Resampling.LANCZOS
+    )
     x = (resized.width - size[0]) // 2
     y = (resized.height - size[1]) // 2
     return resized.crop((x, y, x + size[0], y + size[1]))
 
 
-def centered(draw: ImageDraw.ImageDraw, text: str, y: int, face, fill, *, stroke=0, stroke_fill=None):
+def centered(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    y: int,
+    face,
+    fill,
+    *,
+    stroke=0,
+    stroke_fill=None,
+):
     box = draw.textbbox((0, 0), text, font=face, stroke_width=stroke)
     x = (W - (box[2] - box[0])) // 2
-    draw.text((x, y), text, font=face, fill=fill, stroke_width=stroke, stroke_fill=stroke_fill)
+    draw.text(
+        (x, y), text, font=face, fill=fill, stroke_width=stroke, stroke_fill=stroke_fill
+    )
 
 
-def wrapped_center(draw: ImageDraw.ImageDraw, text: str, y: int, face, fill, max_width: int, spacing: int):
+def wrapped_center(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    y: int,
+    face,
+    fill,
+    max_width: int,
+    spacing: int,
+):
     words = text.split()
     lines, current = [], ""
     for word in words:
@@ -69,12 +90,18 @@ def wrapped_center(draw: ImageDraw.ImageDraw, text: str, y: int, face, fill, max
     return y
 
 
-def rounded_panel(canvas_img: Image.Image, box, radius, fill, outline=None, width=1, shadow=18):
+def rounded_panel(
+    canvas_img: Image.Image, box, radius, fill, outline=None, width=1, shadow=18
+):
     x0, y0, x1, y1 = box
     layer = Image.new("RGBA", canvas_img.size, (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
     if shadow:
-        ld.rounded_rectangle((x0 + shadow, y0 + shadow, x1 + shadow, y1 + shadow), radius, fill=(20, 18, 10, 115))
+        ld.rounded_rectangle(
+            (x0 + shadow, y0 + shadow, x1 + shadow, y1 + shadow),
+            radius,
+            fill=(20, 18, 10, 115),
+        )
     ld.rounded_rectangle(box, radius, fill=fill, outline=outline, width=width)
     canvas_img.alpha_composite(layer)
 
@@ -105,12 +132,21 @@ def paste_screen(canvas_img: Image.Image, path: Path, x: int, y: int, label: str
     screen_w, screen_h = 680, 510
     outer = (x, y, x + screen_w + 56, y + screen_h + 120)
     rounded_panel(canvas_img, outer, 30, INK, GREEN_D, 8, shadow=16)
-    shot = Image.open(path).convert("RGB").resize((screen_w, screen_h), Image.Resampling.NEAREST)
+    shot = (
+        Image.open(path)
+        .convert("RGB")
+        .resize((screen_w, screen_h), Image.Resampling.NEAREST)
+    )
     canvas_img.paste(shot, (x + 28, y + 28))
     d = ImageDraw.Draw(canvas_img)
     label_face = font(PIXEL_FONT, 50)
     box = d.textbbox((0, 0), label, font=label_face)
-    d.text((x + (screen_w + 56 - (box[2] - box[0])) // 2, y + screen_h + 48), label, font=label_face, fill=PAPER)
+    d.text(
+        (x + (screen_w + 56 - (box[2] - box[0])) // 2, y + screen_h + 48),
+        label,
+        font=label_face,
+        fill=PAPER,
+    )
 
 
 def build_png():
@@ -132,11 +168,18 @@ def build_png():
     rounded_panel(poster, ribbon, 18, GREEN, GREEN_D, 8, shadow=10)
     ribbon_face = font(PIXEL_FONT, 53)
     rb = draw.textbbox((0, 0), "FRI3D CAMP 2026", font=ribbon_face)
-    draw.text(((W - (rb[2] - rb[0])) // 2, 116), "FRI3D CAMP 2026", font=ribbon_face, fill=PAPER)
+    draw.text(
+        ((W - (rb[2] - rb[0])) // 2, 116),
+        "FRI3D CAMP 2026",
+        font=ribbon_face,
+        fill=PAPER,
+    )
 
     title_face = font(PIXEL_FONT, 252)
     centered(draw, "Vossenjacht", 288, title_face, FOREST, stroke=5, stroke_fill=FOREST)
-    centered(draw, "Vossenjacht", 264, title_face, "#ecff00", stroke=3, stroke_fill="#ecff00")
+    centered(
+        draw, "Vossenjacht", 264, title_face, "#ecff00", stroke=3, stroke_fill="#ecff00"
+    )
 
     tagline = font(PIXEL_FONT, 82)
     centered(draw, "SPOOR DE BEESTEN VAN HET BOS OP.", 594, tagline, FOCUS)
@@ -145,12 +188,18 @@ def build_png():
     fox = sprite(ROOT / "artwork" / "animals" / "1_vos.png", 31)
     poster.alpha_composite(fox, ((W - fox.width) // 2, 760))
     parade_paths = [
-        "1_egel.png", "1_axolotl.png", "2_slakamander.png", "1_konijn.png",
-        "2_kameleeuw.png", "1_papegaai.png",
+        "1_egel.png",
+        "1_axolotl.png",
+        "2_slakamander.png",
+        "1_konijn.png",
+        "2_kameleeuw.png",
+        "1_papegaai.png",
     ]
     parade_x = [205, 505, 830, 1420, 1740, 2070]
     for i, (name, x) in enumerate(zip(parade_paths, parade_x)):
-        item = sprite(ROOT / "artwork" / "animals" / name, 13 if i not in (2, 4) else 11)
+        item = sprite(
+            ROOT / "artwork" / "animals" / name, 13 if i not in (2, 4) else 11
+        )
         poster.alpha_composite(item, (x, 890 + (i % 2) * 70))
 
     body_face = font(BODY_BOLD, 58)
@@ -166,16 +215,42 @@ def build_png():
 
     # Three real game screens, presented as badge displays.
     screen_y = 1500
-    paste_screen(poster, ROOT / "server" / "static" / "screens" / "jacht.png", 92, screen_y, "SPEUR")
-    paste_screen(poster, ROOT / "server" / "static" / "screens" / "beest.png", 872, screen_y, "ONTDEK")
-    paste_screen(poster, ROOT / "server" / "static" / "screens" / "boek.png", 1652, screen_y, "VERZAMEL")
+    paste_screen(
+        poster,
+        ROOT / "server" / "static" / "screens" / "jacht.png",
+        92,
+        screen_y,
+        "SPEUR",
+    )
+    paste_screen(
+        poster,
+        ROOT / "server" / "static" / "screens" / "beest.png",
+        872,
+        screen_y,
+        "ONTDEK",
+    )
+    paste_screen(
+        poster,
+        ROOT / "server" / "static" / "screens" / "boek.png",
+        1652,
+        screen_y,
+        "VERZAMEL",
+    )
 
     # QR call-to-action: calm, high-contrast and large enough for distance scanning.
     cta = (120, 2300, 2360, 3342)
     rounded_panel(poster, cta, 54, GOLD, "#a8761f", 12, shadow=28)
     qr = qr_image("https://foxhunt.enigmeta.com/", module_px=20, border=4)
     qx, qy = 180, 2490
-    rounded_panel(poster, (qx - 34, qy - 34, qx + qr.width + 34, qy + qr.height + 34), 30, PAPER, INK, 10, shadow=14)
+    rounded_panel(
+        poster,
+        (qx - 34, qy - 34, qx + qr.width + 34, qy + qr.height + 34),
+        30,
+        PAPER,
+        INK,
+        10,
+        shadow=14,
+    )
     poster.paste(qr, (qx, qy))
 
     cta_x = 1135
@@ -184,12 +259,21 @@ def build_png():
     draw.text((cta_x, 2535), "DE JACHT?", font=cta_title, fill=INK)
     action = font(PIXEL_FONT, 82)
     button_right = 2235
-    draw.rounded_rectangle((cta_x, 2705, button_right, 2865), 24, fill=GREEN_D, outline=INK, width=8)
+    draw.rounded_rectangle(
+        (cta_x, 2705, button_right, 2865), 24, fill=GREEN_D, outline=INK, width=8
+    )
     ab = draw.textbbox((0, 0), "SCAN EN SPEEL!", font=action)
-    draw.text((cta_x + (button_right - cta_x - (ab[2] - ab[0])) // 2, 2733), "SCAN EN SPEEL!", font=action, fill=PAPER)
+    draw.text(
+        (cta_x + (button_right - cta_x - (ab[2] - ab[0])) // 2, 2733),
+        "SCAN EN SPEEL!",
+        font=action,
+        fill=PAPER,
+    )
 
     cta_body = font(BODY_BOLD, 49)
-    for i, line in enumerate(("Richt je camera op de QR-code", "en start Vossenjacht op je badge.")):
+    for i, line in enumerate(
+        ("Richt je camera op de QR-code", "en start Vossenjacht op je badge.")
+    ):
         draw.text((cta_x, 2935 + i * 70), line, font=cta_body, fill=INK)
     url_face = font(PIXEL_FONT, 47)
     draw.text((cta_x, 3125), "foxhunt.enigmeta.com", font=url_face, fill=GREEN_D)
@@ -209,7 +293,15 @@ def build_pdf():
     pdf = canvas.Canvas(str(OUT_PDF), pagesize=A4, pageCompression=1)
     pdf.setTitle("Vossenjacht - Fri3d Camp 2026")
     pdf.setAuthor("Vossenjacht")
-    pdf.drawImage(str(OUT_PNG), 0, 0, width=page_w, height=page_h, preserveAspectRatio=True, mask="auto")
+    pdf.drawImage(
+        str(OUT_PNG),
+        0,
+        0,
+        width=page_w,
+        height=page_h,
+        preserveAspectRatio=True,
+        mask="auto",
+    )
     pdf.showPage()
     pdf.save()
 
