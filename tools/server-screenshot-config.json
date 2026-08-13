@@ -1,0 +1,91 @@
+{
+  "profile": {
+    "name": "Robin",
+    "head": "vos",
+    "accs": ["bril"],
+    "bg": 1,
+    "badge_id": "a4:cf:12:9b:03:7f",
+    "hunter_id": 42,
+    "synced": true,
+    "since": 1786352400
+  },
+  "caught": [0, 1, 2, 3],
+  "origins": {
+    "0": "vangst",
+    "1": "start",
+    "2": "vangst",
+    "3": "spoor"
+  },
+  "zelf": [0, 2],
+  "zelf_dates": {
+    "0": "2026-08-08",
+    "2": "2026-08-09"
+  },
+  "beast": {
+    "0": {
+      "bijnaam": "",
+      "date": "2026-08-08",
+      "bond": 34,
+      "last": 4102444800,
+      "sightings": 2,
+      "place": "Fri3d Camp",
+      "energy": 85
+    },
+    "1": {
+      "bijnaam": "",
+      "date": "2026-08-08",
+      "bond": 18,
+      "last": 4102444800,
+      "sightings": 1,
+      "place": "Fri3d Camp",
+      "energy": 70
+    },
+    "2": {
+      "bijnaam": "",
+      "date": "2026-08-09",
+      "bond": 22,
+      "last": 4102444800,
+      "sightings": 1,
+      "place": "Fri3d Camp",
+      "energy": 75
+    },
+    "3": {
+      "bijnaam": "",
+      "date": "2026-08-10",
+      "bond": 12,
+      "last": 4102444800,
+      "sightings": 1,
+      "place": "Fri3d Camp",
+      "energy": 65
+    }
+  },
+  "voorraad": {
+    "bes": 6,
+    "noot": 3,
+    "eikel": 4
+  },
+  "vrienden": [
+    {
+      "mac": "a4:cf:12:00:00:01",
+      "naam": "Sam",
+      "code": "H01A003C1",
+      "dag": "2026-08-08"
+    },
+    {
+      "mac": "a4:cf:12:00:00:02",
+      "naam": "Lou",
+      "code": "H02A001C2",
+      "dag": "2026-08-09"
+    }
+  ],
+  "flags": ["uitleg_gezien"],
+  "visitor": {
+    "started": 1786352400,
+    "slot": 0,
+    "pending": null,
+    "pending_slot": null,
+    "debug": false,
+    "debug_due": 0,
+    "cooldown": 4102444800
+  }
+}

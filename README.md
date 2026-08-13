@@ -67,6 +67,20 @@ Mouse = touch · arrow keys = focus nav · Esc = back. The hunt "warms up" on it
 own (FakeFoxRadio) until it auto-advances to the code screen. Codes are in
 `creatures.py` (e.g. Everzwaan = `7391`).
 
+## Refresh the public-site screenshots
+
+From the repo root:
+
+```bash
+scripts/capture_server_screens.sh
+```
+
+The script launches the real badge UI in the emulator, captures every image in
+`server/static/screens/`, and exports each 320×240 framebuffer at an exact 2×
+scale. It uses a temporary hunter profile containing only base creatures, with
+the Vos marked as an own find so the provenance badge remains covered. The
+existing emulator profile is restored when the run finishes or fails.
+
 ## Same source, both targets
 
 The app never touches a pin. The MicroPythonOS **board layer**
