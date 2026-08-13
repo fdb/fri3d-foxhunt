@@ -353,8 +353,24 @@ class LoRaLink:
         if self.radio is None:
             print("lora: no LoRa radio fitted (LoRaManager.radioChip is None)")
             return
-        self.available = True
         self._patch_busy_timeout()  # before ANY SPI traffic -- see constant above
+
+        # MicroPythonOS constructs a driver object even when the antenna kit
+        # is absent. Prove an SX1262 answers before treating that object as a
+        # fitted radio: an open bus reads 0xFF on a badge without the radio
+        # daughterboard, and recovery attempts against it needlessly pulse the
+        # expander before falling back. This is the same read-only
+        # presence probe registrar.has_lora() uses; 0 and 1 are the chip's
+        # valid GFSK and LoRa packet-type replies.
+        try:
+            packet_type = self.radio.getPacketType()
+        except Exception as e:
+            print("lora: radio presence probe failed:", repr(e))
+            return
+        if packet_type not in (0, 1):
+            print("lora: no responding SX1262 (packet type %r)" % packet_type)
+            return
+        self.available = True
 
         self.is_fri3d = DeviceInfo.hardware_id == "fri3d_2026"
         if self.is_fri3d:
