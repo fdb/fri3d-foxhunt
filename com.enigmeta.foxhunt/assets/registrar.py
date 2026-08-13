@@ -152,7 +152,18 @@ def resync():
     p = store.profile()
     if not p or p.get("synced"):
         return
-    import companion
+    # Through lazy(), not a plain `import companion`: this runs from
+    # FoxhuntActivity.onCreate, and by then AppManager has taken the app dir
+    # back off sys.path. companion is not among what the entrypoint imports
+    # (ui/art/store/registrar/telemetry/creatures), so a bare import only
+    # resolves once something ELSE has cached it — home's prewarm, profiel,
+    # instellingen. Sibling modules survive a relaunch, so from the second
+    # launch of a power session on it always worked; the cold launch it broke
+    # is the one that matters, because an unsynced profile is the only kind
+    # that gets this far.
+    from foxhunt import lazy
+
+    companion = lazy("companion")
 
     REGISTRAR.register(
         p.get("name") or "Jager",

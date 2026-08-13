@@ -7,6 +7,11 @@
 # it makes it. Everything downstream may therefore assume store.profile() is
 # not None; that invariant is this module's whole reason to exist.
 #
+# The one other thing it owns falls out of how the OS loads it: this is the
+# ONLY module that runs fresh on every startapp, because MicroPythonOS evicts
+# just the entrypoint and leaves every sibling cached in sys.modules. So a
+# launch can only be recognised as a launch here — see _new_session().
+#
 # The splash STAYS on the stack underneath what it launches, and that is what
 # makes the routing reversible: mpos has a screen stack, not a nav graph, so an
 # activity cannot pop itself out from under a child. The system back gesture
@@ -55,10 +60,42 @@ def lazy(name):
 _SPLASH_SCALE = 8  # 16px art -> 128px
 
 
+def _new_session():
+    """Drop the state that must not outlive one run of the app.
+
+    MicroPythonOS re-execs the entrypoint on every startapp but leaves the
+    sibling modules in sys.modules, so a module global set during one launch is
+    still set in the next — only this file runs fresh. That makes here the only
+    place where "a new session starts" can be said at all, and doing it on the
+    way IN rather than on the way out also covers the launches that follow a
+    crash or a kill, where no teardown hook of ours would have run.
+
+    Everything dropped here is debug or simulation state the badge deliberately
+    keeps in RAM instead of on flash, which is exactly why store.reset_all — an
+    allowlist over the preferences file — cannot reach any of it.
+
+    sys.modules.get for the radio, not an import: a module that was never
+    loaded holds no session to drop, and importing fox_radio to clear a
+    singleton that does not exist yet would cost every cold start a LittleFS
+    open (~0.25s) for nothing.
+    """
+    # Everything the debug screen can arm: the 1111 test code, and the cheats
+    # (pluk_any, nooit_moe). All RAM-only on purpose, and none of it may
+    # outlive the app that armed it — the next player gets a badge where the
+    # code is dead and nothing is cheating, and an organiser who wants any of
+    # it back is five deliberate taps on the badge id away.
+    store.disable_debug_code()
+    store.clear_debug_cheats()
+    radio = sys.modules.get("fox_radio")
+    if radio is not None:
+        radio.RADIO.reset()
+
+
 class FoxhuntActivity(Activity):
     def onCreate(self):
         self._onboarded = False
         self._booked = False
+        _new_session()
         s = ui.make_screen(ui.PAPER)
         art.creature_panel(s, by_id(0), _SPLASH_SCALE).align(lv.ALIGN.CENTER, 0, -8)
         ui.label(

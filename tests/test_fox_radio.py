@@ -93,6 +93,45 @@ class FoxRadioTest(unittest.TestCase):
             self.assertTrue(self.module.RSSI_FAR <= r.rssi <= self.module.RSSI_NEAR)
             self.assertEqual(r.level, self.module.rssi_to_level(r.rssi))
 
+    def _verdict(self, fox_id, code):
+        results = []
+        self.radio.submit_code(fox_id, code, results.append)
+        self.timers[-1].fire()
+        return results[0]
+
+    def test_an_accepted_code_is_burnt_until_the_session_is_reset(self):
+        creature = self.module.CREATURES[0]
+
+        self.assertEqual(self._verdict(creature["id"], creature["code"]), "ok")
+        self.assertEqual(self._verdict(creature["id"], creature["code"]), "used")
+
+        # The singleton outlives the app — MicroPythonOS keeps sibling modules
+        # in sys.modules across a relaunch — so without an explicit reset the
+        # next player at that fox is told AL GEBRUIKT by the previous one's
+        # play. ALLES WISSEN and every launch call this.
+        self.radio.reset()
+        self.assertEqual(self._verdict(creature["id"], creature["code"]), "ok")
+
+    def test_reset_forgets_how_far_the_walk_toward_a_fox_had_got(self):
+        self.radio.start(3)
+        for _ in range(30):
+            self.radio.reading(3)
+        walked = self.radio.peek(3).rssi
+
+        self.radio.reset()
+
+        self.assertLess(self.radio.peek(3).rssi, walked)
+        # Back to the cold-start reading, not merely lower than a hot one.
+        self.assertEqual(
+            self.radio.peek(3).rssi, self.module.FakeFoxRadio().peek(3).rssi
+        )
+
+    def test_the_interface_carries_reset_so_a_real_radio_cannot_break_on_it(self):
+        # Same reason start() is on the base class: the callers below are the
+        # app's launch and wipe paths, and a real implementation that simply
+        # has no local session to drop must not hand them an AttributeError.
+        self.assertIsNone(self.module.FoxRadio().reset())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1021,8 +1021,9 @@ class DebugActivity(Activity):
         label.set_style_text_color(ui.hexc(ui.CREAM if enabled else ui.INK), 0)
 
     def _toggle_cheat(self, key, button, label):
-        # store.debug_cheat, not a setting: settings survive ALLES WISSEN,
-        # and an armed cheat must not outlive the player who armed it.
+        # store.debug_cheat, not a setting: a setting is written to flash and
+        # survives ALLES WISSEN, and an armed cheat must not outlive the run
+        # that armed it — it expires with the app (foxhunt._new_session).
         sound.play("tap")
         enabled = not store.debug_cheat(key)
         store.set_debug_cheat(key, enabled)
@@ -1088,6 +1089,7 @@ import ui
 import store
 import sound
 import registrar
+import fox_radio
 
 # What the player has to type. Compared case-insensitively — the OS keyboard
 # opens on lowercase and making people find the shift key is friction that
@@ -1310,6 +1312,13 @@ class WipeActivity(Activity):
         # and the boek finish themselves, and the router (foxhunt.py) shows the
         # welcome screen again.
         store.reset_all()
+        # The radio's session state is not in the store, so reset_all cannot
+        # reach it: the fake burns one-time fox codes in RAM, and a wipe hands
+        # the badge on without an app restart. Without this the next player
+        # walked to a fox and was told AL GEBRUIKT. Qualified as
+        # fox_radio.RADIO because pluk_radio exports a RADIO too and this
+        # module is shared by both (CLAUDE.md, Size budget).
+        fox_radio.RADIO.reset()
         # finish() pops the TOP of the screen stack unconditionally, which is
         # only this screen while it still has the foreground — a late verdict
         # must not close whatever the player is looking at now.

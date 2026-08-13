@@ -139,15 +139,26 @@ def reset_all():
         if v:
             e.put_dict(k, v)
     e.commit()
-    # Session state resets too: the 1111 test code must not stay armed into
-    # the next player's game — ALLES WISSEN hands the badge on without an
-    # app restart, so the module flag survives unless somebody disarms it.
+    # Session state resets too: neither the 1111 test code nor an armed cheat
+    # may stay live into the next player's game. ALLES WISSEN hands the badge
+    # on without an app restart, and both live in module globals that the
+    # remove_all above cannot reach — a global outlives the app, because
+    # MicroPythonOS re-execs only the entrypoint and keeps this module cached.
     disable_debug_code()
+    clear_debug_cheats()
 
 
 # ── Debug-code switch (formerly debug_unlock.py; merged for block economy) ──
 # The debug screen itself opens from settings (five taps on the badge id);
 # this is only the session-wide flag that screen makes the keypad honour.
+#
+# A module global and never a stored key, so it cannot be carried to another
+# badge or survive a power cycle — but a module global on MicroPythonOS does
+# survive an app relaunch, which is longer than "a session" is supposed to
+# mean. Two callers keep the lifetime honest, and both are outside this file
+# because neither event is a store event: foxhunt._new_session() on every
+# launch, and reset_all() below for the wipe that hands the badge on without
+# one.
 
 DEBUG_CODE = "1111"
 _debug_code_enabled = False
@@ -194,20 +205,34 @@ def set_setting(key, value):
     prefs.edit().put_dict("settings", s).commit()
 
 
+# The debug-screen cheats ("pluk_any", "nooit_moe"), in RAM for the same reason
+# as the 1111 code above: an armed cheat belongs to the run that armed it. They
+# used to be a stored key, and being stored is what let them outlive that run —
+# free play and pluk-anywhere greeted whoever picked the badge up next.
+#
+# Not writing them to flash is NOT by itself what expires them. This module
+# stays in sys.modules across a startapp, so a module global outlives the app
+# every bit as well as a stored key does; clear_debug_cheats() is what makes
+# the lifetime real, and keeping them here only means it has nothing left
+# behind to miss. A badge that armed one under an older build still carries a
+# dead "debug" key on flash — nothing reads it, and the next wipe drops it with
+# everything else outside _KEEP_ON_RESET.
+_debug_cheats = {}
+
+
 def debug_cheat(name):
-    """Debug-screen cheats ("pluk_any", "nooit_moe"). Their own key, NOT part
-    of settings: settings survive ALLES WISSEN (_KEEP_ON_RESET) because volume
-    and brightness belong to the badge, but an armed cheat belongs to the
-    player who armed it — hiding in the one preserved key handed the next
-    player free play and pluk-anywhere. This key is wiped by default."""
-    return bool(SharedPreferences(_APP).get_dict("debug", {}).get(name))
+    return bool(_debug_cheats.get(name))
 
 
 def set_debug_cheat(name, value):
-    prefs = SharedPreferences(_APP)
-    d = prefs.get_dict("debug", {})
-    d[name] = bool(value)
-    prefs.edit().put_dict("debug", d).commit()
+    _debug_cheats[name] = bool(value)
+
+
+def clear_debug_cheats():
+    """Disarm every cheat. Same two callers as disable_debug_code, for the same
+    two reasons: foxhunt._new_session() on every launch, and reset_all below
+    for the wipe that hands the badge on without one."""
+    _debug_cheats.clear()
 
 
 def flag(name):

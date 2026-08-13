@@ -59,6 +59,18 @@ class FoxRadio:
         """Test hook (emulator keys nudge the signal). No-op on hardware."""
         pass
 
+    def reset(self):
+        """Forget everything this radio only believes because of THIS session.
+
+        A no-op for a real radio, and that is the point of it being here: the
+        fox network owns which codes are spent, so a real implementation has
+        nothing local to drop. Only the fake keeps that state in RAM, where it
+        outlives the app — MicroPythonOS re-execs the entrypoint on a relaunch
+        but keeps sibling modules in sys.modules, so this singleton survives
+        everything short of a power cycle.
+        """
+        pass
+
     def reading(self, fox_id):
         raise NotImplementedError
 
@@ -94,6 +106,16 @@ class FakeFoxRadio(FoxRadio):
     def __init__(self):
         self._strength = {}
         self._used = set()  # burnt one-time codes; the real server owns this
+
+    def reset(self):
+        # Both halves are simulation, not a record of play: _strength is where
+        # the walk toward a box had got to, and _used stands in for the server
+        # that would really be tracking spent codes. Neither may be inherited.
+        # A new player after ALLES WISSEN met the previous one's burnt codes as
+        # "AL GEBRUIKT" at the fox — the badge changes hands without an app
+        # restart, so nothing else was ever going to clear them.
+        self._strength = {}
+        self._used = set()
 
     def active_foxes(self):
         ids = {c["id"] for c in CREATURES}
