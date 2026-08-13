@@ -313,7 +313,6 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
               <th>#</th>
               <th>Maatje</th>
               <th>Speler</th>
-              <th>Hunter</th>
               <th>Score</th>
               <th>Geholpen</th>
               <th>Beesten</th>
@@ -328,7 +327,6 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
                   <Companion code={s.profile_pic} size={32} />
                 </td>
                 <td>{s.name}</td>
-                <td class="muted">{hunterLabel(s.hunter_id)}</td>
                 <td class="score">{s.hunter_score}</td>
                 <td>{s.players_helped}</td>
                 <BeestenMeter found={s.self_found} />
@@ -337,7 +335,7 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
             ))}
             {scores.jagers.length === 0 && (
               <tr>
-                <td class="empty" colspan={8}>
+                <td class="empty" colspan={7}>
                   Nog geen jagers met een antenne.
                 </td>
               </tr>
@@ -362,7 +360,7 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
               <th>Score</th>
               <th>Pluk</th>
               <th>Ontmoet</th>
-              <th>Sterren</th>
+              <th>Besties</th>
               <th>Beesten</th>
               <th>Laatst</th>
             </tr>
