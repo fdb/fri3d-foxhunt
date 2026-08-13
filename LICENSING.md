@@ -10,7 +10,9 @@ the directory is not a reliable guide.
 | Artwork | **CC BY-NC-SA 4.0** | [`LICENSES/CC-BY-NC-SA-4.0.txt`](LICENSES/CC-BY-NC-SA-4.0.txt) |
 | Fonts (third-party) | **OFL-1.1** | [`LICENSES/OFL-1.1.txt`](LICENSES/OFL-1.1.txt) |
 
-Copyright © 2026 Frederik De Bleser.
+Copyright © 2026 Frederik De Bleser and contributors. The LoRa side of the game
+— the radio that makes a hidden fox findable — is the work of Hans Robbeers, who
+holds the copyright in his contributions; see [Credits](#credits).
 
 ## Code — GPL-2.0-only
 
@@ -54,6 +56,9 @@ why `icon-art.ts` above is listed as artwork — it is those same grids, baked.
 Non-commercial: reuse the pixels in your own badge app, a fork, a zine, a
 workshop. Selling them, or a product built around them, needs a word first.
 
+The BY half of the licence wants a credit, so here is one that fits in a
+caption: *"Vossenjacht — pixel art by Erlin, Fran and Fien, CC BY-NC-SA 4.0"*.
+
 ## Fonts — SIL Open Font License 1.1
 
 Not ours to relicense, and excluded from both of the above:
@@ -68,6 +73,15 @@ the OFL. Provenance and credit live in
 [`tools/bitmap_fonts/fonts/CREDITS.md`](tools/bitmap_fonts/fonts/CREDITS.md);
 keep both that file and `LICENSES/OFL-1.1.txt` with any build that ships the
 fonts — which is every badge build, since the app draws all its text with them.
+
+## Credits
+
+- **Frederik De Bleser** — the game: badge app, server.
+- **Hans Robbeers** — the LoRa side: the radio work that turns a transmitter
+  hidden in a field into a fox this app can hunt.
+- **Erlin, Fran and Fien** — pixel art.
+- **Stefie Justprince** — Pixelify Sans, the font every screen is drawn with
+  (OFL-1.1, see above).
 
 ## Shipping
 

@@ -75,6 +75,18 @@ The app never touches a pin. The MicroPythonOS **board layer**
 (`mpos.lights`, the buzzer audio output) is gated: we call it, check the return,
 and fall back (on-screen LED mirror, silent audio) on desktop.
 
+## Credits
+
+- **Frederik De Bleser** — the game: badge app, server.
+- **Hans Robbeers** — the LoRa side: the radio work that turns a transmitter
+  hidden in a field into a fox this app can hunt.
+- **Erlin, Fran and Fien** — pixel art.
+- **Stefie Justprince** — [Pixelify Sans](https://fonts.google.com/specimen/Pixelify+Sans),
+  the font every screen is drawn with.
+
+The same list, with who holds what, is in [`LICENSING.md`](LICENSING.md), and on
+the site under [Gemaakt door](https://foxhunt.enigmeta.workers.dev/#credits).
+
 ## Licence
 
 Code is **GPL-2.0-only**, artwork is **CC BY-NC-SA 4.0**, and the fonts are

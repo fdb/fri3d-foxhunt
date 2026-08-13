@@ -488,6 +488,58 @@ export const Home = () => (
       </div>
     </section>
 
+    {/* Credits sit before the scorebord call-to-action, not after it: the CTA
+        stays the page's last word, and .band-end (which drops the closing
+        border) stays the last band. Icons are picked from what the site already
+        bakes — a new name in WANTED would mean a re-bake, and these three read
+        right: a trail for the game, a signal for the radio, stardust for the
+        art. */}
+    <section class="band band-soft" id="credits">
+      <div class="wrap">
+        <h2>Gemaakt door</h2>
+        <p class="intro">
+          Vossenjacht is handwerk: pixel voor pixel, en een radio die een doos
+          in een boom in een vos verandert.
+        </p>
+        <div class="cards cards-3">
+          <div class="card">
+            <h3>
+              <span class="icon">
+                <Icon name="spoor" />
+              </span>
+              Frederik De Bleser
+            </h3>
+            <p>Het spel: de badge-app en de server.</p>
+          </div>
+          <div class="card">
+            <h3>
+              <span class="icon">
+                <Icon name="sig" />
+              </span>
+              Hans Robbeers
+            </h3>
+            <p>
+              De LoRa-kant: het radiowerk dat een verstopte zender een vos maakt
+              om op te jagen.
+            </p>
+          </div>
+          <div class="card">
+            <h3>
+              <span class="icon">
+                <Icon name="spark" />
+              </span>
+              Erlin, Fran en Fien
+            </h3>
+            <p>De pixelkunst: de beesten, de maatjes, het bos.</p>
+          </div>
+        </div>
+        <p class="note">
+          Letters: <b>Pixelify Sans</b> van Stefie Justprince, onder de{" "}
+          <a href="https://openfontlicense.org/">SIL Open Font License</a>.
+        </p>
+      </div>
+    </section>
+
     <section class="band band-paper band-end">
       <div class="wrap wrap-narrow">
         <h2>Wie loopt er voor?</h2>
@@ -507,7 +559,7 @@ export const Home = () => (
           2026-badge.
         </p>
         <p class="fine">
-          <a href="/scores">Scorebord</a> ·{" "}
+          <a href="/scores">Scorebord</a> · <a href="#credits">Credits</a> ·{" "}
           <a href="https://fri3d.be">fri3d.be</a>
         </p>
       </div>
