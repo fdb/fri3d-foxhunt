@@ -338,6 +338,19 @@ CREATURES = [
         "favoriet": "bes",
         "weetje": "De Dolfenix duikt door golven en herrijst uit het schuim.",
     },
+    {
+        "id": 26,
+        "naam": "Kraaiken",
+        "rarity": "leg",
+        "code": "0808",
+        "beacon": 26,
+        "img": "3_kraaiken.png",
+        "anim": True,
+        "soort": "Inktkraai",
+        "biotoop": "Mistige haven",
+        "favoriet": "noot",
+        "weetje": "Het Kraaiken kraakt een noot met acht armen tegelijk.",
+    },
 ]
 
 
