@@ -7,18 +7,29 @@ cd "$(dirname "$0")/.."
 # An .mpk is a stored zip of the app dir that the OS streams straight into
 # apps/<fullname> (AppManager.download_and_install_package). The store's own
 # bundler (MicroPythonOS scripts/bundle_apps.sh) zips the source tree as-is:
-# for this app that is ~516 KB of .py, most of it comments — which the badge
+# for this app that is 473 KB of .py, most of it comments — which the badge
 # then keeps on LittleFS and re-compiles on every cold start. This script
-# stages the same badge-clean copy the USB deploy ships (mpy-cross -O2,
-# -march=xtensawin) and zips THAT: ~272 KB installed, no compile at start.
+# stages the same badge-clean copy the USB deploy ships (mpy-cross,
+# -march=xtensawin) and zips THAT: 145 KB installed, no compile at start.
 # The manifest's "assets/foxhunt.py" entrypoint still works — the OS imports
 # by module name, so foxhunt.mpy loads the same (proven by the USB deploy).
 #
+# BYTECODE IS THE ONLY FLAVOUR WE SHIP, and that is settled rather than
+# pending. A source .mpk is the portable one — it survives a firmware whose
+# bytecode version moved — so it keeps looking like the safer thing to also
+# publish. It was tried and it does not fit: 473 KB against 145 KB installed,
+# 528 KB against 197 KB once LittleFS bills its 4 KB per file, on a 7 MiB
+# partition a factory badge arrives with nearly full (Size budget in
+# CLAUDE.md). The compile at every cold start wants the heap as well, on a
+# device that already spends a second on a mark-sweep. Do not add a --source
+# mode to "cover" other badges; cover them by matching their bytecode.
+#
 # Two couplings to know about:
-#   - The .mpy format must match the firmware's bytecode version, so this
-#     uses the in-tree mpy-cross from the same checkout that built the
-#     firmware. A badge on a different MicroPythonOS build may refuse it;
-#     source .mpk's don't have that problem.
+#   - The .mpy format must match the firmware's bytecode version. This uses
+#     the in-tree mpy-cross from the checkout that built the firmware when
+#     there is one, else scripts/get_mpy_cross.sh rebuilds exactly that
+#     compiler from MicroPythonOS's own submodule pins — same bytes, no
+#     checkout needed, which is what lets CI produce the package.
 #   - art_fast.mpy carries xtensawin native code. On any non-ESP32-S3 device
 #     its import fails, which art.py already catches (desktop fallback).
 #

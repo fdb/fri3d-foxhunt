@@ -110,9 +110,15 @@ class GameTreatTest(unittest.TestCase):
         self.game.bank_treats.assert_called_once_with()
 
     def test_leaving_mid_round_banks_what_was_caught(self):
-        # a real instance, because onPause chains through zero-arg super()
+        # a real instance, because onPause chains through zero-arg super().
+        # __new__ skips onCreate, so every attribute onPause reads has to be
+        # laid out by hand here — which is exactly how this test went stale:
+        # onPause learned to cancel the after-render collect timer a day after
+        # this was written, and a bare instance has no _gc_timer to cancel.
+        # Anything new that onPause touches needs a line here too.
         game = self.module.GameActivity.__new__(self.module.GameActivity)
         game.timer = None
+        game._gc_timer = None
         game.bank_treats = MagicMock()
 
         self.module.GameActivity.onPause(game, MagicMock())

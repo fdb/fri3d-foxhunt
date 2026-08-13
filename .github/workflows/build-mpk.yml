@@ -23,6 +23,17 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: scripts/format.sh --check
 
+  # The suite is pure Python against the app's modules with mpos/lvgl stubbed,
+  # so it needs no badge and no emulator. It was silently red for four days
+  # before this job existed — see the _gc_timer fix — which is the argument for
+  # the job, not against the suite.
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uvx pytest tests/ -q
+
   mpk:
     runs-on: ubuntu-latest
     steps:

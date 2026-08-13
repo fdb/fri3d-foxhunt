@@ -570,7 +570,7 @@ _LED_STEPS = (0, 5, 15, 30, 60, 100)
 
 
 def _build_info():
-    """'0.1.0 @ 66326d8' — version from META-INF, commit from the #src line
+    """'0.9.0 @ 66326d8' — version from META-INF, commit from the #src line
     of the deploy stamp. Running from source (the emulator's symlink has no
     .deploy.sha) shows 'dev'; a --force'd dirty deploy carries a '*'."""
     base = __file__.rsplit("/", 2)[0]
