@@ -82,7 +82,13 @@ export const Home = () => (
           voor je boek — en vanaf dat moment zorg jij ervoor.
         </p>
         <p class="buttons">
-          <a class="btn btn-primary" href="#spelen">
+          <a
+            class="btn btn-primary"
+            href="https://badgehub.eu/page/project/com.enigmeta.foxhunt"
+          >
+            Download op BadgeHub
+          </a>
+          <a class="btn btn-ghost" href="#spelen">
             Zo speel je
           </a>
           <a class="btn btn-ghost" href="/scores">
