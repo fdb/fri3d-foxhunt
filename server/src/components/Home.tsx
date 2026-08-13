@@ -503,7 +503,7 @@ export const Home = () => (
             <p>Badge-app, spelregels en server.</p>
           </div>
           <div class="card">
-            <h3>Hans Robbeers</h3>
+            <h3>Hans Robeers</h3>
             <p>
               LoRa-kant: het radiowerk dat een verstopte zender een vos maakt om
               op te jagen.
