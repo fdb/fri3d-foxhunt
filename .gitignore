@@ -4,3 +4,8 @@ __pycache__/
 .wrangler/
 .playwright-mcp/
 dist/
+
+# Badge save backups written by scripts/migrate_badge.sh — these are real
+# player saves (name, badge MAC, and other players names+MACs in vrienden).
+# Keep them on the laptop that did the migration, never in the repo.
+badge-backups/
