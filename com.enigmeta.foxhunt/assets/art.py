@@ -33,12 +33,12 @@ HEART = [
 # fill for empty cells; the terminal and case keep their dark outline in both.
 BATTERY = [
     ".........",
-    "kkkkkkk..",
-    "kgggggk..",
-    "kgggggkkk",
-    "kgggggkkk",
-    "kgggggk..",
-    "kkkkkkk..",
+    "kkkkkkkk.",
+    "kggggggk.",
+    "kggggggkk",
+    "kggggggkk",
+    "kggggggk.",
+    "kkkkkkkk.",
     ".........",
 ]
 
