@@ -631,17 +631,21 @@ _ROW_W = 308
 _LED_STEPS = (0, 5, 15, 30, 60, 100)
 
 
-def _build_info():
-    """'0.9.0 @ 66326d8' — version from META-INF, commit from the #src line
-    of the deploy stamp. Running from source (the emulator's symlink has no
-    .deploy.sha) shows 'dev'; a --force'd dirty deploy carries a '*'."""
-    base = __file__.rsplit("/", 2)[0]
+def _build_info(base=None):
+    """Show a commit for USB builds, ``dev`` for source, or a plain release.
+
+    BadgeHub installs contain only ``.mpy`` bytecode and no ``.deploy.sha``;
+    the emulator has the source file, while the USB deploy stamp identifies
+    badge development builds (and marks forced dirty builds with ``*``).
+    """
+    if base is None:
+        base = __file__.rsplit("/", 2)[0]
     try:
         with open(base + "/META-INF/MANIFEST.JSON") as fh:
             version = json.load(fh).get("version", "?")
     except (OSError, ValueError):
         version = "?"
-    commit = "dev"
+    commit = None
     try:
         with open(base + "/.deploy.sha") as fh:
             parts = fh.readline().split()
@@ -649,7 +653,15 @@ def _build_info():
             commit = parts[2] + ("*" if parts[3] == "dirty" else "")
     except OSError:
         pass
-    return version + " @ " + commit
+    if commit is not None:
+        return version + " @ " + commit
+
+    try:
+        with open(base + "/assets/screens_system.py"):
+            pass
+        return version + " @ dev"
+    except OSError:
+        return version
 
 
 def _led_step(pct):
