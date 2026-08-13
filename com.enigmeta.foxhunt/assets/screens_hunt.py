@@ -673,6 +673,13 @@ class SnuffelActivity(Activity):
             )
         if geluk is not None:
             store.add_caught(geluk, origin="spoor")
+        # Help credit is for introducing an OWN find (GAME_DESIGN.md,
+        # Scoring): sending a creature you merely received still spreads it
+        # but scores nothing, so only a zelf-gevonden send marks the peer as
+        # helped in the local jagersscore mirror. The server applies the same
+        # rule to the corroborated reports and stays authoritative.
+        if sent is not None and sent in store.zelf_ids():
+            store.record_helped(peer.mac)
         # Both sides report the same directed outcome. Base/rare recovery may
         # remain generous when one badge dies; verified help and legendary
         # durability require the matching partner report on the server.

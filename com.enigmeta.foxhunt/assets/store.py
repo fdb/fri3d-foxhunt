@@ -11,6 +11,8 @@
 #   "zelf_dates": dict {str(id): YYYY-MM-DD} — date of that first self-find
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
+#   "helped"   : list of peer MACs first helped with an own (zelf gevonden)
+#                find — the jagersscore's local help-credit mirror
 #   "vonk"     : snuffel log — {date, count (daily reset), pairs: {mac:
 #                {vonk: epoch, food: epoch}}} — pair cooldown timestamps
 #   "pluk"     : {spots: {bssid: epoch}, phase, count, creature_spots: []} —
@@ -281,9 +283,7 @@ def restore_caught(ids, self_found=None, found_dates=None, self_found_dates=None
             changed = True
         if str(cid) not in beast:
             found = (found_dates or {}).get(str(cid), _today())
-            e.put_dict_item(
-                "beast", str(cid), pet.default_state(found, _PLACE, _now())
-            )
+            e.put_dict_item("beast", str(cid), pet.default_state(found, _PLACE, _now()))
     for cid in self_found or []:
         if by_id(cid) and cid in have and cid not in zelf:
             zelf.append(cid)
@@ -478,7 +478,8 @@ def do_play(cid, cost, favourite):
 
 def _report_bonded():
     """The moment a beste vriend is born: queue the new bonded count for the
-    server (scoreboard display only — GAME_DESIGN.md, What bond buys)."""
+    server — a verzamelaarsscore component on the scoreboard, bounded and
+    self-reported (GAME_DESIGN.md, Scoring)."""
     enqueue_report("bonded", {"bonded": len(finished_ids())})
 
 
@@ -810,9 +811,7 @@ def record_snuffel(mac, naam, code):
     log = _vonk_log()
     now = _now()
     pair = log["pairs"].get(mac, {})
-    vonk = (
-        now - pair.get("vonk", -SNF_VONK_COOLDOWN_S) >= SNF_VONK_COOLDOWN_S
-    )
+    vonk = now - pair.get("vonk", -SNF_VONK_COOLDOWN_S) >= SNF_VONK_COOLDOWN_S
     picknick = (
         vonk or now - pair.get("food", -SNF_FOOD_COOLDOWN_S) >= SNF_FOOD_COOLDOWN_S
     )
@@ -892,6 +891,61 @@ def select_vonk_creature(
     return candidates[_pluk_hash(seed) % len(candidates)]
 
 
+# ── scoring: two boards, one set of rules (GAME_DESIGN.md, Scoring) ─────────
+# Local mirror of the server's tuning values (server/src/lib/scoring.ts) so
+# the profile screen predicts the numbers the scoreboard shows — change them
+# together. The server stays authoritative: it counts only verified,
+# corroborated, camp-fenced events, so these local sums are the player's
+# optimistic view of the same formula, never a promise. The two scores never
+# mix: a jager competes on hunter_score, a verzamelaar on gatherer_score.
+SELF_FOUND_POINTS = {"norm": 100, "rare": 300, "leg": 800}
+HELP_POINTS = 50  # per distinct player helped with an own find
+PLUK_POINTS = 50  # per wild pluk encounter
+MEET_POINTS = 25  # per distinct player met with a vonk
+BONDED_POINTS = 100  # per beste vriend (band 5)
+
+
+def helped_ids():
+    """Peer MACs this jager first helped with an own (zelf gevonden) find."""
+    return SharedPreferences(_APP).get_list("helped", [])
+
+
+def record_helped(mac):
+    """Mark a first own-find introduction to this peer; True when the pair is
+    new — the moment worth HELP_POINTS. Resharing never reaches this: the
+    snuffel screen only calls it when the sent creature is in zelf_ids()."""
+    prefs = SharedPreferences(_APP)
+    helped = prefs.get_list("helped", [])
+    if mac in helped:
+        return False
+    helped.append(mac)
+    prefs.edit().put_list("helped", helped).commit()
+    return True
+
+
+def hunter_score():
+    """The jagersscore: self-found tier points + own-find help credit."""
+    pts = 0
+    for cid in zelf_ids():
+        c = by_id(cid)
+        if c:
+            pts += SELF_FOUND_POINTS.get(c["rarity"], 0)
+    return pts + HELP_POINTS * len(helped_ids())
+
+
+def gatherer_score():
+    """The verzamelaarsscore: pluk encounters + people met + beste vrienden.
+    A vriendenboekje page always starts with the pair's first vonk, so the
+    boekje length is the local count of players met with a vonk."""
+    origins = SharedPreferences(_APP).get_dict("origins", {})
+    pluk_n = sum(1 for v in origins.values() if v == "pluk")
+    return (
+        PLUK_POINTS * pluk_n
+        + MEET_POINTS * len(vrienden())
+        + BONDED_POINTS * len(finished_ids())
+    )
+
+
 # ── plukken: hourly food + one creature roll per camp phase ─────────────────
 PLUK_RELOAD_S = 60 * 60  # a spot reloads for THIS badge in about an hour
 
@@ -964,9 +1018,7 @@ def pluk_creature_for(badge_id, bssid, phase, have):
     if _pluk_hash(seed + "|opportunity") % 1000 >= _PLUK_OPPORTUNITY_PERMILLE:
         return None
     known = set(have)
-    cands = [
-        c for c in CREATURES if c["rarity"] == "norm" and c["id"] not in known
-    ]
+    cands = [c for c in CREATURES if c["rarity"] == "norm" and c["id"] not in known]
     if not cands:
         return None
     c = cands[_pluk_hash(seed + "|candidate") % len(cands)]
