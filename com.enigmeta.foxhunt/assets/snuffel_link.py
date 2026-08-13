@@ -46,9 +46,7 @@ _GONE_S = 6  # drop a peer this long after its last beacon
 
 
 class Peer:
-    def __init__(
-        self, mac, naam, code, roster, session="", shareable=None, role="V"
-    ):
+    def __init__(self, mac, naam, code, roster, session="", shareable=None, role="V"):
         self.mac = mac  # "aa:bb:..." — the identity
         self.naam = naam  # display only
         self.code = code  # companion shortcode
@@ -320,9 +318,7 @@ class EspNowLink(BaseLink):
             # provenance. Base and rare remain safely compatible; legendary
             # must fail closed because its giver cannot be verified locally.
             shareable = [
-                cid
-                for cid in roster
-                if by_id(cid) and by_id(cid)["rarity"] != "leg"
+                cid for cid in roster if by_id(cid) and by_id(cid)["rarity"] != "leg"
             ]
         role = parts[7].decode() if len(parts) > 7 else "V"
         self._seen(

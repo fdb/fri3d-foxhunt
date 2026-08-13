@@ -110,21 +110,11 @@ def decode(code):
     degrade than refuse. The old one-digit H1...H9 form remains readable so
     profiles already stored on the server survive this format upgrade."""
     try:
-        if (
-            len(code) == 9
-            and code[0] == "H"
-            and code[3] == "A"
-            and code[7] == "C"
-        ):
+        if len(code) == 9 and code[0] == "H" and code[3] == "A" and code[7] == "C":
             h = int(code[1:3])
             mask = int(code[4:7], 16)
             c = int(code[8])
-        elif (
-            len(code) == 8
-            and code[0] == "H"
-            and code[2] == "A"
-            and code[6] == "C"
-        ):
+        elif len(code) == 8 and code[0] == "H" and code[2] == "A" and code[6] == "C":
             h = int(code[1])
             mask = int(code[3:6], 16)
             c = int(code[7])

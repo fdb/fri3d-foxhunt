@@ -281,9 +281,7 @@ def restore_caught(ids, self_found=None, found_dates=None, self_found_dates=None
             changed = True
         if str(cid) not in beast:
             found = (found_dates or {}).get(str(cid), _today())
-            e.put_dict_item(
-                "beast", str(cid), pet.default_state(found, _PLACE, _now())
-            )
+            e.put_dict_item("beast", str(cid), pet.default_state(found, _PLACE, _now()))
     for cid in self_found or []:
         if by_id(cid) and cid in have and cid not in zelf:
             zelf.append(cid)
@@ -821,9 +819,7 @@ def record_snuffel(mac, naam, code):
     log = _vonk_log()
     now = _now()
     pair = log["pairs"].get(mac, {})
-    vonk = (
-        now - pair.get("vonk", -SNF_VONK_COOLDOWN_S) >= SNF_VONK_COOLDOWN_S
-    )
+    vonk = now - pair.get("vonk", -SNF_VONK_COOLDOWN_S) >= SNF_VONK_COOLDOWN_S
     picknick = (
         vonk or now - pair.get("food", -SNF_FOOD_COOLDOWN_S) >= SNF_FOOD_COOLDOWN_S
     )
@@ -975,9 +971,7 @@ def pluk_creature_for(badge_id, bssid, phase, have):
     if _pluk_hash(seed + "|opportunity") % 1000 >= _PLUK_OPPORTUNITY_PERMILLE:
         return None
     known = set(have)
-    cands = [
-        c for c in CREATURES if c["rarity"] == "norm" and c["id"] not in known
-    ]
+    cands = [c for c in CREATURES if c["rarity"] == "norm" and c["id"] not in known]
     if not cands:
         return None
     c = cands[_pluk_hash(seed + "|candidate") % len(cands)]
