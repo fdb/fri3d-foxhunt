@@ -234,7 +234,7 @@ main .scoreboard-heading h2 {
 .scoreboard-spotlights {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
 
@@ -296,7 +296,7 @@ main .spotlight-heading h2 {
 
 .spotlight-discoveries ol {
   grid-template-columns: none;
-  grid-auto-columns: minmax(240px, calc((100% - 4px) / 3));
+  grid-auto-columns: minmax(280px, calc((100% - 4px) / 3));
   grid-auto-flow: column;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
@@ -326,17 +326,15 @@ main .spotlight-heading h2 {
 }
 
 .discovery-details strong {
-  overflow: hidden;
   font-family: var(--font-pixel);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 
 .discovery-details > span {
-  overflow: hidden;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .discovery-details small {
@@ -561,8 +559,7 @@ td .tag-starter {
 }
 
 @media (max-width: 1200px) {
-  #scoreboard,
-  .scoreboard-spotlights {
+  #scoreboard {
     grid-template-columns: 1fr;
   }
 }

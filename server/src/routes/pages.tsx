@@ -113,7 +113,6 @@ interface FirstDiscoveryRow {
   creature_id: number;
   discovered_at: string;
   player_name: string;
-  hunter_id: number;
   profile_pic: string;
 }
 
@@ -221,7 +220,6 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
          SELECT pc.creature_id,
                 pc.dt_self_found AS discovered_at,
                 p.name AS player_name,
-                p.hunter_id,
                 p.profile_pic,
                 ROW_NUMBER() OVER (
                   PARTITION BY pc.creature_id
@@ -236,7 +234,7 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
             AND p.dt_deleted IS NULL
             AND p.badge_id NOT IN (${BOSS_BADGE_PLACEHOLDERS})
        )
-       SELECT creature_id, discovered_at, player_name, hunter_id, profile_pic
+       SELECT creature_id, discovered_at, player_name, profile_pic
          FROM ranked
         WHERE discovery_rank = 1
         ORDER BY discovered_at DESC, creature_id`,
@@ -336,7 +334,7 @@ const Spotlight = ({
           <Companion code={s.profile_pic} size={48} />
           <span class="spotlight-player">
             <strong>{s.name}</strong>
-            <small>{hunterLabel(s.hunter_id)}</small>
+            <small>{s.hunter_id ? "Jager" : "Verzamelaar"}</small>
           </span>
           <strong class="spotlight-value">{value(s)}</strong>
         </li>
@@ -380,10 +378,7 @@ const FirstDiscoveries = ({
             <span class="discovery-details">
               <strong>{label}</strong>
               <span>{discovery.player_name}</span>
-              <small>
-                {hunterLabel(discovery.hunter_id)} ·{" "}
-                {shortTime(discovery.discovered_at)}
-              </small>
+              <small>gevonden om {shortTime(discovery.discovered_at)}</small>
             </span>
           </li>
         );

@@ -57,7 +57,6 @@ export interface FirstDiscovery {
   rarity: "norm" | "rare" | "leg";
   discovered_at: string;
   player_name: string;
-  hunter_id: number;
   profile_pic: string;
   art: string;
 }
