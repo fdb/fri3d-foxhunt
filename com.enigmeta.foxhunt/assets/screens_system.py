@@ -55,6 +55,7 @@ _SEG_OFF = 0xE4D6BC  # unlit heat segment
 _RARITY_FRAME = {"rare": ui.TERRA, "leg": ui.GOLD}
 _VISITOR_POLL_MS = 30_000
 _NEARBY_POLL_MS = 500
+_SYNC_RETRY_MS = 30_000
 
 
 class HomeActivity(Activity):
@@ -62,6 +63,7 @@ class HomeActivity(Activity):
         self._fresh = True
         self._visitor_timer = None
         self._nearby_timer = None
+        self._sync_timer = None
         self._visitor_id = None
         self._prewarm_timer = None
         self._is_jager = False
@@ -90,8 +92,10 @@ class HomeActivity(Activity):
             return
         # Home is the natural WiFi moment: drain any queued badge→server
         # reports (snuffel/pluk grants, bonded counts). Fire-and-forget — a
-        # dead network just leaves the outbox for the next resume.
+        # dead network leaves the outbox durable while the timer below retries.
+        # flush() also reconciles pending help after the peer's report arrives.
         registrar.flush()
+        self._start_sync_retry()
         self._start_visitor_poll()
         self._start_prewarm()
         self._start_nearby_poll()
@@ -108,6 +112,7 @@ class HomeActivity(Activity):
 
     def onPause(self, screen):
         super().onPause(screen)
+        self._stop_sync_retry()
         self._stop_visitor_poll()
         # Also the prewarm: an import blocks the LVGL loop for ~0.3-0.7s, and
         # once home is covered the foreground may be a GAME tick loop. A tap
@@ -118,9 +123,25 @@ class HomeActivity(Activity):
 
     def onDestroy(self, screen):
         super().onDestroy(screen)
+        self._stop_sync_retry()
         self._stop_visitor_poll()
         self._stop_prewarm()
         self._stop_nearby_poll()
+
+    def _start_sync_retry(self):
+        if self._sync_timer is None:
+            self._sync_timer = lv.timer_create(self._retry_sync, _SYNC_RETRY_MS, None)
+
+    def _stop_sync_retry(self):
+        if self._sync_timer is not None:
+            self._sync_timer.delete()
+            self._sync_timer = None
+
+    def _retry_sync(self, _timer):
+        # Keep this unconditional: flush() cheaply no-ops when there is no
+        # work, but also knows about pending-help reconciliation that is not
+        # represented in the report outbox.
+        registrar.flush()
 
     def _start_prewarm(self):
         if _PRELOAD and self._prewarm_timer is None:
