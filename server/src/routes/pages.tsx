@@ -345,7 +345,6 @@ const FirstDiscoveriesBoard = ({
                 <td>{discovery.player_name}</td>
                 <td>
                   <span class="discovery-creature">
-                    <strong>{label}</strong>
                     <img
                       src={discovery.art}
                       alt={
@@ -356,6 +355,7 @@ const FirstDiscoveriesBoard = ({
                       width="40"
                       height="40"
                     />
+                    <strong>{label}</strong>
                   </span>
                 </td>
                 <td class="muted">{shortTime(discovery.discovered_at)}</td>
