@@ -38,6 +38,8 @@ class CompanionProfileSyncTest(unittest.TestCase):
 
         registrar = types.ModuleType("registrar")
         registrar.badge_id = MagicMock(return_value="A4:CF:12:9B:03:7E")
+        registrar.has_lora = MagicMock(return_value=False)
+        registrar.hunter_label = MagicMock(return_value=None)
         registrar.REGISTRAR = MagicMock()
         registrar.flush = MagicMock()
         cls.registrar = registrar
@@ -70,6 +72,34 @@ class CompanionProfileSyncTest(unittest.TestCase):
         self.sound.reset_mock()
         self.companion.encode.reset_mock()
         self.registrar.flush.reset_mock()
+
+    def _register_text(self, has_lora):
+        self.ui.reset_mock()
+        self.registrar.has_lora.return_value = has_lora
+        self.store.profile.return_value = None
+        screen = MagicMock()
+        screen.getIntent.return_value.extras = {}
+
+        self.module.RegisterActivity.onCreate(screen)
+
+        banner = self.ui.banner.call_args.args[1]
+        labels = [call.args[1] for call in self.ui.label.call_args_list]
+        return banner, labels
+
+    def test_register_welcomes_every_role_and_shows_collector_without_lora(self):
+        banner, labels = self._register_text(has_lora=False)
+
+        self.assertEqual(banner, "WELKOM!")
+        self.assertIn("VERZAMELAAR", labels)
+        self.assertNotIn("JAGER ID", labels)
+        self.assertNotIn("volgt", labels)
+
+    def test_register_only_promises_hunter_id_when_lora_is_present(self):
+        _, labels = self._register_text(has_lora=True)
+
+        self.assertIn("JAGER ID", labels)
+        self.assertIn("volgt", labels)
+        self.assertNotIn("VERZAMELAAR", labels)
 
     def test_edit_saves_locally_and_queues_shortcode_patch(self):
         screen = MagicMock(edit=True, head="uil", accs=["bril"], bg=2)

@@ -208,7 +208,7 @@ class RegisterActivity(Activity):
         if self.edit:
             ui.banner(s, "NAAM WIJZIGEN", ui.GREEN)
         else:
-            ui.banner(s, "WELKOM, JAGER!", ui.GREEN, right="1/3")
+            ui.banner(s, "WELKOM!", ui.GREEN, right="1/3")
 
         self.prompt = ui.label(
             s,
@@ -244,17 +244,22 @@ class RegisterActivity(Activity):
             ta.set_text((store.profile() or {}).get("name", ""))
         self.ta = ta
 
-        # id strip: badge id (the recovery anchor) + hunter id (still to come)
+        # id strip: badge id (the recovery anchor) + the role this badge can
+        # actually play. During first-run there is no minted hunter_id yet, so
+        # the antenna probe is what distinguishes a future jager from a
+        # verzamelaar.
         strip = ui.panel(s, ui.PAD, 96, 304, 22, bg=STRIP_BG)
         ui.label(strip, "BADGE ID", 6, 3, ui.MYSTERY, ui.font_small())
         ui.label(strip, registrar.badge_id(), 64, 3, ui.INK, ui.font_small())
         ui.box(strip, 170, 2, 2, 14, 0xD8CBAA)
-        ui.label(strip, "JAGER ID", 180, 3, ui.MYSTERY, ui.font_small())
-        art.icon(strip, "ant", 1).set_pos(236, 5)
-        hunter = (
-            registrar.hunter_label((store.profile() or {}).get("hunter_id")) or "volgt"
-        )
-        ui.label(strip, hunter, 250, 3, ui.TEXT_MUTED, ui.font_small())
+        hunter_id = (store.profile() or {}).get("hunter_id")
+        if hunter_id or registrar.has_lora():
+            ui.label(strip, "JAGER ID", 180, 3, ui.MYSTERY, ui.font_small())
+            art.icon(strip, "ant", 1).set_pos(236, 5)
+            hunter = registrar.hunter_label(hunter_id) or "volgt"
+            ui.label(strip, hunter, 250, 3, ui.TEXT_MUTED, ui.font_small())
+        else:
+            ui.label(strip, "VERZAMELAAR", 180, 3, ui.INK, ui.font_small())
         self.strip = strip
 
         # why we ask: the badge id keeps your catches across a reset
