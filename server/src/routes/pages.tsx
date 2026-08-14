@@ -25,6 +25,7 @@ import {
   CAMP_START_ISO,
   CAMP_END_ISO,
   CAMP_PHASES,
+  BOSS_BADGE_IDS,
 } from "../lib/scoring";
 
 export const pageRoutes = new Hono<{ Bindings: Bindings }>();
@@ -83,6 +84,7 @@ const LEGENDARY_IDS = CREATURES.filter((c) => c.rarity === "leg")
 // A wiped account leaves the board the moment it is wiped: taking your name off
 // this page is one of the two reasons the delete exists (auth.ts, DELETE /user).
 const CAMP_PHASE_LIST = CAMP_PHASES.map((p) => `'${p}'`).join(",");
+const BOSS_BADGE_PLACEHOLDERS = BOSS_BADGE_IDS.map(() => "?").join(",");
 
 interface ScoreCountRow {
   id: number;
@@ -162,8 +164,10 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
        FROM players p
        LEFT JOIN players_creatures pc ON pc.player_id = p.id
        WHERE p.dt_deleted IS NULL
+         AND p.badge_id NOT IN (${BOSS_BADGE_PLACEHOLDERS})
        GROUP BY p.id`,
     )
+    .bind(...BOSS_BADGE_IDS)
     .all<ScoreCountRow>();
 
   const rows: ScoreRow[] = results.map((r) => ({

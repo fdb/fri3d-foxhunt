@@ -23,6 +23,16 @@ export const PLUK_POINTS = 50;
 export const MEET_POINTS = 25;
 export const BONDED_POINTS = 100;
 
+// Organisers have an unavoidable head start while setting up and testing the
+// game. They remain normal players everywhere else, but never appear on the
+// public scoreboard. Badge ids are normalised to lowercase by registration.
+export const BOSS_BADGE_IDS = [
+  "dc:b4:d9:0b:7d:44", // Fraqua
+  "dc:b4:d9:0b:7e:c4", // Erlin
+  "90:70:69:01:ba:68", // Linus
+  "90:70:69:00:93:fc", // Fien
+] as const;
+
 // The camp window fences every scored event (GAME_DESIGN.md, Buiten het
 // kamp): Thursday 2026-08-13 15:00 through Sunday 2026-08-16 15:00
 // Europe/Brussels, expressed once in epoch seconds, once in the ISO strings
