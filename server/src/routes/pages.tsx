@@ -584,26 +584,63 @@ pageRoutes.get("/scoreboard", async (c) => {
 // cannot see, and the wipe is only reversible until the badge registers again.
 interface PlayerRow extends Player {
   creature_count: number;
+  lora_find_count: number;
 }
 
 pageRoutes.get("/debug/players", async (c) => {
+  const role = c.req.query("role");
+  const active = c.req.query("active") === "lora";
   const { results } = await c.env.DB.prepare(
-    `SELECT p.*, COUNT(pc.creature_id) AS creature_count
+    `SELECT p.*, COUNT(pc.creature_id) AS creature_count,
+            COALESCE(SUM(CASE WHEN pc.self_found = 1 THEN 1 ELSE 0 END), 0)
+              AS lora_find_count
      FROM players p
      LEFT JOIN players_creatures pc ON pc.player_id = p.id
      GROUP BY p.id
      ORDER BY p.id DESC`,
   ).all<PlayerRow>();
+  const filtered = results.filter(
+    (p) =>
+      (role !== "jagers" || p.hunter_id !== null) &&
+      (role !== "verzamelaars" || p.hunter_id === null) &&
+      (!active || p.lora_find_count > 0),
+  );
 
   if (c.req.header("Accept")?.includes("application/json")) {
-    return c.json(results);
+    return c.json(filtered);
   }
 
+  const liveCount = filtered.filter((p) => !p.dt_deleted).length;
+  const countLabel = `${liveCount} ${active ? "actieve " : ""}${liveCount === 1 ? "speler" : "spelers"}`;
   return c.html(
-    <Layout
-      title="Spelers"
-      right={`${results.filter((p) => !p.dt_deleted).length} spelers`}
-    >
+    <Layout title="Spelers" right={countLabel}>
+      <form class="debug-filters" method="get" action="/debug/players">
+        <label>
+          Type
+          <select name="role">
+            <option value="">Alle spelers</option>
+            <option value="jagers" selected={role === "jagers"}>
+              Jagers
+            </option>
+            <option value="verzamelaars" selected={role === "verzamelaars"}>
+              Verzamelaars
+            </option>
+          </select>
+        </label>
+        <label>
+          Activiteit
+          <select name="active">
+            <option value="">Alle spelers</option>
+            <option value="lora" selected={active}>
+              Minstens 1 LoRa-vondst
+            </option>
+          </select>
+        </label>
+        <button type="submit">Filter</button>
+        {(role === "jagers" || role === "verzamelaars" || active) && (
+          <a href="/debug/players">Wis filters</a>
+        )}
+      </form>
       <section>
         <table>
           <thead>
@@ -614,11 +651,12 @@ pageRoutes.get("/debug/players", async (c) => {
               <th>Badge</th>
               <th>Hunter</th>
               <th>Beesten</th>
+              <th>LoRa</th>
               <th>Aangemaakt</th>
             </tr>
           </thead>
           <tbody>
-            {results.map((p) => (
+            {filtered.map((p) => (
               <tr>
                 <td class="muted">{p.id}</td>
                 <td>
@@ -633,13 +671,16 @@ pageRoutes.get("/debug/players", async (c) => {
                 </td>
                 <td class="muted">{p.hunter_id ?? "—"}</td>
                 <td class="muted">{p.creature_count}</td>
+                <td class="muted">{p.lora_find_count}</td>
                 <td class="muted">{fullTime(p.dt_created)}</td>
               </tr>
             ))}
-            {results.length === 0 && (
+            {filtered.length === 0 && (
               <tr>
-                <td class="empty" colspan={7}>
-                  Nog geen spelers geregistreerd.
+                <td class="empty" colspan={8}>
+                  {results.length === 0
+                    ? "Nog geen spelers geregistreerd."
+                    : "Geen spelers voor deze filters."}
                 </td>
               </tr>
             )}
