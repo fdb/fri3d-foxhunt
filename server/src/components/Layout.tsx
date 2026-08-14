@@ -58,7 +58,9 @@ export const Layout = ({
     <body>
       {!bare && (
         <header>
-          <img src="/vos.png" alt="" />
+          <a class="banner-logo" href="/" aria-label="Naar de startpagina">
+            <img src="/vos.png" alt="" />
+          </a>
           <h1>{title}</h1>
           {right && <span class="banner-right">{right}</span>}
           <a class="banner-home" href="/">

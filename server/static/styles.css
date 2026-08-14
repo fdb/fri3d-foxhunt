@@ -56,7 +56,15 @@ header {
   color: var(--cream);
 }
 
-header img {
+header .banner-logo {
+  display: block;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+}
+
+header .banner-logo img {
+  display: block;
   width: 32px;
   height: 32px;
   image-rendering: pixelated;
