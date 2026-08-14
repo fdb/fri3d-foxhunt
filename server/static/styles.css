@@ -138,6 +138,14 @@ th {
   border-bottom: 3px solid var(--ink);
 }
 
+.scoreboard-subhead {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
 /* Top of each leaderboard gets the soft green card interior */
 #scoreboard tbody tr:first-child td {
   background: var(--surface-soft);

@@ -324,7 +324,10 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
               <th>Speler</th>
               <th>Score</th>
               <th>Geholpen</th>
-              <th>Beesten</th>
+              <th>
+                Beesten
+                <span class="scoreboard-subhead">zelf gevonden</span>
+              </th>
               <th>Laatst</th>
             </tr>
           </thead>
@@ -370,7 +373,10 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
               <th>Pluk</th>
               <th>Ontmoet</th>
               <th>Besties</th>
-              <th>Beesten</th>
+              <th>
+                Beesten
+                <span class="scoreboard-subhead">in je boek</span>
+              </th>
               <th>Laatst</th>
             </tr>
           </thead>
