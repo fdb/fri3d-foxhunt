@@ -31,6 +31,7 @@ export const BOSS_BADGE_IDS = [
   "dc:b4:d9:0b:7e:c4", // Erlin
   "90:70:69:01:ba:68", // Linus
   "90:70:69:00:93:fc", // Fien
+  "a4:cf:12:9b:03:7e", // Igor
 ] as const;
 
 // The camp window fences every scored event (GAME_DESIGN.md, Buiten het
