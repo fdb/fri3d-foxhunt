@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import type {
   Bindings,
+  FirstDiscovery,
   GameEvent,
   Player,
   ScoreBoards,
@@ -13,6 +14,7 @@ import { SnuffelRules } from "../components/SnuffelRules";
 import { Companion } from "../components/Companion";
 import { decodeCompanion } from "../lib/companion";
 import { CREATURES, RARITY_LABEL, creatureById } from "../lib/creatures";
+import { DISCOVERY_ART } from "../lib/discovery-art";
 import { starterFor } from "../lib/starter";
 import {
   SELF_FOUND_POINTS,
@@ -71,10 +73,13 @@ const LEGENDARY_IDS = CREATURES.filter((c) => c.rarity === "leg")
   .map((c) => c.id)
   .join(",");
 
-// HOW MANY, never WHICH. The scoreboard is public and the roster is the
-// player's to discover (CLAUDE.md, "Server pages"), so this query counts
-// players_creatures and never reads a creature_id out. profile_pic rides
-// along because the maatje is the player's face on the board.
+// The ranking tables show HOW MANY, never WHICH. The roster is the player's
+// to discover (CLAUDE.md, "Server pages"), so this query counts
+// players_creatures and never reads a creature_id out. The deliberately
+// separate first-discovery query below is the narrow exception: it reveals a
+// normal creature only after a hunter found it, and keeps rare/legendary
+// identities behind pre-baked silhouettes. profile_pic rides along because
+// the maatje is the player's face on the board.
 //
 // Two boards, never mixed (GAME_DESIGN.md, Scoring): the SQL collects the
 // fenced per-tier/self-report COUNTS, TypeScript owns the point values
@@ -102,6 +107,14 @@ interface ScoreCountRow {
   sparks: number;
   bonded: number;
   last_found: string | null;
+}
+
+interface FirstDiscoveryRow {
+  creature_id: number;
+  discovered_at: string;
+  player_name: string;
+  hunter_id: number;
+  profile_pic: string;
 }
 
 async function fetchScores(db: D1Database): Promise<ScoreBoards> {
@@ -202,15 +215,49 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
         b.creatures_found - a.creatures_found ||
         a.name.localeCompare(b.name),
     );
-  const most_helpful = jagers
-    .filter((r) => r.players_helped > 0)
-    .sort(
-      (a, b) =>
-        b.players_helped - a.players_helped ||
-        b.hunter_score - a.hunter_score ||
-        a.name.localeCompare(b.name),
+  const { results: discoveryRows } = await db
+    .prepare(
+      `WITH ranked AS (
+         SELECT pc.creature_id,
+                pc.dt_self_found AS discovered_at,
+                p.name AS player_name,
+                p.hunter_id,
+                p.profile_pic,
+                ROW_NUMBER() OVER (
+                  PARTITION BY pc.creature_id
+                  ORDER BY pc.dt_self_found, p.id
+                ) AS discovery_rank
+           FROM players_creatures pc
+           JOIN players p ON p.id = pc.player_id
+          WHERE pc.self_found = 1
+            AND pc.dt_self_found >= '${CAMP_START_ISO}'
+            AND pc.dt_self_found <  '${CAMP_END_ISO}'
+            AND p.hunter_id IS NOT NULL
+            AND p.dt_deleted IS NULL
+            AND p.badge_id NOT IN (${BOSS_BADGE_PLACEHOLDERS})
+       )
+       SELECT creature_id, discovered_at, player_name, hunter_id, profile_pic
+         FROM ranked
+        WHERE discovery_rank = 1
+        ORDER BY discovered_at DESC, creature_id
+        LIMIT 3`,
     )
-    .slice(0, 3);
+    .bind(...BOSS_BADGE_IDS)
+    .all<FirstDiscoveryRow>();
+
+  const first_discoveries: FirstDiscovery[] = discoveryRows.flatMap((row) => {
+    const creature = creatureById(row.creature_id);
+    const art = DISCOVERY_ART[row.creature_id];
+    if (!creature || !art) return [];
+    return [
+      {
+        ...row,
+        creature_name: creature.rarity === "norm" ? creature.naam : null,
+        rarity: creature.rarity,
+        art,
+      },
+    ];
+  });
   const most_social = rows
     .filter((r) => r.sparks > 0)
     .sort(
@@ -220,7 +267,7 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
         a.name.localeCompare(b.name),
     )
     .slice(0, 3);
-  return { jagers, verzamelaars, most_helpful, most_social };
+  return { jagers, verzamelaars, first_discoveries, most_social };
 }
 
 // "2026-08-02T12:34:56.789Z" -> "12:34"
@@ -296,6 +343,55 @@ const Spotlight = ({
         </li>
       ))}
       {scores.length === 0 && <li class="empty">{empty}</li>}
+    </ol>
+  </article>
+);
+
+const discoveryLabel = (discovery: FirstDiscovery) =>
+  discovery.creature_name ??
+  (discovery.rarity === "rare" ? "Zeldzaam beest" : "Legendarisch beest");
+
+const FirstDiscoveries = ({
+  discoveries,
+}: {
+  discoveries: FirstDiscovery[];
+}) => (
+  <article class="spotlight spotlight-discoveries">
+    <div class="spotlight-heading">
+      <h2>Eerste ontdekkers</h2>
+      <p>Wie elk beest als eerste vond — de nieuwste ontdekkingen</p>
+    </div>
+    <ol>
+      {discoveries.map((discovery) => {
+        const label = discoveryLabel(discovery);
+        return (
+          <li class="first-discovery">
+            <img
+              class="discovery-art"
+              src={discovery.art}
+              alt={
+                discovery.creature_name
+                  ? label
+                  : `Silhouet van een ${label.toLowerCase()}`
+              }
+              width="56"
+              height="56"
+            />
+            <Companion code={discovery.profile_pic} size={40} />
+            <span class="discovery-details">
+              <strong>{label}</strong>
+              <span>{discovery.player_name}</span>
+              <small>
+                {hunterLabel(discovery.hunter_id)} ·{" "}
+                {shortTime(discovery.discovered_at)}
+              </small>
+            </span>
+          </li>
+        );
+      })}
+      {discoveries.length === 0 && (
+        <li class="empty">Nog geen eerste vondsten.</li>
+      )}
     </ol>
   </article>
 );
@@ -407,14 +503,7 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
     </div>
 
     <div class="scoreboard-spotlights">
-      <Spotlight
-        title="Meest behulpzaam"
-        subtitle="Jagers die de meeste spelers hielpen met hun eigen vondsten"
-        scores={scores.most_helpful}
-        value={(s) => `${s.players_helped} geholpen`}
-        empty="Nog niemand geholpen."
-        kind="helpful"
-      />
+      <FirstDiscoveries discoveries={scores.first_discoveries} />
       <Spotlight
         title="Meeste vonken"
         subtitle="De sociaalste spelers, over jagers en verzamelaars samen"

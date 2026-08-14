@@ -289,6 +289,44 @@ main .spotlight-heading h2 {
   border-right: 0;
 }
 
+.first-discovery {
+  grid-template-columns: 56px 40px minmax(0, 1fr);
+}
+
+.discovery-art {
+  width: 56px;
+  height: 56px;
+  background: var(--surface-soft);
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  image-rendering: pixelated;
+}
+
+.discovery-details {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.discovery-details strong {
+  overflow: hidden;
+  font-family: var(--font-pixel);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discovery-details > span {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discovery-details small {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .spotlight-rank {
   color: var(--gold-d);
   font-family: var(--font-pixel);

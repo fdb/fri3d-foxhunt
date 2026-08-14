@@ -51,11 +51,22 @@ export interface ScoreRow {
   last_found: string | null;
 }
 
+export interface FirstDiscovery {
+  creature_id: number;
+  creature_name: string | null;
+  rarity: "norm" | "rare" | "leg";
+  discovered_at: string;
+  player_name: string;
+  hunter_id: number;
+  profile_pic: string;
+  art: string;
+}
+
 // The two boards /scores renders: every live player appears on exactly one,
 // keyed on whether they hold a hunter_id.
 export interface ScoreBoards {
   jagers: ScoreRow[];
   verzamelaars: ScoreRow[];
-  most_helpful: ScoreRow[];
+  first_discoveries: FirstDiscovery[];
   most_social: ScoreRow[];
 }

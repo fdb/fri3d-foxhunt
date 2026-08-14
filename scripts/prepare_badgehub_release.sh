@@ -88,6 +88,7 @@ run_check "Sprite atlas drift" scripts/bake_sprites.sh --check
 run_check "Font drift" scripts/bake_fonts.sh --check
 run_check "Server companion-art drift" scripts/bake_server_art.sh --check
 run_check "Server icon drift" scripts/bake_server_icons.sh --check
+run_check "Server discovery-art drift" scripts/bake_discovery_art.sh --check
 run_check "Server typecheck" npm --prefix server run typecheck
 run_check "Server formatting" check_server_format
 
