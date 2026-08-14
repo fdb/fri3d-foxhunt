@@ -9,3 +9,7 @@ dist/
 # player saves (name, badge MAC, and other players names+MACs in vrienden).
 # Keep them on the laptop that did the migration, never in the repo.
 badge-backups/
+
+# Manual production D1 snapshots. These contain player names and badge IDs;
+# keep them local and never commit them.
+backups/

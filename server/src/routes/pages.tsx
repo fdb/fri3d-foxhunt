@@ -133,7 +133,12 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
                    AND pc.creature_id IN (${LEGENDARY_IDS})
                   THEN 1 ELSE 0
                 END), 0) AS self_leg,
-              (SELECT COUNT(*) FROM helped_players hp WHERE hp.giver_id = p.id)
+              (SELECT COUNT(*)
+                 FROM helped_players hp
+                 JOIN creature_shares first_share ON first_share.id = hp.first_share_id
+                WHERE hp.giver_id = p.id
+                  AND first_share.occurred_at >= ${CAMP_START_S}
+                  AND first_share.occurred_at <  ${CAMP_END_S})
                 AS players_helped,
               (SELECT COUNT(*) FROM pluks pk
                 WHERE pk.player_id = p.id AND pk.scored = 1
@@ -152,7 +157,7 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
                   AND vs.occurred_at >= ${CAMP_START_S}
                   AND vs.occurred_at <  ${CAMP_END_S})
                 AS sparks,
-              MIN(p.bonded, ${ROSTER_SIZE}) AS bonded,
+              MIN(p.bonded, COUNT(pc.creature_id), ${ROSTER_SIZE}) AS bonded,
               MAX(pc.dt_found) AS last_found
        FROM players p
        LEFT JOIN players_creatures pc ON pc.player_id = p.id

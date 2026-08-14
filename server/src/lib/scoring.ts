@@ -24,12 +24,12 @@ export const MEET_POINTS = 25;
 export const BONDED_POINTS = 100;
 
 // The camp window fences every scored event (GAME_DESIGN.md, Buiten het
-// kamp): Thursday 2026-08-06 15:00 through Sunday 2026-08-09 15:00
+// kamp): Thursday 2026-08-13 15:00 through Sunday 2026-08-16 15:00
 // Europe/Brussels, expressed once in epoch seconds, once in the ISO strings
 // players_creatures timestamps compare against, and once as the three
 // 15:00-to-15:00 pluk-phase labels.
-export const CAMP_START_S = 1_786_021_200;
+export const CAMP_START_S = 1_786_626_000;
 export const CAMP_END_S = CAMP_START_S + 72 * 60 * 60;
-export const CAMP_START_ISO = "2026-08-06T13:00:00Z";
-export const CAMP_END_ISO = "2026-08-09T13:00:00Z";
-export const CAMP_PHASES = ["2026-08-06", "2026-08-07", "2026-08-08"];
+export const CAMP_START_ISO = "2026-08-13T13:00:00Z";
+export const CAMP_END_ISO = "2026-08-16T13:00:00Z";
+export const CAMP_PHASES = ["2026-08-13", "2026-08-14", "2026-08-15"];

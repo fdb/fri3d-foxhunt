@@ -95,10 +95,11 @@ CREATE TABLE IF NOT EXISTS creature_shares (
   UNIQUE (encounter_id, giver_id, recipient_id, creature_id)
 );
 
--- First-help credit, deduplicated per (giver, recipient). A row is minted
--- only for a corroborated introduction of the giver's OWN find (self_found
--- at share time) inside the camp window — resharing spreads creatures but
--- never lands here (GAME_DESIGN.md, Scoring).
+-- First qualifying help, deduplicated per (giver, recipient). A row is minted
+-- for a corroborated introduction of the giver's OWN find (self_found at
+-- share time); the scoreboard follows first_share_id and applies the camp
+-- window. Resharing spreads creatures but never lands here (GAME_DESIGN.md,
+-- Scoring).
 CREATE TABLE IF NOT EXISTS helped_players (
   giver_id INTEGER NOT NULL REFERENCES players(id),
   recipient_id INTEGER NOT NULL REFERENCES players(id),

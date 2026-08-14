@@ -127,6 +127,12 @@ wrangler d1 execute foxhunt --local  --file=migrations/2026-08-06-pluks.sql
 wrangler d1 execute foxhunt --remote --file=migrations/2026-08-06-pluks.sql
 wrangler d1 execute foxhunt --local  --file=migrations/2026-08-06-visitors.sql
 wrangler d1 execute foxhunt --remote --file=migrations/2026-08-06-visitors.sql
+wrangler d1 execute foxhunt --local  --file=migrations/2026-08-12-scoring-and-snuffel-reports.sql
+wrangler d1 execute foxhunt --remote --file=migrations/2026-08-12-scoring-and-snuffel-reports.sql
+wrangler d1 execute foxhunt --local  --file=migrations/2026-08-13-two-scoreboards.sql
+wrangler d1 execute foxhunt --remote --file=migrations/2026-08-13-two-scoreboards.sql
+wrangler d1 execute foxhunt --local  --file=migrations/2026-08-14-score-window-repair.sql
+wrangler d1 execute foxhunt --remote --file=migrations/2026-08-14-score-window-repair.sql
 ```
 
 ## Deployment

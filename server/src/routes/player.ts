@@ -429,14 +429,15 @@ playerRoutes.post("/snuffel", async (c) => {
       )
         .bind(encounterId, giver.id, recipient.id, creatureId)
         .first<{ id: number }>();
-      const inCamp =
-        giverReport.occurred_at >= CAMP_START_S &&
-        giverReport.occurred_at < CAMP_END_S;
       let helpCredited = false;
       // Help credit is for sharing an OWN find (GAME_DESIGN.md, Scoring): a
       // relayed rare or a passed-on startbeest spreads the creature — the
-      // share row above records that reach — but mints no points.
-      if (inCamp && shareRow && own.selfFound) {
+      // share row above records that reach — but mints no points. Record the
+      // first qualifying help independently of the scoring window: /scores
+      // joins first_share_id back to this immutable occurrence and decides
+      // whether that first help happened during camp. Keeping the fact and
+      // the scoring projection separate makes a bad window repairable.
+      if (shareRow && own.selfFound) {
         const help = await c.env.DB.prepare(
           `INSERT OR IGNORE INTO helped_players
              (giver_id, recipient_id, first_share_id)
