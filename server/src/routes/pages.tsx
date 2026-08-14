@@ -237,7 +237,8 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
        SELECT creature_id, discovered_at, player_name, profile_pic
          FROM ranked
         WHERE discovery_rank = 1
-        ORDER BY discovered_at DESC, creature_id`,
+        ORDER BY discovered_at DESC, creature_id
+        LIMIT 10`,
     )
     .bind(...BOSS_BADGE_IDS)
     .all<FirstDiscoveryRow>();
@@ -263,7 +264,7 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
         b.players_met - a.players_met ||
         a.name.localeCompare(b.name),
     )
-    .slice(0, 3);
+    .slice(0, 10);
   return { jagers, verzamelaars, first_discoveries, most_social };
 }
 
@@ -307,87 +308,113 @@ const BeestenMeter = ({ found }: { found: number }) => (
   </td>
 );
 
-const Spotlight = ({
-  title,
-  subtitle,
-  scores,
-  value,
-  empty,
-  kind,
-}: {
-  title: string;
-  subtitle: string;
-  scores: ScoreRow[];
-  value: (score: ScoreRow) => string;
-  empty: string;
-  kind: "helpful" | "social";
-}) => (
-  <article class={`spotlight spotlight-${kind}`}>
-    <div class="spotlight-heading">
-      <h2>{title}</h2>
-      <p>{subtitle}</p>
-    </div>
-    <ol>
-      {scores.map((s, i) => (
-        <li>
-          <span class="spotlight-rank">{i + 1}</span>
-          <Companion code={s.profile_pic} size={48} />
-          <span class="spotlight-player">
-            <strong>{s.name}</strong>
-            <small>{s.hunter_id ? "Jager" : "Verzamelaar"}</small>
-          </span>
-          <strong class="spotlight-value">{value(s)}</strong>
-        </li>
-      ))}
-      {scores.length === 0 && <li class="empty">{empty}</li>}
-    </ol>
-  </article>
-);
-
 const discoveryLabel = (discovery: FirstDiscovery) =>
   discovery.creature_name ??
   (discovery.rarity === "rare" ? "Zeldzaam beest" : "Legendarisch beest");
 
-const FirstDiscoveries = ({
+const FirstDiscoveriesBoard = ({
   discoveries,
 }: {
   discoveries: FirstDiscovery[];
 }) => (
-  <article class="spotlight spotlight-discoveries">
-    <div class="spotlight-heading">
+  <div class="scoreboard-column scoreboard-discoveries">
+    <div class="scoreboard-heading">
       <h2>Eerste ontdekkers</h2>
-      <p>Alle eerste vondsten — veeg of scroll om verder te kijken</p>
+      <span>{discoveries.length}</span>
     </div>
-    <ol tabindex={0} aria-label="Eerste ontdekkers, horizontaal scrollbaar">
-      {discoveries.map((discovery) => {
-        const label = discoveryLabel(discovery);
-        return (
-          <li class="first-discovery">
-            <Companion code={discovery.profile_pic} size={40} />
-            <span class="discovery-details">
-              <strong>{label}</strong>
-              <span>{discovery.player_name}</span>
-              <small>gevonden om {shortTime(discovery.discovered_at)}</small>
-            </span>
-            <img
-              class="discovery-art"
-              src={discovery.art}
-              alt={
-                discovery.creature_name
-                  ? label
-                  : `Silhouet van een ${label.toLowerCase()}`
-              }
-              width="56"
-              height="56"
-            />
-          </li>
-        );
-      })}
-      {discoveries.length === 0 && (
-        <li class="empty">Nog geen eerste vondsten.</li>
-      )}
-    </ol>
-  </article>
+    <div class="scoreboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Maatje</th>
+            <th>Speler</th>
+            <th>Beest</th>
+            <th>Gevonden</th>
+          </tr>
+        </thead>
+        <tbody>
+          {discoveries.map((discovery, i) => {
+            const label = discoveryLabel(discovery);
+            return (
+              <tr>
+                <td class="rank">{i + 1}</td>
+                <td>
+                  <Companion code={discovery.profile_pic} size={32} />
+                </td>
+                <td>{discovery.player_name}</td>
+                <td>
+                  <span class="discovery-creature">
+                    <strong>{label}</strong>
+                    <img
+                      src={discovery.art}
+                      alt={
+                        discovery.creature_name
+                          ? label
+                          : `Silhouet van een ${label.toLowerCase()}`
+                      }
+                      width="40"
+                      height="40"
+                    />
+                  </span>
+                </td>
+                <td class="muted">{shortTime(discovery.discovered_at)}</td>
+              </tr>
+            );
+          })}
+          {discoveries.length === 0 && (
+            <tr>
+              <td class="empty" colspan={5}>
+                Nog geen eerste vondsten.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+const MostSparksBoard = ({ scores }: { scores: ScoreRow[] }) => (
+  <div class="scoreboard-column scoreboard-social">
+    <div class="scoreboard-heading">
+      <h2>Meeste vonken</h2>
+      <span>{scores.length}</span>
+    </div>
+    <div class="scoreboard-table">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Maatje</th>
+            <th>Speler</th>
+            <th>Rol</th>
+            <th>Vonken</th>
+          </tr>
+        </thead>
+        <tbody>
+          {scores.map((score, i) => (
+            <tr>
+              <td class="rank">{i + 1}</td>
+              <td>
+                <Companion code={score.profile_pic} size={32} />
+              </td>
+              <td>{score.name}</td>
+              <td>{score.hunter_id ? "Jager" : "Verzamelaar"}</td>
+              <td class="score">{score.sparks}</td>
+            </tr>
+          ))}
+          {scores.length === 0 && (
+            <tr>
+              <td class="empty" colspan={5}>
+                Nog geen vonken geregistreerd.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
 );
 
 // Two boards, two ranking keys, never one total (GAME_DESIGN.md, Scoring).
@@ -496,16 +523,9 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
       </div>
     </div>
 
-    <div class="scoreboard-spotlights">
-      <FirstDiscoveries discoveries={scores.first_discoveries} />
-      <Spotlight
-        title="Meeste vonken"
-        subtitle="De sociaalste spelers, over jagers en verzamelaars samen"
-        scores={scores.most_social}
-        value={(s) => `${s.sparks} vonken`}
-        empty="Nog geen vonken geregistreerd."
-        kind="social"
-      />
+    <div class="scoreboard-secondary">
+      <FirstDiscoveriesBoard discoveries={scores.first_discoveries} />
+      <MostSparksBoard scores={scores.most_social} />
     </div>
   </section>
 );

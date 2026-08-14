@@ -231,159 +231,46 @@ main .scoreboard-heading h2 {
   width: 72px;
 }
 
-.scoreboard-spotlights {
+.scoreboard-secondary {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.spotlight {
-  overflow: hidden;
-  background: var(--card);
-  border: 3px solid var(--ink);
-  border-radius: 6px;
+#scoreboard .scoreboard-secondary table {
+  min-width: 560px;
 }
 
-.spotlight-heading {
-  padding: 0.75rem 0.9rem;
+.scoreboard-discoveries .scoreboard-heading {
   background: var(--gold);
-  border-bottom: 3px solid var(--ink);
+  color: var(--ink);
 }
 
-.spotlight-social .spotlight-heading {
-  background: var(--terra);
-  color: var(--cream);
+.scoreboard-social .scoreboard-heading {
+  background: var(--terra-d);
 }
 
-main .spotlight-heading h2 {
-  margin: 0;
-  font-size: 1.25rem;
+.scoreboard-social td.score {
+  color: var(--terra-d);
 }
 
-.spotlight-heading p {
-  margin: 0.15rem 0 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.spotlight ol {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.spotlight li {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+.discovery-creature {
+  display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
-  min-width: 0;
-  padding: 0.8rem;
-  border-right: 2px solid var(--border-rest);
+  gap: 0.6rem;
+  font-family: var(--font-pixel);
+  white-space: nowrap;
 }
 
-.spotlight li:last-child {
-  border-right: 0;
-}
-
-.spotlight li.first-discovery {
-  grid-template-columns: 40px minmax(0, 1fr) 56px;
-  scroll-snap-align: start;
-}
-
-.spotlight-discoveries ol {
-  grid-template-columns: none;
-  grid-auto-columns: minmax(280px, calc((100% - 4px) / 3));
-  grid-auto-flow: column;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scroll-snap-type: inline mandatory;
-  scrollbar-color: var(--gold-d) var(--surface-soft);
-  scrollbar-width: thin;
-}
-
-.spotlight-discoveries ol:focus-visible {
-  outline: 3px solid var(--green-d);
-  outline-offset: -3px;
-}
-
-.discovery-art {
-  width: 56px;
-  height: 56px;
+.discovery-creature img {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
   background: var(--surface-soft);
   border: 2px solid var(--ink);
   border-radius: 4px;
   image-rendering: pixelated;
-}
-
-.discovery-details {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.discovery-details strong {
-  font-family: var(--font-pixel);
-  line-height: 1.05;
-  overflow-wrap: anywhere;
-}
-
-.discovery-details > span {
-  font-weight: 700;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
-.discovery-details small {
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.spotlight-rank {
-  color: var(--gold-d);
-  font-family: var(--font-pixel);
-  font-size: 1.4rem;
-  font-weight: 700;
-}
-
-.spotlight-player {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.spotlight-player strong,
-.spotlight-value {
-  font-family: var(--font-pixel);
-}
-
-.spotlight-player strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.spotlight-player small {
-  color: var(--text-muted);
-}
-
-.spotlight-value {
-  grid-column: 3;
-  color: var(--green-d);
-  font-size: 1rem;
-}
-
-.spotlight-social .spotlight-value {
-  color: var(--terra-d);
-}
-
-.spotlight li.empty {
-  display: block;
-  grid-column: 1 / -1;
-  border: 0;
 }
 
 td.rank {
@@ -559,29 +446,9 @@ td .tag-starter {
 }
 
 @media (max-width: 1200px) {
-  #scoreboard {
+  #scoreboard,
+  .scoreboard-secondary {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 720px) {
-  .spotlight ol {
-    grid-template-columns: 1fr;
-  }
-
-  .spotlight li {
-    border-right: 0;
-    border-bottom: 2px solid var(--border-rest);
-  }
-
-  .spotlight-discoveries ol {
-    grid-template-columns: none;
-    grid-auto-columns: minmax(280px, 88%);
-  }
-
-  .spotlight-discoveries li {
-    border-right: 2px solid var(--border-rest);
-    border-bottom: 0;
   }
 }
 
