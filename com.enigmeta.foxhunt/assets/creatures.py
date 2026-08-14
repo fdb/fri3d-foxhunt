@@ -16,6 +16,10 @@
 # List order is book order (base, rare, legendary); ids are the wire identity
 # and do not follow it.
 
+# Glitch Vos is an easter egg that can only be found by entering its hacked
+# code. It must never travel through a vonk, even when its owner found it.
+NON_SPREADING_IDS = {13}
+
 CREATURES = [
     # ── base ────────────────────────────────────────────────────────────
     {

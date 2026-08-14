@@ -29,7 +29,7 @@ import random
 from mpos import SharedPreferences
 import mpos.time
 import pet
-from creatures import CREATURES, by_id
+from creatures import CREATURES, NON_SPREADING_IDS, by_id
 
 _APP = "com.enigmeta.foxhunt"
 _PLACE = "Fri3d Camp"  # stub: no GPS yet — see fox_radio for the backend seam
@@ -876,7 +876,7 @@ def shareable_roster(roster, self_found, is_hunter):
     result = []
     for cid in roster:
         c = by_id(cid)
-        if not c:
+        if not c or cid in NON_SPREADING_IDS:
             continue
         if c["rarity"] == "norm":
             result.append(cid)
@@ -905,7 +905,7 @@ def select_vonk_creature(
     candidates = []
     for cid in sender_shareable:
         c = by_id(cid)
-        if not c or cid in known:
+        if not c or cid in known or cid in NON_SPREADING_IDS:
             continue
         if c["rarity"] == "leg" and receiver_is_hunter:
             continue

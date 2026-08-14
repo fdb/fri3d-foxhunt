@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Bindings, Player } from "../types";
 import { logEvent } from "../lib/events";
 import { validateBadgeId, validateHunterId } from "../lib/validate";
-import { CREATURES } from "../lib/creatures";
+import { CREATURES, NON_SPREADING_CREATURE_IDS } from "../lib/creatures";
 import { CAMP_START_S, CAMP_END_S } from "../lib/scoring";
 
 export const playerRoutes = new Hono<{ Bindings: Bindings }>();
@@ -69,7 +69,8 @@ function shareEligibleWith(
   own: { owned: boolean; selfFound: boolean },
 ): boolean {
   const creature = CREATURE_BY_ID.get(creatureId);
-  if (!creature || !own.owned) return false;
+  if (!creature || !own.owned || NON_SPREADING_CREATURE_IDS.has(creatureId))
+    return false;
   if (creature.rarity === "norm") return true;
   if (creature.rarity === "rare") return !giver.hunter_id || own.selfFound;
   return !!giver.hunter_id && !recipient.hunter_id && own.selfFound;

@@ -55,6 +55,21 @@ class VonkGelukTest(unittest.TestCase):
             [0, 16],
         )
 
+    def test_glitch_vos_is_never_advertised_even_when_self_found(self):
+        self.assertEqual(
+            self.store.shareable_roster(
+                [12, 13, 14], [12, 13, 14], is_hunter=True
+            ),
+            [12, 14],
+        )
+
+    def test_glitch_vos_from_an_old_or_modified_badge_is_rejected(self):
+        self.assertIsNone(
+            self.store.select_vonk_creature(
+                [13], [], "session", "aa", "bb", receiver_is_hunter=False
+            )
+        )
+
     def test_legendary_only_lands_with_a_gatherer(self):
         self.assertEqual(
             self.store.select_vonk_creature(

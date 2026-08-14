@@ -47,6 +47,9 @@ export const CREATURES: Creature[] = [
   { id: 26, naam: "Kraaiken", rarity: "leg" },
 ];
 
+// Glitch Vos is a hacked-code easter egg, never a snuffel/vonk reward.
+export const NON_SPREADING_CREATURE_IDS = new Set([13]);
+
 const BY_ID = new Map(CREATURES.map((c) => [c.id, c]));
 
 /** Unknown ids are not an error: a bridge running a newer roster can report
