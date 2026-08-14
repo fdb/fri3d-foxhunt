@@ -239,8 +239,7 @@ async function fetchScores(db: D1Database): Promise<ScoreBoards> {
        SELECT creature_id, discovered_at, player_name, hunter_id, profile_pic
          FROM ranked
         WHERE discovery_rank = 1
-        ORDER BY discovered_at DESC, creature_id
-        LIMIT 3`,
+        ORDER BY discovered_at DESC, creature_id`,
     )
     .bind(...BOSS_BADGE_IDS)
     .all<FirstDiscoveryRow>();
@@ -359,9 +358,9 @@ const FirstDiscoveries = ({
   <article class="spotlight spotlight-discoveries">
     <div class="spotlight-heading">
       <h2>Eerste ontdekkers</h2>
-      <p>Wie elk beest als eerste vond — de nieuwste ontdekkingen</p>
+      <p>Alle eerste vondsten — veeg of scroll om verder te kijken</p>
     </div>
-    <ol>
+    <ol tabindex={0} aria-label="Eerste ontdekkers, horizontaal scrollbaar">
       {discoveries.map((discovery) => {
         const label = discoveryLabel(discovery);
         return (

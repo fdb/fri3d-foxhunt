@@ -291,6 +291,23 @@ main .spotlight-heading h2 {
 
 .first-discovery {
   grid-template-columns: 56px 40px minmax(0, 1fr);
+  scroll-snap-align: start;
+}
+
+.spotlight-discoveries ol {
+  grid-template-columns: none;
+  grid-auto-columns: minmax(240px, calc((100% - 4px) / 3));
+  grid-auto-flow: column;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline mandatory;
+  scrollbar-color: var(--gold-d) var(--surface-soft);
+  scrollbar-width: thin;
+}
+
+.spotlight-discoveries ol:focus-visible {
+  outline: 3px solid var(--green-d);
+  outline-offset: -3px;
 }
 
 .discovery-art {
@@ -558,6 +575,16 @@ td .tag-starter {
   .spotlight li {
     border-right: 0;
     border-bottom: 2px solid var(--border-rest);
+  }
+
+  .spotlight-discoveries ol {
+    grid-template-columns: none;
+    grid-auto-columns: minmax(280px, 88%);
+  }
+
+  .spotlight-discoveries li {
+    border-right: 2px solid var(--border-rest);
+    border-bottom: 0;
   }
 }
 
