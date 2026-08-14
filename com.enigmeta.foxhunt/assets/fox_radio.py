@@ -21,6 +21,7 @@ import lora
 # heard (lora.LINK.active_chars()), since there is no compiled-in list of
 # what's deployed on real hardware.
 _AWAKE = (0, 1, 2, 12, 17, 19)
+_FAKE_DEFAULT_ACTIVE = _AWAKE[:4]
 
 # The dBm span the hunt is played over: on top of the box, and the far edge of
 # reception. Both mappings below are views of the same measured number.
@@ -259,16 +260,20 @@ class _FakeLinkSim:
 class FakeFoxRadio(FoxRadio):
     """Simulates honing in on a fox: strength drifts upward (with noise) the
     longer you 'search', so on desktop the hunt reaches 'found' in a few
-    seconds with no hardware. bump() lets a key nudge it warmer/colder."""
+    seconds with no hardware. Four foxes stay awake by default; set_active()
+    lets an emulator REPL or test choose another stable scenario explicitly.
+    bump() lets a key nudge a fox warmer/colder."""
 
     ROUND_TRIP_MS = 500  # what asking the network "costs", faked
-    active_cnt = 1
 
     def __init__(self):
         super().__init__()
+        if lora.LINK.is_fri3d:
+            raise RuntimeError("FakeFoxRadio is emulator-only")
         self._strength = {}
         self._used = set()  # burnt one-time codes; the real server owns this
         self._link_sim = {}  # fox_id -> _FakeLinkSim (see class below)
+        self._active = _FAKE_DEFAULT_ACTIVE
 
     def reset(self):
         # Both halves are simulation, not a record of play: _strength is where
@@ -279,11 +284,16 @@ class FakeFoxRadio(FoxRadio):
         # restart, so nothing else was ever going to clear them.
         self._strength = {}
         self._used = set()
+        self._active = _FAKE_DEFAULT_ACTIVE
 
     def active_foxes(self):
         ids = {c["id"] for c in CREATURES}
-        act = [b for b in _AWAKE if b in ids]
-        return act[: self.active_cnt]
+        return [fox_id for fox_id in self._active if fox_id in ids]
+
+    def set_active(self, fox_ids):
+        """Select a stable emulator scenario; pass [] for 'alles slaapt'."""
+        valid = {c["id"] for c in CREATURES}
+        self._active = tuple(dict.fromkeys(i for i in fox_ids if i in valid))
 
     def start(self, fox_id):
         self._strength[fox_id] = 0.12
@@ -299,9 +309,6 @@ class FakeFoxRadio(FoxRadio):
     def bump(self, fox_id, delta):
         s = self._strength.get(fox_id, 0.12) + delta
         self._strength[fox_id] = max(0.0, min(1.0, s))
-
-    def poll(self):
-        self.active_cnt = (self.active_cnt + 1) % 5  # ranges [0-4]
 
     def reading(self, fox_id):
         s = self._strength.get(fox_id, 0.12)

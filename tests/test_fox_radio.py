@@ -139,6 +139,23 @@ class FoxRadioTest(unittest.TestCase):
         self.assertGreater(readings[-1].rssi, readings[0].rssi)
         self.assertGreater(readings[-1].level, readings[0].level)
 
+    def test_four_foxes_stay_active_while_the_fake_radio_is_polled(self):
+        expected = list(self.module._AWAKE[:4])
+
+        self.assertEqual(self.radio.active_foxes(), expected)
+        for _ in range(10):
+            self.radio.poll()
+            self.assertEqual(self.radio.active_foxes(), expected)
+
+    def test_active_foxes_can_be_set_explicitly_and_reset(self):
+        selected = [self.module._AWAKE[-1]]
+
+        self.radio.set_active(selected)
+        self.assertEqual(self.radio.active_foxes(), selected)
+
+        self.radio.reset()
+        self.assertEqual(self.radio.active_foxes(), list(self.module._AWAKE[:4]))
+
     def _verdict(self, fox_id, code):
         results = []
         self.radio.submit_code(fox_id, code, results.append)

@@ -43,6 +43,9 @@ ffmpeg -vcodec rawvideo -f rawvideo -pix_fmt rgb565le -s 320x240 -i shot.raw sho
 - **Test hooks**: app modules stay in `sys.modules` after launch, so fakes
   can be flipped live, e.g.
   `import sys; sys.modules['registrar'].FakeRegistrar.FAIL_BRIDGE = True`.
+  In `--lora` mode, choose a stable nearby-fox scenario with
+  `import fox_radio; fox_radio.RADIO.set_active([0, 1, 2, 12])`; pass `[]`
+  to exercise the "alles slaapt" state. The default is four active foxes.
 - **Widget introspection**: `f = g.get_focused()`, then `f.get_state()`,
   `f.get_width()`, `f.get_parent()`, or force styles on it to probe rendering.
 - **Widget lookup**: `get_child(i)` returns properly TYPED wrappers, so a

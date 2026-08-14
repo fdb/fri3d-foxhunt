@@ -39,6 +39,8 @@ class FoxRadioSelectionTest(unittest.TestCase):
         self.assertIsInstance(fox_radio.RADIO, fox_radio.LoraFoxRadio)
         self.assertEqual(fox_radio.RADIO.active_foxes(), [])
         self.assertEqual(fox_radio.RADIO.notice()[0], "Wachten op LoRa")
+        with self.assertRaisesRegex(RuntimeError, "emulator-only"):
+            fox_radio.FakeFoxRadio()
 
     def test_desktop_keeps_the_simulator(self):
         fox_radio = load_fox_radio(is_fri3d=False, available=False)
