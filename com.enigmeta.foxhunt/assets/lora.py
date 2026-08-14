@@ -319,6 +319,7 @@ class LoRaLink:
         self.is_fri3d = False
         self.available = False  # a radio chip is fitted at all
         self.ready = False  # configured, verified, in continuous RX
+        self._bring_up_scheduled = False
 
         self._last_health_check = 0
         self._consecutive_rejects = 0
@@ -349,30 +350,62 @@ class LoRaLink:
             print("lora: mpos.LoRaManager unavailable (%r) -- desktop?" % e)
             return
 
+        self.is_fri3d = DeviceInfo.hardware_id == "fri3d_2026"
         self.radio = LoRaManager.radioChip
         if self.radio is None:
             print("lora: no LoRa radio fitted (LoRaManager.radioChip is None)")
             return
         self._patch_busy_timeout()  # before ANY SPI traffic -- see constant above
 
-        # MicroPythonOS constructs a driver object even when the antenna kit
-        # is absent. Prove an SX1262 answers before treating that object as a
-        # fitted radio: an open bus reads 0xFF on a badge without the radio
-        # daughterboard, and recovery attempts against it needlessly pulse the
-        # expander before falling back. This is the same read-only
-        # presence probe registrar.has_lora() uses; 0 and 1 are the chip's
-        # valid GFSK and LoRa packet-type replies.
+        if self._packet_type() is not None:
+            self._mark_available()
+            self._schedule_bring_up(self.bring_up)
+        else:
+            # `begin()` is what actually wakes the chip on MPOS 0.17.2: a
+            # CH32 reset pulse alone still reads packet type 0xFF/status 0x00
+            # on real hardware. Defer the SPI-heavy recovery until the screen
+            # transition has settled, exactly like normal configuration.
+            print("lora: no answer; scheduling SX1262 restart and initialization")
+            self._schedule_bring_up(self.recover_presence)
+
+    def _packet_type(self):
+        """A valid SX1262 packet type, or None for an unreadable/open bus."""
         try:
             packet_type = self.radio.getPacketType()
         except Exception as e:
             print("lora: radio presence probe failed:", repr(e))
-            return
-        if packet_type not in (0, 1):
-            print("lora: no responding SX1262 (packet type %r)" % packet_type)
-            return
+            return None
+        return packet_type if packet_type in (0, 1) else None
+
+    def ensure_available(self):
+        """Wake and re-probe an unreliable Fri3d SX1262.
+
+        MicroPythonOS constructs the driver even when the daughterboard is
+        absent, so the object existing proves nothing. Conversely, one failed
+        SPI read does not prove absence: the fitted SX1262 can be wedged or
+        still held in reset. On the current badge OS (CH32 2.0.3), one bounded
+        hardware reset is safe. The reset must be followed by `begin()` -- a
+        reset-only probe was measured still returning 0xFF/0x00 on the badge.
+        Only a failed full initialization counts as absent.
+
+        This is intentionally callable again from WORD JAGER. A radio that was
+        unavailable during the app import gets another honest recovery chance
+        when the player explicitly asks for it.
+        """
+        if self.available:
+            return True
+        if self.radio is None:
+            return False
+
+        if self._packet_type() is not None:
+            self._mark_available()
+            self._schedule_bring_up(self.bring_up)
+            return True
+        return self.recover_presence() if self.is_fri3d else False
+
+    def _mark_available(self):
         self.available = True
 
-        self.is_fri3d = DeviceInfo.hardware_id == "fri3d_2026"
         if self.is_fri3d:
             try:
                 from machine import Pin
@@ -382,12 +415,52 @@ class LoRaLink:
             except Exception as e:
                 print("lora: could not drive RF switch pin:", repr(e))
 
-        # Deferred, not blocking: configuring the radio while LVGL is still
-        # animating the screen transition puts 40 MHz display traffic on the
-        # shared bus mid-SPI-transaction (see module header). A one-shot
-        # lv.timer costs nothing and needs no thread.
-        t = lv.timer_create(lambda _t: self.bring_up(), SETTLE_MS, None)
-        t.set_repeat_count(1)
+    def _schedule_bring_up(self, fn):
+        if not self._bring_up_scheduled:
+            # Deferred, not blocking: configuring the radio while LVGL is
+            # still animating the screen transition puts 40 MHz display
+            # traffic on the shared bus mid-SPI-transaction (module header).
+            self._bring_up_scheduled = True
+
+            def _bring_up(_t):
+                self._bring_up_scheduled = False
+                fn()
+
+            t = lv.timer_create(_bring_up, SETTLE_MS, None)
+            t.set_repeat_count(1)
+
+    def recover_presence(self):
+        """One bounded reset + initialization for an apparently absent chip.
+
+        A reset without `begin()` does not wake the real badge's SX1262. Try
+        the complete receive-only initialization twice after one reset, like
+        MeshCore, then verify mode/sync/device errors before calling it fitted.
+        An open bus follows the same bounded path and remains unavailable.
+        """
+        print("lora: restarting and initializing SX1262 before declaring it absent")
+        if not self.hard_reset():
+            return False
+        self._mark_available()  # configure() needs the board RF switch set
+
+        detail = "not attempted"
+        for attempt in (1, 2):
+            try:
+                self.configure()
+                ok, detail = self.verify()
+            except Exception as e:
+                ok = False
+                detail = "configure raised: %r" % e
+            print("lora: recovery attempt %d: %s" % (attempt, detail))
+            if ok:
+                self.ready = True
+                self._last_health_check = time.ticks_ms()
+                return True
+            time.sleep_ms(200)
+
+        self.available = False
+        self.ready = False
+        print("lora: no responding SX1262 after restart and initialization")
+        return False
 
     def _patch_busy_timeout(self):
         """Rebind sx1262.py's SPItransfer() BUSY-wait timeout down to
@@ -485,7 +558,14 @@ class LoRaLink:
     def hard_reset(self):
         """Pulse the SX1262 reset via the CH32 expander -- fri3d_2026 has no
         ESP32-side reset pin (see main.py). The only way to un-wedge the
-        radio on this board."""
+        radio on this board.
+
+        Current badges run CH32 2.0.3. Space the writes and read the release
+        bit back instead of assuming both landed. Unlike MeshCore's worker-
+        thread reset, every Foxhunt radio operation runs inside LVGL's own UI
+        thread (module header), so input polling cannot interleave here and
+        disabling the task handler from inside its callback is unsafe.
+        """
         try:
             import mpos
 
@@ -497,9 +577,12 @@ class LoRaLink:
             return False
         try:
             expander.config = EXPANDER_LORA_HELD
-            time.sleep_ms(20)
+            time.sleep_ms(200)
             expander.config = EXPANDER_LORA_RUN
-            time.sleep_ms(50)
+            time.sleep_ms(200)
+            if not expander.config[0]:
+                print("lora: reset release did not read back")
+                return False
             self._resets += 1
             print("lora: pulsed LoRa reset via expander (reset #%d)" % self._resets)
             return True
@@ -739,8 +822,8 @@ class LoRaLink:
 
 
 # Shared singleton, started immediately: "set the LoRa in continuous receive
-# mode at the start of the app". On desktop (no LoRaManager / no radio
-# fitted) start() just leaves `available` False and fox_radio.py falls back
-# to FakeFoxRadio, same as it always has.
+# mode at the start of the app". Desktop has no Fri3d hardware and uses the
+# explicit simulator in fox_radio.py. A badge with no responding daughterboard
+# stays on the real, quiet adapter -- it must never invent LoRa traffic.
 LINK = LoRaLink()
 LINK.start()

@@ -414,8 +414,10 @@ class LoraFoxRadio(FoxRadio):
         lora.LINK.submit_code(fid, hid, otc, on_result)
 
 
-# Shared singleton — all screens talk to the same radio. LoraFoxRadio is
-# used whenever lora.py found a fitted radio chip at import time (see that
-# file's LINK.start()); otherwise this falls back to the fake, same as
-# desktop always has.
-RADIO = LoraFoxRadio() if lora.LINK.available else FakeFoxRadio()
+# Shared singleton — all screens talk to the same radio. Simulation is a
+# desktop development tool, never a badge fallback: a Fri3d badge whose radio
+# is absent or temporarily unresponsive must remain quiet, not invent nearby
+# foxes, RSSI, packets, or successful codes. LoraFoxRadio reads LINK live, so a
+# later WORD JAGER recovery immediately becomes usable without replacing this
+# singleton.
+RADIO = LoraFoxRadio() if lora.LINK.is_fri3d else FakeFoxRadio()

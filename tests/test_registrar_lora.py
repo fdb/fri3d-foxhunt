@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
 ASSETS = Path(__file__).parents[1] / "com.enigmeta.foxhunt" / "assets"
@@ -62,6 +62,22 @@ class RegistrarLoRaTest(unittest.TestCase):
     def test_desktop_override_is_the_only_radio_free_success_path(self):
         registrar, mpos = load_registrar()
         self.assertTrue(self.has_lora(registrar, mpos, {"FOXHUNT_FAKE_LORA": "1"}))
+
+    def test_badge_delegates_to_the_links_restart_and_retry_probe(self):
+        registrar, mpos = load_registrar(RadioChip(0xFF))
+        link = types.SimpleNamespace(
+            is_fri3d=True,
+            ensure_available=MagicMock(return_value=True),
+        )
+        lora = types.SimpleNamespace(LINK=link)
+
+        with (
+            patch.dict(sys.modules, {"mpos": mpos, "lora": lora}),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            self.assertTrue(registrar.has_lora())
+
+        link.ensure_available.assert_called_once_with()
 
 
 if __name__ == "__main__":

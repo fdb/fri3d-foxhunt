@@ -13,6 +13,7 @@
 
 import lvgl as lv
 import random
+import sys
 from mpos import TaskManager
 
 # The deployed worker (see server/README.md). NO trailing slash — the request
@@ -67,11 +68,17 @@ def has_lora():
     """True when a physical LoRa radio answers on the badge's SPI bus.
 
     MicroPythonOS constructs the driver even when the plug-in radio is absent,
-    so the object existing is not evidence of an antenna kit. getPacketType()
-    is a receive-only SPI probe: a real SX1262 returns one of its two modem
-    types, while an open bus returns 0xFF or raises. Desktop has no radio to
-    find, so FOXHUNT_FAKE_LORA (set by run_on_mac.sh --lora) stands in for one.
+    so the object existing is not evidence of an antenna kit. On the Fri3d
+    badge, lora.LINK owns the stronger test: a failed getPacketType() triggers
+    one hardware restart and retry before absence is reported. The link is
+    already loaded by screens_system before WORD JAGER can be pressed.
+
+    Desktop has no radio to find, so FOXHUNT_FAKE_LORA (set by
+    run_on_mac.sh --lora) stands in for one there only.
     """
+    link_module = sys.modules.get("lora")
+    if link_module is not None and link_module.LINK.is_fri3d:
+        return link_module.LINK.ensure_available()
     try:
         from mpos import LoRaManager
 
