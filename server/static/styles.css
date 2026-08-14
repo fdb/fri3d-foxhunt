@@ -289,8 +289,8 @@ main .spotlight-heading h2 {
   border-right: 0;
 }
 
-.first-discovery {
-  grid-template-columns: 56px 40px minmax(0, 1fr);
+.spotlight li.first-discovery {
+  grid-template-columns: 40px minmax(0, 1fr) 56px;
   scroll-snap-align: start;
 }
 

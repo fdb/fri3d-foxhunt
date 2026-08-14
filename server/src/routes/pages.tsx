@@ -363,6 +363,12 @@ const FirstDiscoveries = ({
         const label = discoveryLabel(discovery);
         return (
           <li class="first-discovery">
+            <Companion code={discovery.profile_pic} size={40} />
+            <span class="discovery-details">
+              <strong>{label}</strong>
+              <span>{discovery.player_name}</span>
+              <small>gevonden om {shortTime(discovery.discovered_at)}</small>
+            </span>
             <img
               class="discovery-art"
               src={discovery.art}
@@ -374,12 +380,6 @@ const FirstDiscoveries = ({
               width="56"
               height="56"
             />
-            <Companion code={discovery.profile_pic} size={40} />
-            <span class="discovery-details">
-              <strong>{label}</strong>
-              <span>{discovery.player_name}</span>
-              <small>gevonden om {shortTime(discovery.discovered_at)}</small>
-            </span>
           </li>
         );
       })}
