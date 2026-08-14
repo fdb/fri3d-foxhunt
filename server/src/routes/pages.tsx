@@ -323,7 +323,6 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
               <th>Maatje</th>
               <th>Speler</th>
               <th>Score</th>
-              <th>Geholpen</th>
               <th>
                 Beesten
                 <span class="scoreboard-subhead">zelf gevonden</span>
@@ -340,14 +339,13 @@ const Scoreboard = ({ scores }: { scores: ScoreBoards }) => (
                 </td>
                 <td>{s.name}</td>
                 <td class="score">{s.hunter_score}</td>
-                <td>{s.players_helped}</td>
                 <BeestenMeter found={s.self_found} />
                 <td class="muted">{shortTime(s.last_found)}</td>
               </tr>
             ))}
             {scores.jagers.length === 0 && (
               <tr>
-                <td class="empty" colspan={7}>
+                <td class="empty" colspan={6}>
                   Nog geen jagers met een antenne.
                 </td>
               </tr>
