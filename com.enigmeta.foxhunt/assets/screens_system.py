@@ -54,7 +54,7 @@ _NEAR_BG = 0xF6E7CD  # nearby-card fill
 _SEG_OFF = 0xE4D6BC  # unlit heat segment
 _RARITY_FRAME = {"rare": ui.TERRA, "leg": ui.GOLD}
 _VISITOR_POLL_MS = 30_000
-_NEARBY_POLL_MS = 5_000
+_NEARBY_POLL_MS = 500
 
 
 class HomeActivity(Activity):
@@ -66,6 +66,7 @@ class HomeActivity(Activity):
         self._prewarm_timer = None
         self._is_jager = False
         self._nearby_container = None
+        self._nearby_signature = None
         self.screen = ui.make_screen(ui.PAPER)
         self._populate()
         self.setContentView(self.screen)
@@ -101,6 +102,7 @@ class HomeActivity(Activity):
             self._fresh = False
             return
         self._nearby_container = None  # about to be destroyed by clean()
+        self._nearby_signature = None
         self.screen.clean()
         self._populate()
 
@@ -158,6 +160,7 @@ class HomeActivity(Activity):
         pending = store.visitor_pending()
         if pending is not None and self._visitor_id is None:
             self._nearby_container = None  # about to be destroyed by clean()
+            self._nearby_signature = None
             self.screen.clean()
             self._populate()
 
@@ -355,9 +358,30 @@ class HomeActivity(Activity):
     def _draw_nearby_cards(self, s, awake, caught):
         # Rebuildable half of the nearby row: everything here is derived
         # from live radio state (which foxes are awake, how hot they read),
-        # so _tick deletes and recreates just this wrapper on each poll
-        # instead of self.screen.clean() + _populate() nuking all 11 canvas
-        # buffers on the screen every 2 seconds.
+        # so _tick recreates just this wrapper when its compact signature
+        # changes. The 500 ms status poll can therefore show reset phases
+        # without churning creature canvases while nothing changes.
+        notice = RADIO.notice()
+        nearby = []
+        if notice is None:
+            for c in CREATURES:
+                if c["id"] in awake:
+                    # peek, not reading: the fake radio's reading() advances its
+                    # simulated approach, and home only wants to LOOK.
+                    r = RADIO.peek(c["id"])
+                    heat = max(1, min(3, (r.level * 3 + 4) // 5))
+                    nearby.append((c, heat))
+        # still-huntable first (the row is a hunt shortcut), warmest leading;
+        # already-caught ones trail — and stay huntable: re-finding a known
+        # creature is zelf vinden (GAME_DESIGN.md), an upgrade, never a dud
+        nearby.sort(key=lambda ch: (ch[0]["id"] in caught, -ch[1]))
+        signature = (
+            notice,
+            tuple((c["id"], heat, c["id"] in caught) for c, heat in nearby[:4]),
+        )
+        if signature == self._nearby_signature:
+            return
+        self._nearby_signature = signature
         if self._nearby_container is not None:
             self._nearby_container.delete()
             self._nearby_container = None
@@ -367,18 +391,14 @@ class HomeActivity(Activity):
         wrap = ui.box(s, 0, 62, 320, 60, None)
         self._nearby_container = wrap
 
-        nearby = []
-        for c in CREATURES:
-            if c["id"] in awake:
-                # peek, not reading: the fake radio's reading() advances its
-                # simulated approach, and home only wants to LOOK.
-                r = RADIO.peek(c["id"])
-                heat = max(1, min(3, (r.level * 3 + 4) // 5))
-                nearby.append((c, heat))
-        # still-huntable first (the row is a hunt shortcut), warmest leading;
-        # already-caught ones trail — and stay huntable: re-finding a known
-        # creature is zelf vinden (GAME_DESIGN.md), an upgrade, never a dud
-        nearby.sort(key=lambda ch: (ch[0]["id"] in caught, -ch[1]))
+        if notice is not None:
+            panel = ui.box(wrap, 6, 6, 308, 52, _NEAR_BG, radius=ui.RADIUS)
+            panel.set_style_border_width(ui.BORDER_THIN, 0)
+            panel.set_style_border_color(ui.hexc(ui.TERRA), 0)
+            ui.label(panel, notice[0], 9, 7, ui.TERRA_D, ui.font_label())
+            ui.label(panel, notice[1], 9, 28, ui.TEXT_MUTED, ui.font_small())
+            return
+
         if nearby:
             cards = ui.row(wrap, 6, 6, 308, 52, gap=5)
             for i, (c, heat) in enumerate(nearby[:4]):
@@ -692,6 +712,7 @@ class _Toggle:
 
 class SettingsActivity(Activity):
     def onCreate(self):
+        self._wj_radio_timer = None
         s = ui.make_screen(ui.PAPER)
         cfg = store.settings()
         ui.banner(s, "INSTELLINGEN", ui.GREEN)
@@ -852,6 +873,7 @@ class SettingsActivity(Activity):
     def onPause(self, screen):
         super().onPause(screen)
         self._id_taps = 0  # a half-finished unlock doesn't survive leaving
+        self._stop_wj_radio_wait()
         leds.off()  # don't leave the preview burning after leaving the screen
 
     def _wipe(self):
@@ -875,15 +897,48 @@ class SettingsActivity(Activity):
     def _word_jager(self):
         if self._wj_busy:
             return
-        if not registrar.has_lora():
-            # A driver object alone is insufficient: the physical radio must
-            # answer the SPI probe. A friendly no leaves the profile unchanged.
-            sound.play("error")
-            self._wj.set_text("geen antenne gevonden")
+        if registrar.has_lora():
+            self._request_hunter_id()
             return
         sound.play("tap")
         self._wj_busy = True
-        self._wj.set_text("antenne gevonden!...")
+        self._wj.set_text("LoRa-chip starten...")
+        self._wj_radio_checks = 0
+        self._wj_radio_timer = lv.timer_create(self._poll_word_jager_radio, 250, None)
+
+    def _poll_word_jager_radio(self, _timer):
+        self._wj_radio_checks += 1
+        notice = RADIO.notice()
+        if notice is not None and notice[0] in (
+            "LoRa reageert niet",
+            "Geen LoRa-chip aangesloten",
+        ):
+            self._stop_wj_radio_wait()
+            self._wj_busy = False
+            sound.play("error")
+            self._wj.set_text("LoRa reageert niet - probeer weer")
+            return
+        if registrar.has_lora():
+            self._stop_wj_radio_wait()
+            self._request_hunter_id()
+            return
+        # Independent of driver state: even a future recovery regression can
+        # never leave this settings row permanently busy.
+        if self._wj_radio_checks >= 32:  # 8 seconds
+            self._stop_wj_radio_wait()
+            self._wj_busy = False
+            sound.play("error")
+            self._wj.set_text("LoRa wacht te lang - probeer weer")
+
+    def _stop_wj_radio_wait(self):
+        if self._wj_radio_timer is not None:
+            self._wj_radio_timer.delete()
+            self._wj_radio_timer = None
+
+    def _request_hunter_id(self):
+        sound.play("tap")
+        self._wj_busy = True
+        self._wj.set_text("LoRa klaar! jager-id ophalen...")
         registrar.REGISTRAR.word_jager(registrar.badge_id(), self._wj_done)
 
     def _wj_done(self, st):

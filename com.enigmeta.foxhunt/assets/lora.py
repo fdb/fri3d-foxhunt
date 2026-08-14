@@ -92,6 +92,10 @@ TX_DEADLINE_MS = 120  # generous vs. 31.0 ms airtime (§3) for TX_DONE to land
 # fix) from seconds down to a fraction of one. Tune upward if a real board
 # legitimately needs longer for some command this app happens to exercise.
 SPI_BUSY_TIMEOUT_MS = 300
+RESET_HOLD_MS = 200
+RESET_RELEASE_MS = 200
+RECOVERY_RETRY_MS = 200
+RECOVERY_ATTEMPTS = 2
 
 # Bit values taken from sx1262.py (kept local rather than importing the
 # underscore-prefixed constants — see main.py, same convention).
@@ -320,6 +324,12 @@ class LoRaLink:
         self.available = False  # a radio chip is fitted at all
         self.ready = False  # configured, verified, in continuous RX
         self._bring_up_scheduled = False
+        self._recovery_active = False
+        self._recovery_attempt = 0
+        self._recovery_limit = 0
+        self._reset_done = False
+        self._status = "waiting"
+        self._status_detail = "controle wordt gestart"
 
         self._last_health_check = 0
         self._consecutive_rejects = 0
@@ -354,19 +364,22 @@ class LoRaLink:
         self.radio = LoRaManager.radioChip
         if self.radio is None:
             print("lora: no LoRa radio fitted (LoRaManager.radioChip is None)")
+            self._set_status("missing", "geen radioverbinding")
             return
         self._patch_busy_timeout()  # before ANY SPI traffic -- see constant above
 
         if self._packet_type() is not None:
             self._mark_available()
-            self._schedule_bring_up(self.bring_up)
+            self._set_status("starting", "instellingen laden")
+            self._schedule_bring_up(lambda: self.request_recovery(False))
         else:
             # `begin()` is what actually wakes the chip on MPOS 0.17.2: a
             # CH32 reset pulse alone still reads packet type 0xFF/status 0x00
             # on real hardware. Defer the SPI-heavy recovery until the screen
             # transition has settled, exactly like normal configuration.
             print("lora: no answer; scheduling SX1262 restart and initialization")
-            self._schedule_bring_up(self.recover_presence)
+            self._set_status("waiting", "herstel wordt gestart")
+            self._schedule_bring_up(lambda: self.request_recovery(True))
 
     def _packet_type(self):
         """A valid SX1262 packet type, or None for an unreadable/open bus."""
@@ -392,16 +405,46 @@ class LoRaLink:
         unavailable during the app import gets another honest recovery chance
         when the player explicitly asks for it.
         """
-        if self.available:
+        if self.ready:
             return True
         if self.radio is None:
+            return False
+        if self._recovery_active:
+            return False
+
+        if self.available:
+            self.request_recovery(False)
             return False
 
         if self._packet_type() is not None:
             self._mark_available()
-            self._schedule_bring_up(self.bring_up)
-            return True
-        return self.recover_presence() if self.is_fri3d else False
+            self._schedule_bring_up(lambda: self.request_recovery(False))
+            return False
+        if self.is_fri3d:
+            self.request_recovery(True)
+        return False
+
+    def notice(self):
+        """Friendly, compact radio state for the home screen.
+
+        None means normal nearby-creature UI may be shown. The second line is
+        deliberately useful when somebody photographs a failing badge in the
+        field, without exposing driver names or exception text to a player.
+        """
+        if self.ready or not self.is_fri3d:
+            return None
+        title = {
+            "waiting": "Wachten op LoRa",
+            "resetting": "LoRa-chip resetten...",
+            "starting": "LoRa starten...",
+            "failed": "LoRa reageert niet",
+            "missing": "Geen LoRa-chip aangesloten",
+        }.get(self._status, "Wachten op LoRa")
+        return (title, self._status_detail)
+
+    def _set_status(self, status, detail):
+        self._status = status
+        self._status_detail = detail
 
     def _mark_available(self):
         self.available = True
@@ -429,38 +472,136 @@ class LoRaLink:
             t = lv.timer_create(_bring_up, SETTLE_MS, None)
             t.set_repeat_count(1)
 
-    def recover_presence(self):
-        """One bounded reset + initialization for an apparently absent chip.
+    def _later(self, ms, fn):
+        t = lv.timer_create(lambda _t: fn(), max(1, ms), None)
+        t.set_repeat_count(1)
 
-        A reset without `begin()` does not wake the real badge's SX1262. Try
-        the complete receive-only initialization twice after one reset, like
-        MeshCore, then verify mode/sync/device errors before calling it fitted.
-        An open bus follows the same bounded path and remains unavailable.
+    def request_recovery(self, reset_first=True):
+        """Start one finite, timer-driven recovery and return immediately.
+
+        Reset hold/release and retry delays used to be sleep_ms calls inside
+        LVGL's callback. Keeping those phases on one-shot timers preserves the
+        single-threaded shared-SPI guarantee while letting LVGL draw status and
+        accept input between every phase. SPItransfer itself is separately
+        bounded by SPI_BUSY_TIMEOUT_MS.
         """
-        print("lora: restarting and initializing SX1262 before declaring it absent")
-        if not self.hard_reset():
+        if self.radio is None or self._recovery_active:
             return False
+        self.ready = False
+        self._recovery_active = True
+        self._recovery_attempt = 0
+        self._reset_done = False
+        if reset_first:
+            self._begin_reset()
+        else:
+            # A chip which answered the probe gets one ordinary begin(). If
+            # verification fails, _attempt_setup escalates to a full reset.
+            self._recovery_limit = 1
+            self._later(1, self._attempt_setup)
+        return True
+
+    def _expander(self):
+        try:
+            import mpos
+
+            return getattr(mpos, "io_expander", None)
+        except Exception:
+            return None
+
+    def _begin_reset(self):
+        expander = self._expander()
+        if expander is None:
+            self._finish_recovery("reset niet beschikbaar")
+            return
+        self._set_status("resetting", "reset %d · even geduld" % (self._resets + 1))
+        try:
+            expander.config = EXPANDER_LORA_HELD
+        except Exception as e:
+            print("lora: reset assert failed:", repr(e))
+            self._finish_recovery("reset lukt niet")
+            return
+        self._later(RESET_HOLD_MS, lambda: self._release_reset(expander))
+
+    def _release_reset(self, expander):
+        try:
+            expander.config = EXPANDER_LORA_RUN
+        except Exception as e:
+            print("lora: reset release failed:", repr(e))
+            self._finish_recovery("reset lukt niet")
+            return
+        self._later(RESET_RELEASE_MS, lambda: self._check_reset(expander))
+
+    def _check_reset(self, expander):
+        try:
+            released = expander.config[0]
+        except Exception as e:
+            print("lora: reset readback failed:", repr(e))
+            released = False
+        if not released:
+            self._finish_recovery("reset blijft actief")
+            return
+        self._resets += 1
+        self._reset_done = True
+        self._recovery_attempt = 0
+        self._recovery_limit = RECOVERY_ATTEMPTS
         self._mark_available()  # configure() needs the board RF switch set
+        print("lora: pulsed LoRa reset via expander (reset #%d)" % self._resets)
+        self._later(1, self._attempt_setup)
 
+    def _attempt_setup(self):
+        self._recovery_attempt += 1
+        self._set_status(
+            "starting",
+            "poging %d van %d · %d reset"
+            % (self._recovery_attempt, self._recovery_limit, self._resets),
+        )
         detail = "not attempted"
-        for attempt in (1, 2):
-            try:
-                self.configure()
-                ok, detail = self.verify()
-            except Exception as e:
-                ok = False
-                detail = "configure raised: %r" % e
-            print("lora: recovery attempt %d: %s" % (attempt, detail))
-            if ok:
-                self.ready = True
-                self._last_health_check = time.ticks_ms()
-                return True
-            time.sleep_ms(200)
+        try:
+            self.configure()
+            ok, detail = self.verify()
+        except Exception as e:
+            ok = False
+            detail = "configure raised: %r" % e
+        print("lora: setup attempt %d: %s" % (self._recovery_attempt, detail))
+        if ok:
+            self.available = True
+            self.ready = True
+            self._recovery_active = False
+            self._last_health_check = time.ticks_ms()
+            self._set_status("ready", "LoRa is klaar")
+            return
+        if self._recovery_attempt < self._recovery_limit:
+            self._later(RECOVERY_RETRY_MS, self._attempt_setup)
+            return
+        if self.is_fri3d and not self._reset_done:
+            self._begin_reset()
+            return
+        self._finish_recovery(self._friendly_failure(detail))
 
+    def _friendly_failure(self, detail):
+        if "DEAD" in detail or "raised" in detail or "sync=ffff" in detail.lower():
+            return "geen antwoord · %d pogingen · %d reset" % (
+                self._recovery_attempt,
+                self._resets,
+            )
+        if "devErr=0x0000" not in detail:
+            reason = "chip meldt een fout"
+        elif "sync=1424" not in detail:
+            reason = "instellingen niet goed"
+        else:
+            reason = "ontvangst start niet"
+        return "%s · %d pogingen · %d reset" % (
+            reason,
+            self._recovery_attempt,
+            self._resets,
+        )
+
+    def _finish_recovery(self, detail):
         self.available = False
         self.ready = False
+        self._recovery_active = False
+        self._set_status("failed", detail)
         print("lora: no responding SX1262 after restart and initialization")
-        return False
 
     def _patch_busy_timeout(self):
         """Rebind sx1262.py's SPItransfer() BUSY-wait timeout down to
@@ -501,33 +642,6 @@ class LoRaLink:
 
         self.radio.SPItransfer = _fast_transfer
 
-    def bring_up(self, allow_hard_reset=True):
-        detail = "not attempted"
-        for attempt in range(3):
-            try:
-                self.configure()
-            except Exception as e:
-                detail = "configure raised: %r" % e
-                print("lora: attempt %d %s" % (attempt + 1, detail))
-                if allow_hard_reset and self.hard_reset():
-                    detail += " (after hard reset)"
-                time.sleep_ms(200)
-                continue
-
-            ok, detail = self.verify()
-            print("lora: verify:", detail)
-            if ok:
-                self.ready = True
-                self._last_health_check = time.ticks_ms()
-                return True
-            if allow_hard_reset:
-                self.hard_reset()
-            time.sleep_ms(200)
-
-        print("lora: radio setup failed after 3 attempts:", detail)
-        self.ready = False
-        return False
-
     def configure(self):
         self.radio.begin(
             freq=FREQ_MHZ,
@@ -554,41 +668,6 @@ class LoRaLink:
             self.radio.setDio2AsRfSwitch(False)
             if self.rf_sw is not None:
                 self.rf_sw.value(1)
-
-    def hard_reset(self):
-        """Pulse the SX1262 reset via the CH32 expander -- fri3d_2026 has no
-        ESP32-side reset pin (see main.py). The only way to un-wedge the
-        radio on this board.
-
-        Current badges run CH32 2.0.3. Space the writes and read the release
-        bit back instead of assuming both landed. Unlike MeshCore's worker-
-        thread reset, every Foxhunt radio operation runs inside LVGL's own UI
-        thread (module header), so input polling cannot interleave here and
-        disabling the task handler from inside its callback is unsafe.
-        """
-        try:
-            import mpos
-
-            expander = getattr(mpos, "io_expander", None)
-        except Exception:
-            expander = None
-        if expander is None:
-            print("lora: no io_expander, cannot hard reset")
-            return False
-        try:
-            expander.config = EXPANDER_LORA_HELD
-            time.sleep_ms(200)
-            expander.config = EXPANDER_LORA_RUN
-            time.sleep_ms(200)
-            if not expander.config[0]:
-                print("lora: reset release did not read back")
-                return False
-            self._resets += 1
-            print("lora: pulsed LoRa reset via expander (reset #%d)" % self._resets)
-            return True
-        except Exception as e:
-            print("lora: hard reset failed:", repr(e))
-            return False
 
     def chip_mode(self):
         """None means the radio isn't answering -- getStatus() swallows SPI
@@ -623,9 +702,9 @@ class LoRaLink:
             return True
 
         if mode is None:
-            print("lora: radio not responding (BUSY stuck?), hard resetting")
-            self.hard_reset()
-            return self.bring_up(allow_hard_reset=False)
+            print("lora: radio not responding; scheduling a reset")
+            self.request_recovery(True)
+            return False
 
         self._stalls += 1
         print(

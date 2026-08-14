@@ -114,6 +114,14 @@ def load_lora(packet_type, wakes_on_begin=True):
     return module, timers, radio, expander, task_handler
 
 
+def fire_all(timers, start=0):
+    """Run the finite queue of one-shot LVGL phases created by recovery."""
+    i = start
+    while i < len(timers):
+        timers[i].fire()
+        i += 1
+
+
 class LoRaPresenceTest(unittest.TestCase):
     def test_failed_probe_restarts_the_radio_and_retries(self):
         lora, timers, radio, expander, task_handler = load_lora(0xFF)
@@ -123,9 +131,13 @@ class LoRaPresenceTest(unittest.TestCase):
         self.assertEqual(expander.writes, [])
 
         timers[0].fire()
+        self.assertEqual(lora.LINK.notice()[0], "LoRa-chip resetten...")
+        self.assertEqual(expander.writes, [0x03])
+        fire_all(timers, 1)
 
         self.assertTrue(lora.LINK.available)
         self.assertTrue(lora.LINK.ready)
+        self.assertIsNone(lora.LINK.notice())
         self.assertEqual(radio.packet_type_calls, 1)
         self.assertEqual(radio.begin_calls, 1)
         self.assertEqual(expander.writes, [0x03, 0x13])
@@ -142,13 +154,16 @@ class LoRaPresenceTest(unittest.TestCase):
                 lora, timers, radio, expander, _ = load_lora(
                     reply, wakes_on_begin=False
                 )
-                timers[0].fire()
+                fire_all(timers)
 
                 self.assertFalse(lora.LINK.available)
                 self.assertFalse(lora.LINK.ready)
+                self.assertEqual(lora.LINK.notice()[0], "LoRa reageert niet")
+                self.assertIn("2 pogingen", lora.LINK.notice()[1])
                 self.assertEqual(radio.packet_type_calls, 1)
                 self.assertEqual(radio.begin_calls, 2)
                 self.assertEqual(expander.writes, [0x03, 0x13])
+                self.assertTrue(all(0 < timer.delay <= 1000 for timer in timers))
 
     def test_responding_sx1262_schedules_deferred_configuration(self):
         for packet_type in (0, 1):
@@ -158,6 +173,25 @@ class LoRaPresenceTest(unittest.TestCase):
                 self.assertEqual(radio.packet_type_calls, 1)
                 self.assertEqual(expander.writes, [])
                 self.assertEqual(len(timers), 1)
+                self.assertEqual(lora.LINK.notice()[0], "LoRa starten...")
+
+                fire_all(timers)
+
+                self.assertTrue(lora.LINK.ready)
+                self.assertIsNone(lora.LINK.notice())
+
+    def test_word_jager_retry_starts_recovery_without_blocking(self):
+        lora, timers, radio, expander, _ = load_lora(0xFF)
+
+        with patch.dict(sys.modules, timers[0].module_stubs):
+            self.assertFalse(lora.LINK.ensure_available())
+        # The reset assertion is a quick expander write; all waits, release,
+        # initialization and verification remain deferred timer phases.
+        self.assertEqual(expander.writes, [0x03])
+        self.assertEqual(radio.begin_calls, 0)
+
+        fire_all(timers)
+        self.assertTrue(lora.LINK.ready)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ def load_fox_radio(is_fri3d, available):
         is_fri3d=is_fri3d,
         available=available,
         active_chars=lambda: [],
+        notice=lambda: ("Wachten op LoRa", "controle wordt gestart"),
     )
     lora.LQ_PERIOD_MS = 300
     lora.LQ_WINDOW_MS = 1500
@@ -37,11 +38,13 @@ class FoxRadioSelectionTest(unittest.TestCase):
 
         self.assertIsInstance(fox_radio.RADIO, fox_radio.LoraFoxRadio)
         self.assertEqual(fox_radio.RADIO.active_foxes(), [])
+        self.assertEqual(fox_radio.RADIO.notice()[0], "Wachten op LoRa")
 
     def test_desktop_keeps_the_simulator(self):
         fox_radio = load_fox_radio(is_fri3d=False, available=False)
 
         self.assertIsInstance(fox_radio.RADIO, fox_radio.FakeFoxRadio)
+        self.assertIsNone(fox_radio.RADIO.notice())
 
 
 if __name__ == "__main__":

@@ -167,6 +167,14 @@ class FoxRadio:
         a screen that only reads cached values on resume doesn't need to."""
         pass
 
+    def notice(self):
+        """Two friendly LoRa-status lines for home, or None when healthy.
+
+        The simulator has no hardware fault to report. Keeping this on the
+        screen-facing boundary means UI code never reaches into SX1262 state.
+        """
+        return None
+
     def reading(self, fox_id):
         raise NotImplementedError
 
@@ -369,6 +377,9 @@ class LoraFoxRadio(FoxRadio):
 
     def poll(self):
         lora.LINK.poll()
+
+    def notice(self):
+        return lora.LINK.notice()
 
     def reading(self, fox_id):
         return self._reading(fox_id)
