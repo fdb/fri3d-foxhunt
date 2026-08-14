@@ -3,7 +3,7 @@ import type { Bindings, Player } from "../types";
 import { logEvent } from "../lib/events";
 import { validateBadgeId, validateHunterId } from "../lib/validate";
 import { CREATURES, NON_SPREADING_CREATURE_IDS } from "../lib/creatures";
-import { CAMP_START_S, CAMP_END_S } from "../lib/scoring";
+import { CAMP_START_S, CAMP_END_S, CAMP_PHASES } from "../lib/scoring";
 
 export const playerRoutes = new Hono<{ Bindings: Bindings }>();
 
@@ -109,7 +109,8 @@ async function pairSparkReady(
 }
 
 // day/phase within [-36h, +60h) of its UTC midnight: covers the Brussels
-// offset, the 15:00 pluk-phase boundary and a day of outbox lag, nothing more.
+// offset, the 15:00 pluk-phase boundary and a day of outbox lag. Official
+// camp phases get a separate durable-outbox exception at the pluk route.
 function dayNear(day: string): boolean {
   const t = Date.parse(day + "T00:00:00Z");
   if (Number.isNaN(t)) return false;
@@ -540,7 +541,11 @@ playerRoutes.post("/pluk", async (c) => {
 
   // Same server-owned bounds as snuffel: every pluks row is a grant attempt
   // (the badge only reports successful rolls), so the caps count rows.
-  let allowGrant = dayNear(phase);
+  // A report may stay in the badge's durable outbox for the rest of camp (or
+  // until it next reaches working WiFi). Exact camp phases are already a
+  // server-owned allowlist, so accepting them after dayNear() expires keeps a
+  // legitimate offline pluk restorable without widening arbitrary old dates.
+  let allowGrant = dayNear(phase) || CAMP_PHASES.includes(phase);
   if (allowGrant) {
     const counts = await c.env.DB.prepare(
       `SELECT COUNT(*) AS total, COALESCE(SUM(phase = ?), 0) AS this_phase
