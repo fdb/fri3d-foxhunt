@@ -567,11 +567,18 @@ class ProfileActivity(Activity):
         # The fourth tile is the score's social component, per track: a jager
         # counts players helped with an own find, a verzamelaar the players
         # met with a vonk (one boekje page each) — both feed their board.
-        social = (
-            (str(len(store.helped_ids())), "GEHOLPEN")
-            if jager
-            else (str(len(store.vrienden())), "ONTMOET")
-        )
+        if jager:
+            helped, waiting = store.help_counts()
+            # Only corroborated help is score. Keep the immediate offline
+            # payoff visible without presenting it as authoritative: once the
+            # partner's report arrives, the next sync folds +N WACHT into the
+            # confirmed number above it.
+            social = (
+                str(helped),
+                "+%d WACHT" % waiting if waiting else "GEHOLPEN",
+            )
+        else:
+            social = (str(len(store.vrienden())), "ONTMOET")
         stats = (
             ("%d/%d" % (len(caught), len(CREATURES)), "GEVONDEN", ui.INK),
             (str(band), "BAND", ui.TERRA),

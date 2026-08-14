@@ -23,6 +23,7 @@ class SnuffelRulesTest(unittest.TestCase):
         self.link.encounter_key.return_value = "shared-encounter"
         self.store.profile.return_value = {"hunter_id": 42}
         self.store.caught_ids.return_value = [0]
+        self.store.zelf_ids.return_value = [16]
 
     def peer(self):
         return types.SimpleNamespace(
@@ -50,6 +51,9 @@ class SnuffelRulesTest(unittest.TestCase):
 
         self.assertEqual(self.store.select_vonk_creature.call_count, 2)
         self.store.add_caught.assert_called_once_with(1, origin="spoor")
+        self.store.record_help_pending.assert_called_once_with(
+            "bb:bb:bb:bb:bb:bb", "shared-encounter"
+        )
         self.store.enqueue_report.assert_called_once_with(
             "snuffel",
             {

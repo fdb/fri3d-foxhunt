@@ -1,3 +1,4 @@
+import asyncio
 import importlib.util
 import sys
 import types
@@ -149,6 +150,25 @@ class CompanionProfileSyncTest(unittest.TestCase):
             {"16": "2026-08-08"},
         )
 
+    def test_restore_reconciles_authoritative_help_state(self):
+        registrar = self._load_registrar("registrar_restore_help_under_test")
+        store = MagicMock()
+        store.restore_caught.return_value = []
+        companion = types.ModuleType("companion")
+        companion.decode = MagicMock(return_value=("vos", [], 0))
+
+        with patch.dict(sys.modules, {"store": store, "companion": companion}):
+            registrar.adopt(
+                "aa:bb:cc:dd:ee:ff",
+                {
+                    "name": "Sam",
+                    "players_helped": 2,
+                    "helped_encounters": ["enc-a", "enc-b"],
+                },
+            )
+
+        store.reconcile_help.assert_called_once_with(2, ["enc-a", "enc-b"])
+
     def test_profile_report_uses_auth_user_patch(self):
         routes = self._load_routes("registrar_profile_under_test")
         self.assertEqual(routes["profile"], ("PATCH", "/api/v1/auth/user"))
@@ -160,6 +180,55 @@ class CompanionProfileSyncTest(unittest.TestCase):
     def test_visitor_report_uses_player_visitor_route(self):
         routes = self._load_routes("registrar_visitor_under_test")
         self.assertEqual(routes["visitor"], ("POST", "/api/v1/player/visitor"))
+
+    def test_pending_help_syncs_even_after_its_report_left_the_outbox(self):
+        registrar = self._load_registrar("registrar_pending_help_under_test")
+        store = MagicMock()
+        store.outbox.return_value = []
+        store.help_counts.return_value = (0, 1)
+
+        async def request(method, path, body=None):
+            self.assertEqual(method, "GET")
+            self.assertIn("/api/v1/auth/user?badge_id=", path)
+            self.assertIsNone(body)
+            return 200, {
+                "players_helped": 1,
+                "helped_encounters": ["enc-a"],
+            }
+
+        registrar._json_request = request
+        with patch.dict(sys.modules, {"store": store}):
+            asyncio.run(registrar._drain())
+
+        store.reconcile_help.assert_called_once_with(1, ["enc-a"])
+
+    def test_flush_schedules_reconciliation_when_only_pending_help_remains(self):
+        registrar = self._load_registrar("registrar_flush_help_under_test")
+        store = MagicMock()
+        store.outbox.return_value = []
+        store.help_counts.return_value = (0, 1)
+        registrar.TaskManager.create_task.side_effect = lambda task: task.close()
+
+        with patch.dict(sys.modules, {"store": store}):
+            registrar.flush()
+
+        registrar.TaskManager.create_task.assert_called_once()
+
+    def test_old_server_snapshot_does_not_erase_confirmed_help(self):
+        registrar = self._load_registrar("registrar_old_help_server_under_test")
+        store = MagicMock()
+        store.outbox.return_value = []
+        store.help_counts.return_value = (2, 1)
+
+        async def request(_method, _path, body=None):
+            self.assertIsNone(body)
+            return 200, {"name": "old server without help fields"}
+
+        registrar._json_request = request
+        with patch.dict(sys.modules, {"store": store}):
+            asyncio.run(registrar._drain())
+
+        store.reconcile_help.assert_not_called()
 
 
 if __name__ == "__main__":

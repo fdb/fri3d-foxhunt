@@ -11,8 +11,9 @@
 #   "zelf_dates": dict {str(id): YYYY-MM-DD} — date of that first self-find
 #   "voorraad" : dict {food: count} — the finite pantry
 #   "vrienden" : list of {mac, naam, code, dag} — the vriendenboekje
-#   "helped"   : list of peer MACs first helped with an own (zelf gevonden)
-#                find — the jagersscore's local help-credit mirror
+#   "help_sync": {confirmed, pending: [{peer, encounter}], seen: [peer]} —
+#                server-confirmed help credits plus durable offline candidates
+#   "helped"   : legacy optimistic peer list, migrated into help_sync.pending
 #   "vonk"     : snuffel log — {date, count (daily reset), pairs: {mac:
 #                {vonk: epoch, food: epoch}}} — pair cooldown timestamps
 #   "pluk"     : {spots: {bssid: epoch}, phase, count, creature_spots: []} —
@@ -930,32 +931,110 @@ MEET_POINTS = 25  # per distinct player met with a vonk
 BONDED_POINTS = 100  # per beste vriend (band 5)
 
 
-def helped_ids():
-    """Peer MACs this jager first helped with an own (zelf gevonden) find."""
-    return SharedPreferences(_APP).get_list("helped", [])
+def _help_state():
+    """Read the offline-first help ledger, including the old optimistic list.
 
-
-def record_helped(mac):
-    """Mark a first own-find introduction to this peer; True when the pair is
-    new — the moment worth HELP_POINTS. Resharing never reaches this: the
-    snuffel screen only calls it when the sent creature is in zelf_ids()."""
+    Older builds stored only peer MACs in ``helped``. They carry no encounter
+    id the server can corroborate, so surface them as pending until an
+    authoritative sync accounts for them instead of silently treating them as
+    score. The next write clears that legacy key.
+    """
     prefs = SharedPreferences(_APP)
-    helped = prefs.get_list("helped", [])
-    if mac in helped:
+    raw = prefs.get_dict("help_sync", {})
+    confirmed = raw.get("confirmed", 0)
+    if not isinstance(confirmed, int) or confirmed < 0:
+        confirmed = 0
+    pending = raw.get("pending", [])
+    if not isinstance(pending, list):
+        pending = []
+    pending = [
+        p for p in pending if isinstance(p, dict) and isinstance(p.get("peer"), str)
+    ]
+    seen = raw.get("seen", [])
+    if not isinstance(seen, list):
+        seen = []
+    for mac in prefs.get_list("helped", []):
+        if not isinstance(mac, str):
+            continue
+        if mac not in seen:
+            seen.append(mac)
+        if not any(p.get("peer") == mac for p in pending):
+            pending.append({"peer": mac, "encounter": None})
+    return prefs, {"confirmed": confirmed, "pending": pending, "seen": seen}
+
+
+def help_counts():
+    """Return ``(server-confirmed, pending-offline)`` distinct-player counts."""
+    _, state = _help_state()
+    peers = []
+    for item in state["pending"]:
+        peer = item["peer"]
+        if peer not in peers:
+            peers.append(peer)
+    return state["confirmed"], len(peers)
+
+
+def helped_ids():
+    """Peers this badge has already treated as a first-help candidate.
+
+    Kept as a compatibility/read seam; score code must use help_counts(),
+    because seeing a peer locally is not server corroboration.
+    """
+    _, state = _help_state()
+    return list(state["seen"])
+
+
+def record_help_pending(mac, encounter_id):
+    """Persist an own-find introduction until the server corroborates it.
+
+    The snuffel report is queued separately. This ledger deliberately survives
+    that report leaving the outbox: the partner may not upload their half until
+    hours later, after this badge has already found WiFi.
+    """
+    prefs, state = _help_state()
+    if mac in state["seen"]:
         return False
-    helped.append(mac)
-    prefs.edit().put_list("helped", helped).commit()
+    state["seen"].append(mac)
+    state["pending"].append({"peer": mac, "encounter": encounter_id})
+    prefs.edit().put_dict("help_sync", state).put_list("helped", []).commit()
     return True
 
 
+def reconcile_help(confirmed, encounter_ids):
+    """Apply the server's complete camp-scoped help snapshot.
+
+    Exact encounter ids settle modern pending entries. A count increase also
+    settles that many unmatched entries, which migrates legacy badges and
+    handles a later encounter corroborating after an earlier attempt with the
+    same peer never did. Unmatched entries remain pending across every sync.
+    """
+    prefs, state = _help_state()
+    confirmed = confirmed if isinstance(confirmed, int) and confirmed >= 0 else 0
+    ids = set(encounter_ids) if isinstance(encounter_ids, list) else set()
+    kept = []
+    exact = 0
+    for item in state["pending"]:
+        if item.get("encounter") in ids:
+            exact += 1
+        else:
+            kept.append(item)
+    new_credits = max(0, confirmed - state["confirmed"] - exact)
+    if new_credits:
+        kept = kept[new_credits:]
+    state["confirmed"] = confirmed
+    state["pending"] = kept
+    prefs.edit().put_dict("help_sync", state).put_list("helped", []).commit()
+
+
 def hunter_score():
-    """The jagersscore: self-found tier points + own-find help credit."""
+    """The jagersscore: self-found tier points + confirmed help credit."""
     pts = 0
     for cid in zelf_ids():
         c = by_id(cid)
         if c:
             pts += SELF_FOUND_POINTS.get(c["rarity"], 0)
-    return pts + HELP_POINTS * len(helped_ids())
+    confirmed, _ = help_counts()
+    return pts + HELP_POINTS * confirmed
 
 
 def gatherer_score():

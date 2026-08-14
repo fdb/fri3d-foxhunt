@@ -80,7 +80,7 @@ class ScoringTest(unittest.TestCase):
     def test_hunter_score_sums_self_found_tiers_and_help_credit(self):
         norm, rare, leg = _first("norm"), _first("rare"), _first("leg")
         _Prefs.data["zelf"] = [norm, rare, leg]
-        _Prefs.data["helped"] = ["aa:aa", "bb:bb", "cc:cc"]
+        _Prefs.data["help_sync"] = {"confirmed": 3, "pending": [], "seen": []}
 
         self.assertEqual(self.store.hunter_score(), 100 + 300 + 800 + 3 * 50)
 
@@ -92,13 +92,41 @@ class ScoringTest(unittest.TestCase):
 
         self.assertEqual(self.store.hunter_score(), 100)
 
-    def test_record_helped_credits_each_peer_once(self):
-        self.assertTrue(self.store.record_helped("aa:aa"))
-        self.assertFalse(self.store.record_helped("aa:aa"))
-        self.assertTrue(self.store.record_helped("bb:bb"))
+    def test_help_stays_pending_until_the_server_confirms_it(self):
+        self.assertTrue(self.store.record_help_pending("aa:aa", "enc-a"))
 
-        self.assertEqual(sorted(self.store.helped_ids()), ["aa:aa", "bb:bb"])
-        self.assertEqual(self.store.hunter_score(), 2 * 50)
+        self.assertEqual(self.store.help_counts(), (0, 1))
+        self.assertEqual(self.store.hunter_score(), 0)
+
+        self.store.reconcile_help(1, ["enc-a"])
+
+        self.assertEqual(self.store.help_counts(), (1, 0))
+        self.assertEqual(self.store.hunter_score(), 50)
+
+    def test_pending_help_is_deduplicated_per_peer(self):
+        self.assertTrue(self.store.record_help_pending("aa:aa", "enc-a"))
+        self.assertFalse(self.store.record_help_pending("aa:aa", "enc-b"))
+        self.assertTrue(self.store.record_help_pending("bb:bb", "enc-c"))
+
+        self.assertEqual(self.store.help_counts(), (0, 2))
+
+    def test_unmatched_pending_help_survives_an_authoritative_sync(self):
+        self.store.record_help_pending("aa:aa", "enc-a")
+
+        self.store.reconcile_help(0, [])
+
+        self.assertEqual(self.store.help_counts(), (0, 1))
+
+    def test_legacy_optimistic_help_migrates_as_pending_not_score(self):
+        _Prefs.data["helped"] = ["aa:aa"]
+
+        self.assertEqual(self.store.help_counts(), (0, 1))
+        self.assertEqual(self.store.hunter_score(), 0)
+
+        self.store.reconcile_help(1, [])
+
+        self.assertEqual(self.store.help_counts(), (1, 0))
+        self.assertEqual(_Prefs.data["helped"], [])
 
     def test_gatherer_score_counts_pluks_meetings_and_best_friends(self):
         ids = [c["id"] for c in CREATURES if c["rarity"] == "norm"][:3]
@@ -127,7 +155,7 @@ class ScoringTest(unittest.TestCase):
             {
                 "caught": [norm, other],
                 "zelf": [norm],
-                "helped": ["aa:aa"],
+                "help_sync": {"confirmed": 1, "pending": [], "seen": []},
                 "origins": {str(other): "pluk"},
                 "vrienden": [
                     {"mac": "aa:aa", "naam": "Sam", "code": "H01A000C1", "dag": "d"}

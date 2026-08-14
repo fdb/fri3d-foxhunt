@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Bindings, Player } from "../types";
 import { logEvent } from "../lib/events";
 import { starterFor } from "../lib/starter";
+import { CAMP_END_S, CAMP_START_S } from "../lib/scoring";
 import {
   validateBadgeId,
   validateName,
@@ -308,6 +309,22 @@ authRoutes.get("/user", async (c) => {
       dt_self_found: string | null;
     }>();
 
+  // Help is corroborated server state, unlike the badge's durable optimistic
+  // candidate. Return the caller's complete camp-scoped snapshot so a badge
+  // that uploaded first can reconcile after its partner eventually finds
+  // WiFi. Encounter ids settle pending entries without exposing peer MACs.
+  const help = await c.env.DB.prepare(
+    `SELECT first_share.encounter_id
+       FROM helped_players hp
+       JOIN creature_shares first_share ON first_share.id = hp.first_share_id
+      WHERE hp.giver_id = ?
+        AND first_share.occurred_at >= ?
+        AND first_share.occurred_at < ?
+      ORDER BY first_share.occurred_at, first_share.id`,
+  )
+    .bind(player.id, CAMP_START_S, CAMP_END_S)
+    .all<{ encounter_id: string }>();
+
   return c.json({
     ...player,
     creatures: results.map((r) => r.creature_id),
@@ -320,6 +337,8 @@ authRoutes.get("/user", async (c) => {
         .filter((r) => r.self_found && r.dt_self_found)
         .map((r) => [r.creature_id, r.dt_self_found!.slice(0, 10)]),
     ),
+    players_helped: help.results.length,
+    helped_encounters: help.results.map((r) => r.encounter_id),
   });
 });
 

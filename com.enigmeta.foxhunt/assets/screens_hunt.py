@@ -756,7 +756,7 @@ class SnuffelActivity(Activity):
         # helped in the local jagersscore mirror. The server applies the same
         # rule to the corroborated reports and stays authoritative.
         if sent is not None and sent in store.zelf_ids():
-            store.record_helped(peer.mac)
+            store.record_help_pending(peer.mac, encounter)
         # Both sides report the same directed outcome. Base/rare recovery may
         # remain generous when one badge dies; verified help and legendary
         # durability require the matching partner report on the server.

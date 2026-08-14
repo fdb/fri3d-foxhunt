@@ -98,8 +98,9 @@ def adopt(badge, account, name=None, code=None):
     flow raises when the badge turns out to be known already.
 
     `account` is the payload restore() documents — name, hunter_id, companion,
-    creatures and self_found. `name`/`code` override the first two fields for the player who
-    chose to overwrite the account instead of adopting it as it stands.
+    creatures, self_found and authoritative help state. `name`/`code` override
+    the first two fields for the player who chose to overwrite the account
+    instead of adopting it as it stands.
 
     The catch list is not optional here. The maatje's accessory unlocks are
     counted off it, so writing the profile alone hands the player an avatar
@@ -123,7 +124,7 @@ def adopt(badge, account, name=None, code=None):
             "synced": True,
         }
     )
-    return len(
+    caught = len(
         store.restore_caught(
             account.get("creatures") or [],
             account.get("self_found") or [],
@@ -131,6 +132,11 @@ def adopt(badge, account, name=None, code=None):
             account.get("self_found_dates") or {},
         )
     )
+    if account.get("players_helped") is not None:
+        store.reconcile_help(
+            account["players_helped"], account.get("helped_encounters") or []
+        )
+    return caught
 
 
 def resync():
@@ -308,6 +314,9 @@ class Registrar:
                       accessory unlocks are counted off this list, so a
                       restore without it hands back a maatje wearing things
                       the badge then claims are locked.
+            "players_helped" / "helped_encounters": the corroborated,
+                      camp-scoped help snapshot. Missing when talking to a
+                      server version from before offline reconciliation.
             "error": "E-01" when the server didn't answer, else None
         """
         raise NotImplementedError
@@ -456,6 +465,8 @@ class FakeRegistrar(Registrar):
                         "hunter_id": random.randrange(1, 10000),
                         "companion": self.RESTORE_COMPANION,
                         "creatures": list(self.RESTORE_CREATURES),
+                        "players_helped": 0,
+                        "helped_encounters": [],
                         "error": None,
                     }
                 )
@@ -561,6 +572,8 @@ class HttpRegistrar(Registrar):
             "self_found": data.get("self_found") or [],
             "found_dates": data.get("found_dates") or {},
             "self_found_dates": data.get("self_found_dates") or {},
+            "players_helped": data.get("players_helped"),
+            "helped_encounters": data.get("helped_encounters") or [],
         }
 
     async def _register(self, name, badge, companion, st, on_update):
@@ -709,6 +722,8 @@ class HttpRegistrar(Registrar):
                 "self_found": data.get("self_found") or [],
                 "found_dates": data.get("found_dates") or {},
                 "self_found_dates": data.get("self_found_dates") or {},
+                "players_helped": data.get("players_helped"),
+                "helped_encounters": data.get("helped_encounters") or [],
                 "error": None,
             }
         )
@@ -739,11 +754,12 @@ _busy = False
 
 
 def flush():
-    """Fire-and-forget: start a drain unless one is already running."""
+    """Drain reports and reconcile pending help whenever WiFi is available."""
     global _busy
     import store
 
-    if _busy or not store.outbox():
+    _, pending_help = store.help_counts()
+    if _busy or (not store.outbox() and not pending_help):
         return
     # Claim the slot only once the task is really scheduled: a create_task
     # that raises would otherwise leave _busy stuck True with no drain
@@ -761,7 +777,7 @@ async def _drain():
         while True:
             box = store.outbox()
             if not box:
-                return
+                break
             item = box[0]
             route = _ROUTES.get(item.get("kind"))
             if route is None:  # unknown kind: drop, never wedge the queue
@@ -786,5 +802,21 @@ async def _drain():
                 store.outbox_pop()
             else:
                 return  # server trouble: keep the report, retry later
+        # A badge can upload first and receive no credit until its partner's
+        # report arrives. Poll the complete account snapshot while anything is
+        # pending; every home resume retries this, independently of the outbox.
+        _, pending_help = store.help_counts()
+        if pending_help:
+            try:
+                status, data = await _json_request(
+                    "GET", "/api/v1/auth/user?badge_id=" + badge_id()
+                )
+            except Exception:
+                return
+            if status == 200 and data and isinstance(data.get("players_helped"), int):
+                store.reconcile_help(
+                    data["players_helped"],
+                    data.get("helped_encounters") or [],
+                )
     finally:
         _busy = False
