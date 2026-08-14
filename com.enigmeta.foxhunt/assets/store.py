@@ -33,6 +33,10 @@ from creatures import CREATURES, NON_SPREADING_IDS, by_id
 
 _APP = "com.enigmeta.foxhunt"
 _PLACE = "Fri3d Camp"  # stub: no GPS yet — see fox_radio for the backend seam
+# Companion backdrop indices are part of the persisted/wire format. Keep this
+# in step with companion.BGS without importing that graphics module during the
+# entrypoint's profile check (a cold badge import costs roughly 0.25 seconds).
+_PROFILE_BG_COUNT = 7
 
 
 def _now():
@@ -68,9 +72,36 @@ def profile():
     """The hunter profile dict, or None before registration.
     Keys: name, head, accs, bg, badge_id, hunter_id (the raw HID number,
     spec §2.2, None until minted — registrar.hunter_label formats it),
-    synced (True once the cloud server confirmed the save)."""
-    p = SharedPreferences(_APP).get_dict("profile", None)
+    synced (True once the cloud server confirmed the save).
+
+    A malformed profile is no profile. Clear it here, at the routing boundary,
+    so every downstream screen can rely on the required display fields and the
+    entrypoint naturally sends the player through registration again. Unknown
+    string ids remain valid: companion.draw deliberately falls back for retired
+    heads and ignores accessories added by a newer build.
+    """
+    prefs = SharedPreferences(_APP)
+    try:
+        p = prefs.get_dict("profile", None)
+    except (TypeError, ValueError):
+        p = False
     if p:
+        bg = p.get("bg")
+        accs = p.get("accs")
+        usable = (
+            isinstance(p.get("name"), str)
+            and bool(p["name"])
+            and isinstance(p.get("head"), str)
+            and bool(p["head"])
+            and isinstance(accs, list)
+            and all(isinstance(a, str) and bool(a) for a in accs)
+            and isinstance(bg, int)
+            and not isinstance(bg, bool)
+            and 0 <= bg < _PROFILE_BG_COUNT
+        )
+        if not usable:
+            prefs.edit().put_dict("profile", {}).commit()
+            return None
         # A profile saved by an older build holds the display label
         # ("JGR-0042") instead of the number. Readers get the number either
         # way; the string stays on flash until hunter_id is next written.
@@ -80,6 +111,8 @@ def profile():
                 p["hunter_id"] = int(hid[4:] if hid.startswith("JGR-") else hid)
             except ValueError:
                 p["hunter_id"] = None
+    elif p is False:
+        prefs.edit().put_dict("profile", {}).commit()
     return p if p else None
 
 

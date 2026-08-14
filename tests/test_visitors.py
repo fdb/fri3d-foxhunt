@@ -70,6 +70,9 @@ class VisitorTest(unittest.TestCase):
         _Prefs.data = {
             "profile": {
                 "name": "Fien",
+                "head": "vos",
+                "accs": [],
+                "bg": 0,
                 "badge_id": "A4:CF:12:9B:03:7E",
                 "hunter_id": None,
                 "since": 1_786_021_200,
