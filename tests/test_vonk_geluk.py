@@ -57,9 +57,7 @@ class VonkGelukTest(unittest.TestCase):
 
     def test_glitch_vos_is_never_advertised_even_when_self_found(self):
         self.assertEqual(
-            self.store.shareable_roster(
-                [12, 13, 14], [12, 13, 14], is_hunter=True
-            ),
+            self.store.shareable_roster([12, 13, 14], [12, 13, 14], is_hunter=True),
             [12, 14],
         )
 
