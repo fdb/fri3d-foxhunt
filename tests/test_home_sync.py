@@ -113,9 +113,7 @@ class HomeSyncTest(unittest.TestCase):
 
         self.assertEqual([c["id"] for c, _dots in first], [7, 2, 9, 4])
         self.assertEqual([c["id"] for c, _dots in second], [7, 2, 9, 4])
-        self.assertNotEqual(
-            [dots for _c, dots in first], [dots for _c, dots in second]
-        )
+        self.assertNotEqual([dots for _c, dots in first], [dots for _c, dots in second])
 
     def test_home_retries_sync_periodically_and_stops_when_paused(self):
         module, timers, _store, registrar = load_home()
