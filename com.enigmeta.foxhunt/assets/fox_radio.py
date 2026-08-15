@@ -37,8 +37,10 @@ def rssi_to_bpm(rssi):
     rising heart rate always means you are getting warmer. Unlike level
     below, this stays on the fixed span: bpm is meant to read as an absolute
     "how far into range are you", not a relative "warmer than a moment ago".
+    Hardware RSSI has half-dBm precision, but a heart rate is displayed as a
+    whole number; normalising here keeps every caller on that contract.
     """
-    return rssi + 255
+    return int(rssi + 255)
 
 
 # ── 5-LED / mirror level: auto-ranged, ported from lora_rssi_meter.py ───────

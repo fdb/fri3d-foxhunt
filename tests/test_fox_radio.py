@@ -104,6 +104,12 @@ class FoxRadioTest(unittest.TestCase):
         self.assertEqual(self.module.rssi_to_bpm(-40), 215)
         self.assertEqual(self.module.rssi_to_bpm(-120), 135)
 
+    def test_bpm_from_half_dbm_hardware_reading_is_an_integer(self):
+        bpm = self.module.rssi_to_bpm(-83.5)
+
+        self.assertEqual(bpm, 171)
+        self.assertIs(type(bpm), int)
+
     def test_level_auto_ranges_each_fox_independently(self):
         first = self.radio._level(3, -100)
         self.time.advance(100)
