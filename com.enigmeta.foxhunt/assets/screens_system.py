@@ -21,7 +21,7 @@ import companion
 import store
 import sound
 from creatures import CREATURES
-from fox_radio import RADIO
+from fox_radio import RADIO, bpm_to_dots, rssi_to_bpm
 import registrar
 from foxhunt import lazy
 
@@ -56,6 +56,21 @@ _RARITY_FRAME = {"rare": ui.TERRA, "leg": ui.GOLD}
 _VISITOR_POLL_MS = 30_000
 _NEARBY_POLL_MS = 500
 _SYNC_RETRY_MS = 30_000
+
+
+def _nearby_cards(awake):
+    """Live proximity in stable roster order.
+
+    Signal strength belongs in the dots, not in card position: LoRa readings
+    jitter even when nobody moves, and sorting on them made the row shuffle on
+    every poll.
+    """
+    nearby = []
+    for creature in CREATURES:
+        if creature["id"] in awake:
+            reading = RADIO.peek(creature["id"])
+            nearby.append((creature, bpm_to_dots(rssi_to_bpm(reading.rssi))))
+    return nearby
 
 
 class HomeActivity(Activity):
@@ -385,20 +400,12 @@ class HomeActivity(Activity):
         notice = RADIO.notice()
         nearby = []
         if notice is None:
-            for c in CREATURES:
-                if c["id"] in awake:
-                    # peek, not reading: the fake radio's reading() advances its
-                    # simulated approach, and home only wants to LOOK.
-                    r = RADIO.peek(c["id"])
-                    heat = max(1, min(3, (r.level * 3 + 4) // 5))
-                    nearby.append((c, heat))
-        # still-huntable first (the row is a hunt shortcut), warmest leading;
-        # already-caught ones trail — and stay huntable: re-finding a known
-        # creature is zelf vinden (GAME_DESIGN.md), an upgrade, never a dud
-        nearby.sort(key=lambda ch: (ch[0]["id"] in caught, -ch[1]))
+            # peek, not reading: the fake radio's reading() advances its
+            # simulated approach, and home only wants to LOOK.
+            nearby = _nearby_cards(awake)
         signature = (
             notice,
-            tuple((c["id"], heat, c["id"] in caught) for c, heat in nearby[:4]),
+            tuple((c["id"], dots, c["id"] in caught) for c, dots in nearby[:4]),
         )
         if signature == self._nearby_signature:
             return
@@ -422,17 +429,16 @@ class HomeActivity(Activity):
 
         if nearby:
             cards = ui.row(wrap, 6, 6, 308, 52, gap=5)
-            for i, (c, heat) in enumerate(nearby[:4]):
+            for c, dots in nearby[:4]:
                 is_caught = c["id"] in caught
                 cell = ui.box(cards, 0, 0, 73, 52, _NEAR_BG, radius=ui.RADIUS)
                 cell.set_style_border_width(ui.BORDER, 0)
-                # warmest card wears gold, the rest the hunt's terra
-                cell.set_style_border_color(ui.hexc(ui.GOLD if i == 0 else ui.TERRA), 0)
+                cell.set_style_border_color(ui.hexc(ui.TERRA), 0)
                 spr = art.creature_panel(cell, c, 2, silhouette=not is_caught)
                 spr.set_pos(18, 2)
-                for d in range(3):
+                for d in range(4):
                     seg = ui.box(
-                        cell, 20 + d * 10, 40, 8, 5, ui.TERRA if d < heat else _SEG_OFF
+                        cell, 15 + d * 10, 40, 8, 5, ui.TERRA if d < dots else _SEG_OFF
                     )
                     seg.set_style_border_width(ui.BORDER_THIN, 0)
                     seg.set_style_border_color(ui.hexc(ui.INK), 0)

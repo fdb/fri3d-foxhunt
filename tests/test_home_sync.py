@@ -58,6 +58,8 @@ def load_home():
 
     fox_radio = types.ModuleType("fox_radio")
     fox_radio.RADIO = MagicMock()
+    fox_radio.rssi_to_bpm = MagicMock()
+    fox_radio.bpm_to_dots = MagicMock()
 
     foxhunt = types.ModuleType("foxhunt")
     foxhunt.lazy = MagicMock()
@@ -87,6 +89,34 @@ def load_home():
 
 
 class HomeSyncTest(unittest.TestCase):
+    def test_nearby_cards_keep_roster_order_when_signal_changes(self):
+        module, _timers, _store, _registrar = load_home()
+        module.CREATURES = [
+            {"id": 7},
+            {"id": 2},
+            {"id": 9},
+            {"id": 4},
+        ]
+        readings = {
+            7: types.SimpleNamespace(rssi=-75),
+            2: types.SimpleNamespace(rssi=-40),
+            9: types.SimpleNamespace(rssi=-100),
+            4: types.SimpleNamespace(rssi=-60),
+        }
+        module.RADIO.peek.side_effect = readings.__getitem__
+        module.rssi_to_bpm.side_effect = lambda rssi: rssi + 255
+        module.bpm_to_dots.side_effect = lambda bpm: bpm // 50
+
+        first = module._nearby_cards({2, 4, 7, 9})
+        readings[7].rssi, readings[2].rssi = readings[2].rssi, readings[7].rssi
+        second = module._nearby_cards({2, 4, 7, 9})
+
+        self.assertEqual([c["id"] for c, _dots in first], [7, 2, 9, 4])
+        self.assertEqual([c["id"] for c, _dots in second], [7, 2, 9, 4])
+        self.assertNotEqual(
+            [dots for _c, dots in first], [dots for _c, dots in second]
+        )
+
     def test_home_retries_sync_periodically_and_stops_when_paused(self):
         module, timers, _store, registrar = load_home()
         home = module.HomeActivity()

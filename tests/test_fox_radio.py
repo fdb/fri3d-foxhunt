@@ -110,6 +110,23 @@ class FoxRadioTest(unittest.TestCase):
         self.assertEqual(bpm, 171)
         self.assertIs(type(bpm), int)
 
+    def test_heartbeat_dots_use_the_absolute_camp_range(self):
+        cases = (
+            (99, 0),
+            (100, 1),
+            (126, 1),
+            (127, 2),
+            (153, 2),
+            (154, 3),
+            (179, 3),
+            (180, 4),
+            (250, 4),
+        )
+
+        for bpm, expected in cases:
+            with self.subTest(bpm=bpm):
+                self.assertEqual(self.module.bpm_to_dots(bpm), expected)
+
     def test_level_auto_ranges_each_fox_independently(self):
         first = self.radio._level(3, -100)
         self.time.advance(100)
