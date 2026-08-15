@@ -63,10 +63,13 @@ class RegistrarLoRaTest(unittest.TestCase):
         registrar, mpos = load_registrar()
         self.assertTrue(self.has_lora(registrar, mpos, {"FOXHUNT_FAKE_LORA": "1"}))
 
-    def test_badge_delegates_to_the_links_restart_and_retry_probe(self):
+    def test_badge_query_is_passive_and_never_starts_recovery(self):
+        # Screens asking "jager or verzamelaar?" must not reach the CH32
+        # reset pulse; only WORD JAGER may wake the radio.
         registrar, mpos = load_registrar(RadioChip(0xFF))
         link = types.SimpleNamespace(
             is_fri3d=True,
+            fitted=MagicMock(return_value=True),
             ensure_available=MagicMock(return_value=True),
         )
         lora = types.SimpleNamespace(LINK=link)
@@ -77,7 +80,26 @@ class RegistrarLoRaTest(unittest.TestCase):
         ):
             self.assertTrue(registrar.has_lora())
 
+        link.fitted.assert_called_once_with()
+        link.ensure_available.assert_not_called()
+
+    def test_word_jager_wake_delegates_to_the_links_restart_and_retry_probe(self):
+        registrar, mpos = load_registrar(RadioChip(0xFF))
+        link = types.SimpleNamespace(
+            is_fri3d=True,
+            fitted=MagicMock(return_value=False),
+            ensure_available=MagicMock(return_value=True),
+        )
+        lora = types.SimpleNamespace(LINK=link)
+
+        with (
+            patch.dict(sys.modules, {"mpos": mpos, "lora": lora}),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            self.assertTrue(registrar.has_lora(wake=True))
+
         link.ensure_available.assert_called_once_with()
+        link.fitted.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -64,21 +64,25 @@ def badge_id():
         return _env("FOXHUNT_BADGE_ID") or "A4:CF:12:9B:03:7E"
 
 
-def has_lora():
+def has_lora(wake=False):
     """True when a physical LoRa radio answers on the badge's SPI bus.
 
     MicroPythonOS constructs the driver even when the plug-in radio is absent,
-    so the object existing is not evidence of an antenna kit. On the Fri3d
-    badge, lora.LINK owns the stronger test: a failed getPacketType() triggers
-    one hardware restart and retry before absence is reported. The link is
-    already loaded by screens_system before WORD JAGER can be pressed.
+    so the object existing is not evidence of an antenna kit. Passive by
+    default: reads never pulse the CH32 expander reset, which on some cold
+    boots restarts the badge — so any screen may ask while it builds. Only
+    WORD JAGER passes wake=True, buying lora.LINK's stronger probe: a failed
+    getPacketType() triggers one hardware restart and retry before absence is
+    reported. The link is already loaded by screens_system before WORD JAGER
+    can be pressed.
 
     Desktop has no radio to find, so FOXHUNT_FAKE_LORA (set by
     run_on_mac.sh --lora) stands in for one there only.
     """
     link_module = sys.modules.get("lora")
     if link_module is not None and link_module.LINK.is_fri3d:
-        return link_module.LINK.ensure_available()
+        link = link_module.LINK
+        return link.ensure_available() if wake else link.fitted()
     try:
         from mpos import LoRaManager
 

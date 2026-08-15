@@ -425,6 +425,21 @@ class LoRaLink:
             self.request_recovery(True)
         return False
 
+    def fitted(self):
+        """Passive: does a radio look fitted right now? Never resets.
+
+        The query half of ensure_available(), for screens that only DISPLAY
+        the role (the register strip's JAGER/VERZAMELAAR). It reads state and
+        at most one SPI register; it never pulses the shared CH32 expander,
+        which on some cold boots restarts the whole badge. A fitted but
+        wedged radio answers False here until WORD JAGER recovers it.
+        """
+        if self.ready or self.available:
+            return True
+        if self.radio is None:
+            return False
+        return self._packet_type() is not None
+
     def notice(self):
         """Friendly, compact radio state for the home screen.
 

@@ -161,6 +161,29 @@ class LoRaPresenceTest(unittest.TestCase):
                 self.assertTrue(lora.LINK.ready)
                 self.assertIsNone(lora.LINK.notice())
 
+    def test_fitted_is_a_pure_query_that_never_resets(self):
+        # The register screen asks "is an antenna fitted?" while it builds;
+        # that question must never fire the shared CH32 reset pulse.
+        lora, timers, radio, expander, task_handler = load_lora(0xFF)
+
+        with patch.dict(sys.modules, lora._test_module_stubs):
+            self.assertFalse(lora.LINK.fitted())
+
+        self.assertEqual(expander.writes, [])
+        self.assertEqual(timers, [])
+        self.assertEqual(radio.begin_calls, 0)
+        task_handler.disable.assert_not_called()
+
+    def test_fitted_sees_a_responding_radio_before_bring_up_finishes(self):
+        lora, timers, radio, expander, _ = load_lora(1)
+        self.assertTrue(lora.LINK.available)
+        self.assertFalse(lora.LINK.ready)
+
+        with patch.dict(sys.modules, lora._test_module_stubs):
+            self.assertTrue(lora.LINK.fitted())
+
+        self.assertEqual(expander.writes, [])
+
     def test_word_jager_retry_starts_recovery_without_blocking(self):
         lora, timers, radio, expander, _ = load_lora(0xFF)
 

@@ -931,7 +931,9 @@ class SettingsActivity(Activity):
     def _word_jager(self):
         if self._wj_busy:
             return
-        if registrar.has_lora():
+        # wake=True: the player explicitly asked, so a wedged radio may get
+        # its one bounded hardware reset here — and only here.
+        if registrar.has_lora(wake=True):
             self._request_hunter_id()
             return
         sound.play("tap")
@@ -952,7 +954,7 @@ class SettingsActivity(Activity):
             sound.play("error")
             self._wj.set_text("LoRa reageert niet - probeer weer")
             return
-        if registrar.has_lora():
+        if registrar.has_lora(wake=True):
             self._stop_wj_radio_wait()
             self._request_hunter_id()
             return
