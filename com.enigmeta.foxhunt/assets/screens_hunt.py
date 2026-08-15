@@ -571,6 +571,7 @@ _VONK_BG = 0x20301C  # the payoff's night sky
 _VONK_PANEL = 0x2D3D24
 _VONK_TEXT = 0xE8F0D8
 _VONK_MUTED = 0x9FB08A
+_VONK_HOLD_MS = 5000
 _BAR_H = (6, 10, 14, 18)
 
 
@@ -797,16 +798,20 @@ class SnuffelActivity(Activity):
 
 
 class VonkActivity(Activity):
-    """The handshake payoff. No buttons and nothing to decide: the picknick
+    """The handshake payoff. Nothing remains to decide: the picknick
     is already in the voorraad, the geluk creature already in the boek. Tap
     anywhere (or back) to continue; tapping the geluk panel opens the new
-    creature's own page, like any boek tile would.
+    creature's own page, like any boek tile would. Every way out stays locked
+    for the first five visible seconds so the tap that completed the handshake
+    cannot also dismiss its payoff.
     The link keeps ticking underneath: the badge that finishes first must
     keep beaconing (and resending its SNF claim) while this screen is up,
     or the slower side never completes — that silence WAS the race."""
 
     def onCreate(self):
         self.timer = None
+        self._hold_timer = None
+        self._can_leave = False
         x = self.getIntent().extras
         self.naam = x.get("naam", "?")
         self.geluk = x.get("geluk")
@@ -936,9 +941,9 @@ class VonkActivity(Activity):
             _VONK_TEXT,
             ui.font_small(),
         )
-        ui.label(
+        self._done_label = ui.label(
             s,
-            "tik om verder te gaan",
+            "even kijken...",
             0,
             227,
             _VONK_MUTED,
@@ -951,20 +956,44 @@ class VonkActivity(Activity):
     def onResume(self, screen):
         super().onResume(screen)
         self.timer = lv.timer_create(lambda t: LINK.tick(), 500, None)
+        if not self._can_leave and self._hold_timer is None:
+            self._hold_timer = lv.timer_create(
+                lambda _t: self._unlock(), _VONK_HOLD_MS, None
+            )
+            self._hold_timer.set_repeat_count(1)
 
     def onPause(self, screen):
         super().onPause(screen)
         if self.timer:
             self.timer.delete()
             self.timer = None
+        if self._hold_timer:
+            self._hold_timer.delete()
+            self._hold_timer = None
+
+    def _unlock(self):
+        self._hold_timer = None
+        self._can_leave = True
+        self._done_label.set_text("tik om verder te gaan")
+        self._done_label.set_style_text_color(ui.hexc(ui.GOLD), 0)
+
+    def onBackPressed(self, screen):
+        # Back/Esc/joystick is a second exit path beside the screen tap. Consume
+        # it during the same hold or the visual button would be disabled while
+        # a trailing hardware input could still throw the payoff away.
+        return not self._can_leave
 
     def _done(self):
+        if not self._can_leave:
+            return
         sound.play("tap")
         self.finish()
 
     def _open_beest(self):
         # straight into the normal creature flow: the geluk beast's page,
         # with VOER / SPEEL / DOSSIER like any caught creature
+        if not self._can_leave:
+            return
         sound.play("tap")
         beast = lazy("screens_care").BeastActivity
         self.startActivity(Intent(activity_class=beast, extras={"fox_id": self.geluk}))
