@@ -11,6 +11,7 @@ import type {
 import { Layout } from "../components/Layout";
 import { Home } from "../components/Home";
 import { SnuffelRules } from "../components/SnuffelRules";
+import { PlukRules } from "../components/PlukRules";
 import { Companion } from "../components/Companion";
 import { decodeCompanion } from "../lib/companion";
 import { CREATURES, RARITY_LABEL, creatureById } from "../lib/creatures";
@@ -554,6 +555,19 @@ pageRoutes.get("/snuffelregels", (c) =>
       noindex
     >
       <SnuffelRules />
+    </Layout>,
+  ),
+);
+
+pageRoutes.get("/plukregels", (c) =>
+  c.html(
+    <Layout
+      title="Plukregels — Vossenjacht"
+      description="De regels voor plukplekken, WiFi-signalen, oogst, wilde beesten en punten."
+      bare
+      noindex
+    >
+      <PlukRules />
     </Layout>,
   ),
 );
