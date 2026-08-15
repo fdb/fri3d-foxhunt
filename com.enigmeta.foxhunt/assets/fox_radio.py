@@ -46,13 +46,13 @@ def rssi_to_bpm(rssi):
 def bpm_to_dots(bpm):
     """Map the absolute heartbeat reading onto the home's four proximity dots.
 
-    Camp measurements put the useful range at 100 (edge of reception) through
+    Camp measurements put the useful range at 120 (edge of reception) through
     180 (close enough for all four dots); readings above that stay full.  The
-    three lower bands divide that measured 80-bpm span evenly.
+    three lower bands divide that measured 60-bpm span evenly.
     """
-    if bpm < 100:
+    if bpm < 120:
         return 0
-    return min(4, 1 + ((bpm - 100) * 3 // 80))
+    return min(4, 1 + ((bpm - 120) // 20))
 
 
 # ── 5-LED / mirror level: auto-ranged, ported from lora_rssi_meter.py ───────

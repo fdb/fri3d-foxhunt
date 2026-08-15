@@ -112,12 +112,12 @@ class FoxRadioTest(unittest.TestCase):
 
     def test_heartbeat_dots_use_the_absolute_camp_range(self):
         cases = (
-            (99, 0),
-            (100, 1),
-            (126, 1),
-            (127, 2),
-            (153, 2),
-            (154, 3),
+            (119, 0),
+            (120, 1),
+            (139, 1),
+            (140, 2),
+            (159, 2),
+            (160, 3),
             (179, 3),
             (180, 4),
             (250, 4),
