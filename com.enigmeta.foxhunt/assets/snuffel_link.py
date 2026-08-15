@@ -19,7 +19,7 @@
 #
 # Wire format (ASCII, pipe-separated, one line, <250 bytes):
 #   VJ1|HI|<naam>|<shortcode>|<roster csv>|<session>|<shareable csv>|<J/V>
-#                                                    broadcast, ~1/s
+#          |<claimed peer mac>                       broadcast, ~2/s
 #   VJ1|SNF|<peer mac>                         broadcast, a few /s for ~3 s
 # Identity is the MAC the frame arrived on; names are display only. The
 # handshake carries no payload: everything a snuffel yields (food, the
@@ -30,7 +30,10 @@
 # used to go quiet on its payoff screen and starve the other. Now the
 # finisher announces "I snuffelled <you>" and the named peer mirrors the
 # handshake at once, if its own radio also reads that peer as nearby
-# (INVITE_DBM). Both sides pay out from one completed streak.
+# (INVITE_DBM). The claim rides in every HI as well as its own SNF frame:
+# broadcast delivery can lose all the short SNF burst while HI keeps the peer
+# visible, which otherwise leaves exactly one badge on the payoff. Both sides
+# pay out from one completed streak.
 
 import random
 from creatures import by_id
@@ -232,6 +235,7 @@ class EspNowLink(BaseLink):
         try:
             roster = ",".join(str(c) for c in self.roster[:24])
             shareable = ",".join(str(c) for c in self.shareable[:24])
+            claim = self._announce[0] if self._announce else ""
             msg = b"|".join(
                 (
                     PROTO,
@@ -242,6 +246,7 @@ class EspNowLink(BaseLink):
                     self._session.encode(),
                     shareable.encode(),
                     (b"J" if self.is_hunter else b"V"),
+                    claim.encode(),
                 )
             )
             self._now.send(_BROADCAST, msg, False)  # broadcast: never acked
@@ -321,16 +326,25 @@ class EspNowLink(BaseLink):
                 cid for cid in roster if by_id(cid) and by_id(cid)["rarity"] != "leg"
             ]
         role = parts[7].decode() if len(parts) > 7 else "V"
+        rssi = self._rssi_of(mac)
         self._seen(
             macs,
             naam,
             code,
             roster,
-            self._rssi_of(mac),
+            rssi,
             session,
             shareable,
             role,
         )
+        # Carry the acceptance on the presence frame too. HI and SNF are
+        # unacknowledged broadcasts; keeping them separate allowed a badge to
+        # keep showing its peer while missing every finite SNF announcement.
+        # Putting the claim on HI also makes identity and acceptance atomic,
+        # so receive order cannot discard the claim before the peer exists.
+        target = parts[8].decode() if len(parts) > 8 else ""
+        if target and target == self._my_mac and rssi >= INVITE_DBM:
+            self.peers[macs].streak = max(self.peers[macs].streak, CLOSE_STREAK)
 
     def _rssi_of(self, mac):
         # RSSI comes from OUR radio's peers_table, never from the payload.
