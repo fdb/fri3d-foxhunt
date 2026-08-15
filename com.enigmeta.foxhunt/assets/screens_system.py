@@ -438,7 +438,7 @@ class HomeActivity(Activity):
                 spr.set_pos(18, 2)
                 for d in range(4):
                     seg = ui.box(
-                        cell, 15 + d * 10, 40, 8, 5, ui.TERRA if d < dots else _SEG_OFF
+                        cell, 10 + d * 14, 40, 11, 5, ui.TERRA if d < dots else _SEG_OFF
                     )
                     seg.set_style_border_width(ui.BORDER_THIN, 0)
                     seg.set_style_border_color(ui.hexc(ui.INK), 0)
