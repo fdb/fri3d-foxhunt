@@ -373,13 +373,13 @@ class LoRaLink:
             self._set_status("starting", "instellingen laden")
             self._schedule_bring_up(lambda: self.request_recovery(False))
         else:
-            # `begin()` is what actually wakes the chip on MPOS 0.17.2: a
-            # CH32 reset pulse alone still reads packet type 0xFF/status 0x00
-            # on real hardware. Defer the SPI-heavy recovery until the screen
-            # transition has settled, exactly like normal configuration.
-            print("lora: no answer; scheduling SX1262 restart and initialization")
-            self._set_status("waiting", "herstel wordt gestart")
-            self._schedule_bring_up(lambda: self.request_recovery(True))
+            # MicroPythonOS constructs this driver even when no daughterboard
+            # is fitted. Do not pulse the shared CH32 expander merely because
+            # the read-only presence probe found an open bus: on some cold
+            # boots that can restart the badge. WORD JAGER remains the explicit
+            # recovery path for a fitted but wedged SX1262.
+            print("lora: no responding SX1262; waiting for explicit recovery")
+            self._set_status("missing", "geen radioverbinding")
 
     def _packet_type(self):
         """A valid SX1262 packet type, or None for an unreadable/open bus."""
@@ -396,10 +396,11 @@ class LoRaLink:
         MicroPythonOS constructs the driver even when the daughterboard is
         absent, so the object existing proves nothing. Conversely, one failed
         SPI read does not prove absence: the fitted SX1262 can be wedged or
-        still held in reset. On the current badge OS (CH32 2.0.3), one bounded
-        hardware reset is safe. The reset must be followed by `begin()` -- a
-        reset-only probe was measured still returning 0xFF/0x00 on the badge.
-        Only a failed full initialization counts as absent.
+        still held in reset. A player explicitly choosing WORD JAGER therefore
+        gets one bounded hardware reset. The reset must be followed by
+        `begin()` -- a reset-only probe was measured still returning
+        0xFF/0x00 on the badge. Only a failed full initialization counts as
+        absent.
 
         This is intentionally callable again from WORD JAGER. A radio that was
         unavailable during the app import gets another honest recovery chance
