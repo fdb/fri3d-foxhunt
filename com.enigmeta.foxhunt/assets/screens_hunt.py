@@ -1000,7 +1000,7 @@ class VonkActivity(Activity):
 
 
 # ═════════════════════════ screen_pluk ═════════════════════════
-# screen_pluk.py — PLUKKEN: wifi hot/cold naar een fri3d-badge hotspot, en de
+# screen_pluk.py — PLUKKEN: wifi hot/cold naar een hotspot in de buurt, en de
 # oogst-payoff. Layout follows the design (plukken.jsx PxPluk / PxOogst).
 #
 # One activity, two phases (zoek / oogst) swapped with screen.clean() —
@@ -1041,9 +1041,6 @@ class PlukActivity(Activity):
 
     def onResume(self, screen):
         super().onResume(screen)
-        # debug switch (instellingen -> debug): pluk on ANY wifi network,
-        # for walking-around tests before the camp's hotspots exist
-        pluk_radio.RADIO.any_ssid = store.debug_cheat("pluk_any")
         self.timer = lv.timer_create(self._tick, 700, None)
 
     def onPause(self, screen):
@@ -1071,11 +1068,9 @@ class PlukActivity(Activity):
             ring.set_style_border_width(ui.BORDER, 0)
             ring.set_style_border_color(ui.hexc(_RING), 0)
             ring.set_style_border_opa(90, 0)
-        # the network the meter is homing on: fri3d-badge at camp, the real
-        # SSID of whatever spot leads in any-wifi debug mode
-        self.ssid_l = ui.label(
-            card, pluk_radio.SSID, 7, 5, _SSID_INK, ui.font_small(), w=150
-        )
+        # the name of the network the meter is homing on; empty until a scan
+        # has one to show, because no fixed SSID stands in for it
+        self.ssid_l = ui.label(card, "", 7, 5, _SSID_INK, ui.font_small(), w=150)
         self.spot = art.icon(card, "hotspot", 5)
         self.spot.set_pos(85, 45)
         self.bubble_panel = ui.panel(card, 10, 24, 176, 20, ui.CREAM)
@@ -1142,7 +1137,6 @@ class PlukActivity(Activity):
         pool = ready or readings  # already sorted strongest-first
         target = self._sticky(pool)
         self._target = target
-        self.ssid_l.set_text(target.ssid)
         self._show(target, waits[target.bssid])
 
     def _sticky(self, pool):
@@ -1172,6 +1166,7 @@ class PlukActivity(Activity):
     def _show_none(self):
         self._meter(0)
         self._arm(False)
+        self.ssid_l.set_text("")  # nothing in range: no network to name
         self.right.set_text("wifi zoekt")
         self.spot.set_style_opa(115, 0)
         self.bubble.set_text("nog geen plukplek gezien")
@@ -1179,6 +1174,7 @@ class PlukActivity(Activity):
         self.strip_l.set_text("LOOP ROND EN ZOEK")
 
     def _show(self, target, wait):
+        self.ssid_l.set_text(target.ssid)  # name the spot the meter is on
         if wait > 0:
             # this spot is reloading FOR THIS BADGE — welcoming, never guilt
             self._meter(target.level)

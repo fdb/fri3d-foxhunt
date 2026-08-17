@@ -75,16 +75,16 @@ class DebugCodeTest(unittest.TestCase):
         # added later is covered by it the day it is added.
         s = self.store
         s.set_debug_cheat("nooit_moe", True)
-        s.set_debug_cheat("pluk_any", True)
+        s.set_debug_cheat("een_latere_cheat", True)
 
         s.clear_debug_cheats()
 
         self.assertFalse(s.debug_cheat("nooit_moe"))
-        self.assertFalse(s.debug_cheat("pluk_any"))
+        self.assertFalse(s.debug_cheat("een_latere_cheat"))
 
     def test_an_unarmed_cheat_is_false_rather_than_missing(self):
-        # Callers use it straight in a boolean (store.py's nooit_moe rule,
-        # the pluk screen's any_ssid), never through a .get with a default.
+        # Callers use it straight in a boolean (store.py's nooit_moe rule),
+        # never through a .get with a default.
         self.assertIs(self.store.debug_cheat("nooit_moe"), False)
         self.assertIs(self.store.debug_cheat("never_defined"), False)
 

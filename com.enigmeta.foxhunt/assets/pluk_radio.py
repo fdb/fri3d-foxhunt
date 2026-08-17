@@ -1,10 +1,11 @@
-# pluk_radio.py — the plukken backend: passive scan for `fri3d-badge` APs.
+# pluk_radio.py — the plukken backend: passive scan for wifi access points.
 #
 # The badge only LISTENS: no beacon hardware exists for the game, no frames
-# are sent. The terrain's hotspots all broadcast the same SSID, so a spot's
-# identity is its BSSID — which also means anyone can run their own hotspot
-# and harvest from it. Deliberate: food is local state, so that is a fair
-# hack, not an exploit (GAME_DESIGN.md, Plukken).
+# are sent. EVERY named network is a plukplek, and a spot's identity is its
+# BSSID — which also means anyone can run their own hotspot and harvest from
+# it. Deliberate: food is local state, so that is a fair hack, not an exploit
+# (GAME_DESIGN.md, Plukken). It also makes plukken playable anywhere there is
+# wifi, at camp and at home alike, with no mode to switch.
 #
 # Same seam pattern as fox_radio.py: a real WifiPlukRadio where the hardware
 # cooperates, a FakePlukRadio that drives the whole UI on desktop.
@@ -21,8 +22,6 @@
 import random
 import time
 
-SSID = "fri3d-badge"
-_SSID_B = SSID.encode()
 PLUK_LEVEL = 4  # harvestable at meter level >= 4 (-65 dBm and stronger)
 
 _MAX_SPOTS = 12  # keep the strongest few; a city block can show 40+
@@ -52,11 +51,11 @@ def _level(rssi):
 
 
 class PlukReading:
-    def __init__(self, bssid, rssi, ssid=SSID):
+    def __init__(self, bssid, rssi, ssid):
         self.bssid = bssid  # "aa:bb:cc:dd:ee:ff" — the spot's identity
         self.rssi = rssi
         self.level = _level(rssi)
-        self.ssid = ssid  # display only; differs from SSID in any-wifi debug
+        self.ssid = ssid  # display only; the plukscherm names the lead spot
 
 
 def yield_for(bssid, phase):
@@ -83,15 +82,10 @@ class WifiPlukRadio:
     just skips a beat. After _STALE_MS with no success we publish nothing,
     so a wedged radio reads as "geen plukplek" instead of a frozen meter.
 
-    any_ssid is the debug switch (instellingen -> debug): accept EVERY named
-    network instead of only `fri3d-badge`, so plukken is walkable anywhere
-    there's WiFi — home, office — before the camp exists. Identity stays
-    the BSSID, so reloads and daily yields work exactly as at camp.
-
-    Hidden networks are never a plukplek, in either mode: the firmware asks
-    for them (`config.show_hidden = true`) and reports them with an empty
-    SSID, and its `hidden` tuple field is hardcoded False — so the empty
-    name is the only honest signal. A spot you cannot name is not a place.
+    Hidden networks are never a plukplek: the firmware asks for them
+    (`config.show_hidden = true`) and reports them with an empty SSID, and
+    its `hidden` tuple field is hardcoded False — so the empty name is the
+    only honest signal. A spot you cannot name is not a place.
     """
 
     def __init__(self, wlan):
@@ -102,7 +96,6 @@ class WifiPlukRadio:
         self._asked_ms = 0  # ticks_ms of the last scan() call
         self._worker = False
         self._lock = None
-        self.any_ssid = False
         try:
             import _thread
 
@@ -221,8 +214,6 @@ class WifiPlukRadio:
             ssid = net[0]
             if not ssid:
                 continue  # hidden AP: no name, no plukplek
-            if not self.any_ssid and ssid != _SSID_B:
-                continue
             mac = ":".join("%02x" % b for b in net[1])
             prev = self._smooth.get(mac)
             smooth[mac] = net[3] if prev is None else prev + (net[3] - prev) * _SMOOTH
@@ -247,7 +238,6 @@ class FakePlukRadio:
 
     def __init__(self):
         self._near = -82.0  # the spot being walked toward
-        self.any_ssid = False  # accepted, ignored: the fake is always fake
 
     def bump(self, delta_dbm):
         self._near = max(-90.0, min(-40.0, self._near + delta_dbm))
@@ -259,8 +249,8 @@ class FakePlukRadio:
         self._near = min(-42.0, self._near + random.uniform(-1.0, 3.5))
         far = -80 + random.uniform(-4, 4)
         return [
-            PlukReading("fa:ce:00:00:00:01", int(self._near)),
-            PlukReading("fa:ce:00:00:00:02", int(far)),
+            PlukReading("fa:ce:00:00:00:01", int(self._near), "testwifi-dichtbij"),
+            PlukReading("fa:ce:00:00:00:02", int(far), "testwifi-ver"),
         ]
 
 

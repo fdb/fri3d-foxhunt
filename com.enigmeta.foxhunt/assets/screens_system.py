@@ -1071,17 +1071,6 @@ class DebugActivity(Activity):
             self._toggle_debug_code,
         )
 
-        # pluk on ANY wifi network — for walking-around tests away from the
-        # camp: no fri3d-badge hotspots exist yet, every AP becomes a
-        # plukplek (identity stays the BSSID, reloads and yields included)
-        self.pluk_toggle, self.pluk_label = self._switch(
-            body,
-            "PLUK OP ELKE WIFI",
-            "thuis-testen",
-            store.debug_cheat("pluk_any"),
-            lambda: self._toggle_cheat("pluk_any", self.pluk_toggle, self.pluk_label),
-        )
-
         # a beestenschool game costs energy, and a tired creature refuses —
         # right, but it makes testing a game a round of feeding first. This
         # zeroes the price (store.play_cost); the reward is untouched.

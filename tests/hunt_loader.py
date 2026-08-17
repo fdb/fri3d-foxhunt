@@ -31,7 +31,6 @@ def load_screens_hunt(name="screens_hunt_under_test", **overrides):
 
     pluk_radio = types.ModuleType("pluk_radio")
     pluk_radio.RADIO = MagicMock()
-    pluk_radio.SSID = "fri3d-badge"
     pluk_radio.PLUK_LEVEL = 4
     pluk_radio.yield_for = MagicMock(return_value={})
 

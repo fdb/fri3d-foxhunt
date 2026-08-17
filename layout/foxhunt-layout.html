@@ -410,7 +410,6 @@
     // stage shows it at scroll 0: the sections stack from y=34 and the
     // beestenboek runs off the bottom edge.
     [['TESTCODE 1111','voor elk beest'],
-     ['PLUK OP ELKE WIFI','thuis-testen'],
      ['ONVERMOEIBAAR','spelen kost geen energie']].forEach(([kop,uitleg],i)=>{
       const p=box(6,34+i*40,308,34,panelStyle('var(--card)'));
       p.appendChild(text(kop,8,3,160,13,{size:10,color:'var(--terra-d)'}));
@@ -421,17 +420,17 @@
       p.appendChild(state); s.appendChild(p);
     });
 
-    const account=box(6,154,308,25,panelStyle('#d8c9a4','#cdb67d'));
+    const account=box(6,114,308,25,panelStyle('#d8c9a4','#cdb67d'));
     account.appendChild(text('ACCOUNT',8,7,70,13,{size:10,color:'#8a7d5e'}));
     account.appendChild(text('registreren / uitschrijven: binnenkort',82,7,218,13,
       {size:10,color:'#5e6b44'}));
     s.appendChild(account);
 
-    s.appendChild(text('BEESTENBOEK',6,185,200,13,
+    s.appendChild(text('BEESTENBOEK',6,145,200,13,
       {size:10,color:'var(--green-d)'}));
     ROSTER.slice(0,3).forEach((c,i)=>{
       const caught=i===0;
-      const row=box(6,204+i*48,308,42,panelStyle('var(--card)','#cdb67d'));
+      const row=box(6,164+i*48,308,42,panelStyle('var(--card)','#cdb67d'));
       const icon=creature(c,2,false);
       icon.style.position='absolute'; icon.style.left=px(6)+'px'; icon.style.top=px(5)+'px';
       row.appendChild(icon);

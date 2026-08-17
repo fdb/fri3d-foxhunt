@@ -80,7 +80,7 @@ def _new_session():
     open (~0.25s) for nothing.
     """
     # Everything the debug screen can arm: the 1111 test code, and the cheats
-    # (pluk_any, nooit_moe). All RAM-only on purpose, and none of it may
+    # (nooit_moe). All RAM-only on purpose, and none of it may
     # outlive the app that armed it — the next player gets a badge where the
     # code is dead and nothing is cheating, and an organiser who wants any of
     # it back is five deliberate taps on the badge id away.

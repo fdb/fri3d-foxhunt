@@ -108,10 +108,9 @@ export const PlukRules = () => (
         <h1 class="wordmark">Plukken</h1>
         <p class="tagline">Volg WiFi. Oogst voer. Vind een wild spoor.</p>
         <p class="lede">
-          Op het terrein zenden plukplekken een herkenbaar WiFi-signaal uit. Je
-          badge luistert, jij volgt de warmtemeter. Dicht genoeg krijg je
-          bessen, noten of eikels — en soms stelt een onbekend gewoon beest zich
-          voor.
+          Elk WiFi-netwerk in de buurt is een plukplek. Je badge luistert, jij
+          volgt de warmtemeter. Dicht genoeg krijg je bessen, noten of eikels —
+          en soms stelt een onbekend gewoon beest zich voor.
         </p>
         <div class="rules-hero-art pluk-hero-art" aria-hidden="true">
           <span class="rules-badge-card pluk-signal-card">
@@ -213,16 +212,16 @@ export const PlukRules = () => (
     <section class="band band-soft" id="plek">
       <div class="wrap">
         <p class="rules-section-no">02 · WAT IS ÉÉN PLEK?</p>
-        <h2>De naam is gedeeld. Het zenderadres maakt de plek uniek.</h2>
+        <h2>Elk netwerk telt. Het zenderadres maakt de plek uniek.</h2>
         <div class="pluk-identity">
           <article class="card">
             <span class="icon">
               <Icon name="sig" />
             </span>
             <h3>De zichtbare naam</h3>
-            <code>fri3d-badge</code>
+            <code>elk netwerk met een naam</code>
             <p>
-              Alle officiële plukplekken roepen dezelfde WiFi-naam. Een
+              Elk WiFi-netwerk dat je badge hoort, is een plukplek. Een
               verborgen netwerk zonder naam telt niet mee.
             </p>
           </article>
@@ -252,15 +251,16 @@ export const PlukRules = () => (
           <article class="card">
             <h3>Zelfde naam, andere BSSID</h3>
             <p>
-              Een andere plukplek. Meerdere zenders mogen dus allemaal
-              <i>fri3d-badge</i> heten en toch apart herladen.
+              Een andere plukplek. Twee zenders mogen dus dezelfde WiFi-naam
+              dragen en toch apart herladen.
             </p>
           </article>
           <article class="card">
             <h3>Adres verandert</h3>
             <p>
-              Dan ziet de badge een nieuwe plek. Daarom moeten plukzenders hun
-              BSSID tijdens het kamp stabiel houden.
+              Dan ziet de badge een nieuwe plek. Een vaste hotspot is dus een
+              betere plukplek dan een telefoon die telkens een nieuw adres
+              kiest.
             </p>
           </article>
         </div>
@@ -451,8 +451,8 @@ export const PlukRules = () => (
             <span>03</span>
             <h3>Een BSSID is één plek</h3>
             <p>
-              De gedeelde WiFi-naam is het herkenningsteken; het unieke
-              zenderadres bewaart de geschiedenis.
+              De WiFi-naam zie je staan; het unieke zenderadres bewaart de
+              geschiedenis.
             </p>
           </article>
           <article class="card">

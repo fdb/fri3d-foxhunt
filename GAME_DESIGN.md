@@ -121,14 +121,15 @@ the same creature-introduction payoff.
 
 ### Plukken — work the terrain
 
-The camp terrain has multiple WiFi hotspots that all broadcast the badge
-network `fri3d-badge`. Foraging is **listening** to them:
+The camp terrain is full of WiFi hotspots. Foraging is **listening** to them:
 
 - The badge does a passive scan; it transmits nothing, and no beacon hardware
   is built or deployed for the game. The infrastructure is whatever already
   hangs on the terrain.
-- The SSID is shared, so a spot's identity is its **BSSID** — the radio MAC
-  the scan reports anyway.
+- **Every named network is a plukplek**, whoever runs it. A spot's identity is
+  its **BSSID** — the radio MAC the scan reports anyway — so two networks
+  sharing a name are still two places. A hidden network has no name and is
+  therefore no place.
 - To pluk: open the plukscherm, scan, and walk toward a spot while the signal
   grows — the same "walk toward an invisible signal" joy as direction
   finding, at WiFi range and a difficulty a seven-year-old can manage. Above
@@ -142,11 +143,11 @@ network `fri3d-badge`. Foraging is **listening** to them:
   pantry requires covering ground, just as a complete roster requires
   finding every fox. Base-tier encounters are a seeded roll on the same
   inputs, so rescanning cannot reroll them.
-- **Any BSSID that broadcasts the SSID counts — no allowlist.** Someone who
-  runs their own `fri3d-badge` hotspot beside their tent has hacked
-  themselves some berries; at a hacker camp that is a feature, not a leak.
-  Food is local state, so the cheat stays a single-player mod (see
-  *Adversarial risks*).
+- **No allowlist, and none needed.** Someone who parks a phone hotspot beside
+  their tent has hacked themselves some berries; at a hacker camp that is a
+  feature, not a leak. Food is local state, so the cheat stays a single-player
+  mod (see *Adversarial risks*). Dropping the name filter also makes plukken
+  playable anywhere there is WiFi — see *Buiten het kamp*.
 
 #### Wild encounters while plukken
 
@@ -565,7 +566,7 @@ creatures are perpetually sad.
 ### Adversarial risks (it's a hacker camp)
 
 Assume the protocol is public by Saturday morning: forged shortcodes, spoofed
-handshakes, replayed spoor payloads, spoofed `fri3d-badge` hotspots. ESP-NOW widens this a
+handshakes, hotspots parked to farm plukplekken. ESP-NOW widens this a
 little — an attacker with a stock ESP32 and an amplifier can present whatever
 RSSI they like, so the -50 dBm gate stops honest badges at range, not
 determined ones. Respond by making cheating *boring*, not impossible:
@@ -586,7 +587,7 @@ determined ones. Respond by making cheating *boring*, not impossible:
   but cannot claim a LoRa find or hunter score. BSSID/phase deduplication keeps
   honest retries bounded; generating fake hotspots remains an intentionally
   boring hacker-camp mod.
-- A home-brew `fri3d-badge` hotspot mints only local food: the same boring,
+- A home-brew hotspot mints only local food: the same boring,
   single-player mod — and at this camp, a small prize in itself.
 - Lean in: hide an easter-egg creature that can *only* be obtained by
   reverse-engineering the ESP-NOW protocol. At Fri3d, the person who hacks the
@@ -602,7 +603,7 @@ receiver — receive only, there is no IR transmitter.
 | Mode | Example activity | Reward |
 |---|---|---|
 | **Op avontuur** | A short walk or movement session | Food and expedition postcards |
-| **Plukken** | Walk to `fri3d-badge` hotspots around the terrain | Food, base encounters and materials |
+| **Plukken** | Walk to WiFi hotspots around the terrain | Food, base encounters and materials |
 | **Beestenschool** | Tilt maze, rhythm game, Flappy-style game or LED Simon | Skills and bond |
 | **Habitat bouwen** | Gather and spend materials on a small habitat | Decorations and animations |
 | **Onderzoek** | Visual quizzes, behaviour puzzles and pattern matching | Dossier pages and discoveries |
@@ -1078,23 +1079,14 @@ self-find points.
 
 ## Buiten het kamp (before and after)
 
-The game must not die at the terrain fence. Care, spelen and snuffelen
-already work anywhere — only plukken is camp-bound, because it keys on the
-`fri3d-badge` SSID. Decided:
+The game must not die at the terrain fence. Care, spelen and snuffelen work
+anywhere, and so does plukken: every named network counts, so the
+neighbourhood is terrain too and the badge keeps living as a huisdier long
+after teardown. Decided:
 
-- **No public thuismodus setting.** The any-SSID switch ("pluk overal")
-  stays in the hidden debug screen, where it already exists for pre-camp
-  testing. During camp, finding it takes the same effort-and-knowledge
-  barrier as the home-brew hotspot the adversarial section already accepts,
-  and the payout is the same local food: boring. A visible settings toggle
-  would remove that barrier and spread one tap at a time through a tent row.
-- **After the camp, the secret is the souvenir.** The closing announcement
-  tells everyone how to open the debug screen (tap the badge id five times
-  in instellingen) and flip "pluk overal": the neighbourhood becomes the
-  terrain and the badge keeps living as a huisdier. Known cost, accepted
-  deliberately: the same screen holds the roster unlocks, so the reveal also
-  hands out the skip-the-game buttons. After teardown the stakes are zero —
-  your badge, your rules is the point at this camp.
+- **No thuismodus, because there are no two modes.** Plukken has one rule at
+  camp and at home, so there is nothing to switch, explain or find. What
+  changes off the terrain is the density of spots, not the game.
 - **The server fences score to the camp window.** Scored events — self-finds,
   first helped-player introductions, pluk encounters and first-per-pair
   vonken — count only when they fall inside the camp dates; outside the
@@ -1115,13 +1107,13 @@ Before building a large economy, test a compact experience:
 0. **Hardware spikes first**: the ESP-NOW spike is done (see the espnow-test
    experiment: the channel recipe, the RSSI curve, the trust model). The WiFi
    scan spike remains: scan-while-associated, scan latency, battery per
-   burst, and a census of `fri3d-badge` BSSIDs on the terrain.
+   burst, and a census of visible BSSIDs on the terrain.
 1. Companion tutorial, ending in the startbeest reveal (server-minted in
    the registration POST).
 2. Directed creature spread through vonk-geluk over snuffel: base sharing,
    rare relay, the legendary self-found one-hop rule, generated-picnic
    fallback and a snuffel report syncing the result to the profile.
-3. Plukken against real `fri3d-badge` hotspots: warmer/colder screen, BSSID
+3. Plukken against real hotspots: warmer/colder screen, BSSID
    identity, per-badge food reload and one wild-creature roll per camp phase.
 4. One motion mini-game, such as a tilt maze.
 5. One touch/button game, such as LED Simon or Flappy.
@@ -1149,9 +1141,8 @@ enough delight to carry the social economy?
 - ~~How many mentor invitations may a strong gatherer create?~~
   → Resolved: the mentor model is replaced by automatic vonk-geluk. Rare
   sporen may relay; legendary sporen are self-found jager → verzamelaar only.
-- Confirm the estimated roughly 70 `fri3d-badge` BSSIDs on the terrain and
-  map how many are distinct physical walking destinations rather than radios
-  clustered at one place.
+- Count the BSSIDs visible on the terrain and map how many are distinct
+  physical walking destinations rather than radios clustered at one place.
 - Tuning numbers that need playtesting: the self-find values (initially
   100/300/800) and helped-player value (initially 50), the verzamelaarsscore
   values (initially 50 per pluk encounter, 25 per new person, 100 per beste
@@ -1167,7 +1158,7 @@ enough delight to carry the social economy?
 - How many foxes will be deployed, and can their activation be staged across
   the weekend? How many players will have antennas? (Both numbers gate the
   economy tuning — ask the orga.)
-- Which camp stations sit near a `fri3d-badge` hotspot or can host physical
+- Which camp stations sit near a WiFi hotspot or can host physical
   assignments?
 - Does the vonk need a time-cost payload (mini playdate) or is a plain
   handshake enough?
@@ -1187,7 +1178,7 @@ Following the one-word-per-thing rule:
 | **boop / socialize** | **snuffelen** | The face-to-face handshake over ESP-NOW, gated at -50 dBm RSSI on both sides — and the home-screen mode named after it. |
 | **spark** | **vonk** | The mutual creature-sharing window: immediate for a new pair, then per pair every 6 hours (at most four in a rolling 24h). A no-vonk repeat can share generated food only. |
 | **friend book** | **vriendenboekje** | The permanent collection: one page per first-ever meeting between two badges. |
-| **forage** | **plukken** | Passively scanning for `fri3d-badge` hotspots and harvesting a nearby one. |
+| **forage** | **plukken** | Passively scanning for WiFi hotspots and harvesting a nearby one. |
 | **forage spot** | **plukplek** | One physical hotspot, identified by its BSSID, with hourly food and one creature roll per camp phase. |
 | **reload** | — | The per-badge cooldown before the same plukplek yields food again. It does not reroll its phase creature. |
 | **starter** | **startbeest** | The one base-tier creature every player receives at registration, deterministic per badge; the tutorial creature for both tracks. |

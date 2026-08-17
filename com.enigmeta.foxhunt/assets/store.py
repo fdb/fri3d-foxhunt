@@ -241,10 +241,10 @@ def set_setting(key, value):
     prefs.edit().put_dict("settings", s).commit()
 
 
-# The debug-screen cheats ("pluk_any", "nooit_moe"), in RAM for the same reason
-# as the 1111 code above: an armed cheat belongs to the run that armed it. They
-# used to be a stored key, and being stored is what let them outlive that run —
-# free play and pluk-anywhere greeted whoever picked the badge up next.
+# The debug-screen cheats ("nooit_moe"), in RAM for the same reason as the 1111
+# code above: an armed cheat belongs to the run that armed it. They used to be a
+# stored key, and being stored is what let them outlive that run — free play
+# greeted whoever picked the badge up next.
 #
 # Not writing them to flash is NOT by itself what expires them. This module
 # stays in sys.modules across a startapp, so a module global outlives the app

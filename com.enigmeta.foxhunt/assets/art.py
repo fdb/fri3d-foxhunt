@@ -477,7 +477,7 @@ ICONS = {
         ],
         "pal": {"s": 0x3C6B2E},
     },
-    # A `fri3d-badge` hotspot: rounded antenna dome on a foot. 10x10.
+    # A wifi hotspot: rounded antenna dome on a foot. 10x10.
     "hotspot": {
         "rows": [
             "....kk....",
