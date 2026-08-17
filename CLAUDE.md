@@ -39,6 +39,26 @@ board layer handles the hardware differences.
   simulate taps/drags/focus and capture screenshots — see
   `docs/emulator-testing.md`. Prefer this over "it should work" for any
   change with visible or interactive behaviour.
+- **Every emulator run needs a fixed timeout, in the driver itself.** The
+  emulator hangs readily — a wedged SDL window, a boot that never reaches the
+  REPL, stdin EOF it ignores — and a run without its own deadline blocks the
+  session until something else kills it. Write the driver as: launch in the
+  background, wait a bounded number of one-second polls for the LAST artefact
+  it should produce, then kill the runner and every surviving
+  `lvgl_micropy_macOS` unconditionally. Never rely on the tool call's own
+  timeout: that abandons the emulator instead of killing it (and macOS has no
+  `timeout` binary).
+- **The launcher cannot open this app on the pinned 0.12.0 package.** The app
+  ships the flat layout (`MANIFEST.JSON` at the app root, read since OS
+  0.15.1); 0.12.0 looks only in `META-INF/`, finds no launcher activity and
+  falls back to a `Main` class that does not exist — so `run_on_mac.sh` boots
+  to the launcher with the app never started, and every REPL line that reaches
+  for `sys.modules['foxhunt']` dies on `KeyError`. Start it from the REPL
+  instead, which needs no manifest:
+  `AppManager.execute_script('apps/com.enigmeta.foxhunt/assets/foxhunt.py',
+  'FoxhuntActivity', 'apps/com.enigmeta.foxhunt/assets',
+  app_fullname='com.enigmeta.foxhunt')`. The S3 bucket publishes no package
+  above 0.12.0, so this holds until one appears.
 - **Kill every emulator you start.** The emulator does not exit on stdin EOF,
   and a backgrounded or crashed run leaves it alive for hours. Stale instances
   are not harmless: each one holds the app's data symlink, so the next
