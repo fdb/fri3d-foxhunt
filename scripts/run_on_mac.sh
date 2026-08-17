@@ -4,15 +4,16 @@ cd "$(dirname "$0")/.."
 
 # Run the Foxhunt app on the macOS SDL emulator.
 #
-# This uses a PREBUILT MicroPythonOS package (no compiling from source). If the
-# package isn't on disk yet it's downloaded and unzipped automatically, so a
-# fresh mac needs nothing but this script.
+# This uses PREBUILT MicroPythonOS release artifacts (no compiling from
+# source). Install and upgrade are automatic and pinned to MPOS_VERSION, so a
+# fresh mac needs nothing but this script, and an install left behind by an
+# older pin is replaced rather than silently used.
 #
 # Unlike the badge (which needs files copied onto its LittleFS), the desktop
 # emulator reads the working tree live through a symlink in MicroPythonOS's
 # apps/ dir, so edits show up on the next run with no copy step. This script
-# makes sure the package is present and the symlink exists, then hands off to
-# the package's own run_desktop.sh.
+# makes sure the right OS is present and the symlink exists, then hands off to
+# the OS's own run_desktop.sh.
 #
 # Usage: scripts/run_on_mac.sh [--lora] [-- <extra run_desktop.sh args>]
 #
@@ -37,8 +38,8 @@ cd "$(dirname "$0")/.."
 # the jager's first run must do, since its MAC has no account yet.
 #
 # Environment:
-#   MPOS_DIR        prebuilt MicroPythonOS dir (default: ~/MicroPythonOS)
-#   MPOS_PKG_URL    download URL for the prebuilt macOS package zip
+#   MPOS_DIR        MicroPythonOS install dir (default: ~/MicroPythonOS)
+#   MPOS_VERSION    MicroPythonOS release to install (default: the pin below)
 #
 # FOXHUNT_BADGE_ID and FOXHUNT_FAKE_LORA are internal implementation details
 # of --lora. They are cleared below so an inherited value cannot accidentally
@@ -51,7 +52,12 @@ APP_ID="com.enigmeta.foxhunt"
 LORA_BADGE="A4:CF:12:9B:03:7F"
 APP_SRC="$PROJECT_DIR/$APP_ID"
 MPOS_DIR="${MPOS_DIR:-$HOME/MicroPythonOS}"
-MPOS_PKG_URL="${MPOS_PKG_URL:-https://debleser.s3-eu-central-1.amazonaws.com/2026-fri3d-badge/MicroPythonOS-macOS-0.12.0.zip}"
+# The OS release this app is developed against. It must be >= 0.15.1: the app
+# ships the flat layout (MANIFEST.JSON at the app root) and an older OS looks
+# only in META-INF/, finds no launcher activity, and boots to the launcher with
+# the app never started.
+MPOS_VERSION="${MPOS_VERSION:-0.17.3}"
+MPOS_REPO="https://github.com/MicroPythonOS/MicroPythonOS"
 RUN_DESKTOP="$MPOS_DIR/scripts/run_desktop.sh"
 BINARY="$MPOS_DIR/lvgl_micropython/build/lvgl_micropy_macOS"
 LINK="$MPOS_DIR/internal_filesystem/apps/$APP_ID"
@@ -61,7 +67,7 @@ LORA=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --lora)  LORA=1; shift ;;
-        -h|--help) sed -n '5,43p' "$0"; exit 0 ;;
+        -h|--help) sed -n '5,42p' "$0"; exit 0 ;;
         --) shift; break ;;
         *) break ;;
     esac
@@ -70,32 +76,97 @@ done
 # ── Sanity check: the app must exist locally ──────────────────────────
 [[ -d "$APP_SRC" ]] || { echo "error: app dir not found: $APP_SRC" >&2; exit 1; }
 
-# ── Ensure the prebuilt MicroPythonOS package is on disk ──────────────
-# The zip unpacks to a top-level "MicroPythonOS/" dir, so we extract it into
-# the parent of $MPOS_DIR. We consider the package present once both the
-# emulator binary and run_desktop.sh exist.
-if [[ ! -f "$BINARY" || ! -f "$RUN_DESKTOP" ]]; then
-    echo "Prebuilt MicroPythonOS not found at $MPOS_DIR — downloading..."
-    parent="$(dirname "$MPOS_DIR")"
-    tmp_zip="$(mktemp -t MicroPythonOS.XXXXXX).zip"
-    trap 'rm -f "$tmp_zip"' EXIT
+# ── Ensure MicroPythonOS $MPOS_VERSION is on disk ─────────────────────
+# Upstream publishes the two halves of a desktop install separately: the
+# emulator binary as a per-arch release asset, and internal_filesystem/ +
+# scripts/ inside the source tarball. This assembles them, so a fresh mac
+# needs nothing but this script and no privately hosted bundle.
+#
+# The on-disk internal_filesystem/lib wins over anything frozen into the
+# binary (run_desktop.sh puts "lib" before ".frozen" on sys.path), so the two
+# halves must come from the SAME release or the OS runs as a version salad.
+installed_version() {
+    local info="$MPOS_DIR/internal_filesystem/lib/mpos/build_info.py"
+    [[ -f "$info" ]] || return 0
+    sed -n 's/.*release = "\(.*\)".*/\1/p' "$info" | head -1
+}
 
-    echo "  GET $MPOS_PKG_URL"
-    curl -fL --progress-bar -o "$tmp_zip" "$MPOS_PKG_URL"
+install_mpos() {
+    local staging tarball asset arch
+    case "$(uname -m)" in
+        arm64) arch="arm64" ;;
+        x86_64) arch="intel" ;;
+        *) echo "error: unsupported mac architecture $(uname -m)" >&2; exit 1 ;;
+    esac
+    asset="$MPOS_REPO/releases/download/$MPOS_VERSION/MicroPythonOS_${arch}_macOS_$MPOS_VERSION.bin"
+    staging="$(mktemp -d -t MicroPythonOS)"
+    tarball="$staging/src.tar.gz"
 
-    echo "  Unzipping into $parent/"
-    mkdir -p "$parent"
-    unzip -q -o "$tmp_zip" -d "$parent"
+    echo "  GET $MPOS_REPO/archive/refs/tags/$MPOS_VERSION.tar.gz"
+    curl -fL --progress-bar -o "$tarball" \
+        "$MPOS_REPO/archive/refs/tags/$MPOS_VERSION.tar.gz"
+    mkdir -p "$staging/new"
+    tar -xzf "$tarball" -C "$staging/new" --strip-components=1 \
+        "MicroPythonOS-$MPOS_VERSION/internal_filesystem" \
+        "MicroPythonOS-$MPOS_VERSION/scripts"
+
+    echo "  GET $asset"
+    mkdir -p "$staging/new/lvgl_micropython/build"
+    curl -fL --progress-bar -o "$staging/new/lvgl_micropython/build/lvgl_micropy_macOS" "$asset"
+    chmod +x "$staging/new/lvgl_micropython/build/lvgl_micropy_macOS"
+
+    # Carry the existing install's state across: every persona's save, and the
+    # app symlinks other projects put in apps/ (each project's own run script
+    # would relink its own, but not the others').
+    if [[ -d "$MPOS_DIR/internal_filesystem" ]]; then
+        for parent in data prefs; do
+            [[ -d "$MPOS_DIR/internal_filesystem/$parent" ]] || continue
+            mkdir -p "$staging/new/internal_filesystem/$parent"
+            cp -R "$MPOS_DIR/internal_filesystem/$parent/." \
+                  "$staging/new/internal_filesystem/$parent/"
+        done
+        for link in "$MPOS_DIR"/internal_filesystem/apps/*; do
+            [[ -L "$link" ]] || continue
+            cp -R "$link" "$staging/new/internal_filesystem/apps/"
+        done
+        local backup="$MPOS_DIR.$(installed_version || true)"
+        [[ "$backup" == "$MPOS_DIR." ]] && backup="$MPOS_DIR.previous"
+        rm -rf "$backup"
+        mv "$MPOS_DIR" "$backup"
+        echo "  Previous install kept at $backup (delete it when happy)"
+    fi
+    mkdir -p "$(dirname "$MPOS_DIR")"
+    mv "$staging/new" "$MPOS_DIR"
+    rm -rf "$staging"
 
     [[ -f "$BINARY" && -f "$RUN_DESKTOP" ]] || {
-        echo "error: package unpacked but expected files are missing:" >&2
+        echo "error: install is missing expected files:" >&2
         echo "       $BINARY" >&2
         echo "       $RUN_DESKTOP" >&2
         exit 1
     }
-    chmod +x "$BINARY"
-    echo "  Installed MicroPythonOS at $MPOS_DIR"
+    echo "  Installed MicroPythonOS $MPOS_VERSION at $MPOS_DIR"
+}
+
+have="$(installed_version)"
+if [[ ! -f "$BINARY" || ! -f "$RUN_DESKTOP" ]]; then
+    echo "MicroPythonOS not found at $MPOS_DIR — installing $MPOS_VERSION..."
+    install_mpos
+elif [[ "$have" != "$MPOS_VERSION" ]]; then
+    echo "MicroPythonOS at $MPOS_DIR is ${have:-unknown} — upgrading to $MPOS_VERSION..."
+    install_mpos
 fi
+
+# ── Check the binary's Homebrew dependencies ──────────────────────────
+# The release binary links Homebrew dylibs by absolute path (sdl2-compat, not
+# the older sdl2). A missing one aborts in dyld before any Python runs, with a
+# wall of "tried:" paths and no hint of the fix — so name the fix here.
+while read -r lib; do
+    [[ -f "$lib" ]] && continue
+    echo "error: the emulator binary needs $lib" >&2
+    echo "       install it with: brew install $(basename "$(dirname "$(dirname "$lib")")")" >&2
+    exit 1
+done < <(otool -L "$BINARY" | awk '/^\t\/opt\/homebrew/ {print $1}')
 
 # ── Ensure the app is linked into MicroPythonOS's apps/ ───────────────
 if [[ ! -e "$LINK" && ! -L "$LINK" ]]; then

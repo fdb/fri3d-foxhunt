@@ -24,8 +24,8 @@ set -euo pipefail
 #
 # Measured when this was written: MicroPythonOS 0.12.0, 0.15.0 and 0.17.2 all
 # pin the SAME micropython (78ff170), i.e. every OS version the badge is
-# plausibly running wants identical bytecode, and the emulator package's 0.12.0
-# agrees with the current 0.17.2. EXPECTED_MICROPYTHON records that fact. When a
+# plausibly running wants identical bytecode, and the emulator (0.17.3) reports
+# that same bytecode version, `_mpy=774`. EXPECTED_MICROPYTHON records it. When a
 # future MicroPythonOS bumps it, this script FAILS instead of quietly emitting
 # .mpy that the badge would refuse at import time — the one failure mode worth
 # being loud about, because it surfaces as "the app just doesn't start" on

@@ -10,10 +10,10 @@
 The identical app runs on the Fri3d 2026 badge and the macOS SDL emulator; the
 board layer handles the hardware differences.
 - **Two MicroPythonOS checkouts exist, and both are load-bearing.** They are not
-  copies of each other. `~/MicroPythonOS` is the small prebuilt package
+  copies of each other. `~/MicroPythonOS` is the small prebuilt install
   (`internal_filesystem`, `lvgl_micropython`, `scripts` — no git) that
-  `run_on_mac.sh` downloads by itself and treats as `MPOS_DIR`; it holds the
-  emulator's save. `~/Source/MicroPythonOS` is the full clone, kept for exactly
+  `run_on_mac.sh` assembles from upstream release artifacts and treats as
+  `MPOS_DIR`; it holds the emulator's save. `~/Source/MicroPythonOS` is the full clone, kept for exactly
   one thing the package lacks — the **mpy-cross** that `deploy_to_badge.sh`
   hardcodes, which must come from the same checkout as the firmware so the
   bytecode versions match. Deleting the package costs a re-download; deleting
@@ -48,17 +48,21 @@ board layer handles the hardware differences.
   `lvgl_micropy_macOS` unconditionally. Never rely on the tool call's own
   timeout: that abandons the emulator instead of killing it (and macOS has no
   `timeout` binary).
-- **The launcher cannot open this app on the pinned 0.12.0 package.** The app
-  ships the flat layout (`MANIFEST.JSON` at the app root, read since OS
-  0.15.1); 0.12.0 looks only in `META-INF/`, finds no launcher activity and
-  falls back to a `Main` class that does not exist — so `run_on_mac.sh` boots
-  to the launcher with the app never started, and every REPL line that reaches
-  for `sys.modules['foxhunt']` dies on `KeyError`. Start it from the REPL
-  instead, which needs no manifest:
-  `AppManager.execute_script('apps/com.enigmeta.foxhunt/assets/foxhunt.py',
-  'FoxhuntActivity', 'apps/com.enigmeta.foxhunt/assets',
-  app_fullname='com.enigmeta.foxhunt')`. The S3 bucket publishes no package
-  above 0.12.0, so this holds until one appears.
+- **The emulator's OS version is pinned, and the pin has a floor.**
+  `run_on_mac.sh` installs `MPOS_VERSION` (0.17.3) by assembling upstream's
+  own release artifacts — the per-arch `MicroPythonOS_<arch>_macOS_<v>.bin`
+  plus `internal_filesystem/` and `scripts/` from the matching source tarball
+  — and upgrades an install whose `build_info.py` says anything else, keeping
+  `data/`, `prefs/` and the apps symlinks and leaving the old tree at
+  `~/MicroPythonOS.<oldversion>`. Both halves must come from ONE release:
+  `run_desktop.sh` puts `lib` before `.frozen` on `sys.path`, so a stale
+  `internal_filesystem` silently overrides the binary's frozen modules.
+  The floor is **0.15.1**: this app ships the flat layout (`MANIFEST.JSON` at
+  the app root) and an older OS reads only `META-INF/`, finds no launcher
+  activity, and boots to the launcher with the app never started — every REPL
+  line reaching for `sys.modules['foxhunt']` then dies on `KeyError`.
+  The binary links Homebrew's **sdl2-compat** (not `sdl2`); without it the
+  launch aborts in dyld before any Python runs.
 - **Kill every emulator you start.** The emulator does not exit on stdin EOF,
   and a backgrounded or crashed run leaves it alive for hours. Stale instances
   are not harmless: each one holds the app's data symlink, so the next

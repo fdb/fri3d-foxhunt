@@ -49,7 +49,9 @@ scripts/run_on_mac.sh          # verzamelaar (no antenna)
 scripts/run_on_mac.sh --lora   # jager (fakes a LoRa antenna + a second MAC)
 ```
 
-On first run it downloads a prebuilt MicroPythonOS into `~/MicroPythonOS`.
+It installs the pinned MicroPythonOS release into `~/MicroPythonOS` when that
+directory holds a different version or nothing at all. The emulator binary
+needs Homebrew's `sdl2-compat` (`brew install sdl2-compat`).
 It symlinks the working tree into that checkout's `internal_filesystem/apps/`,
 so edits show up on the next run with no copy step, and it points the save at
 the persona's own slot before launching — each persona keeps a separate save
