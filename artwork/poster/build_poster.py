@@ -203,15 +203,8 @@ def build_png():
         poster.alpha_composite(item, (x, 890 + (i % 2) * 70))
 
     body_face = font(BODY_BOLD, 58)
-    wrapped_center(
-        draw,
-        "Draai rond. Volg de lampjes. Vind geheime vossen. Bouw een boek vol beesten die niemand zag aankomen.",
-        1265,
-        body_face,
-        PAPER,
-        2050,
-        78,
-    )
+    centered(draw, "Volg het spoor en vind de geheime dieren.", 1265, body_face, PAPER)
+    centered(draw, "Verzorg en deel ze met andere spelers.", 1343, body_face, PAPER)
 
     # Three real game screens, presented as badge displays.
     screen_y = 1500
@@ -241,7 +234,7 @@ def build_png():
     cta = (120, 2300, 2360, 3342)
     rounded_panel(poster, cta, 54, GOLD, "#a8761f", 12, shadow=28)
     qr = qr_image("https://foxhunt.enigmeta.com/", module_px=20, border=4)
-    qx, qy = 180, 2490
+    qx, qy = 220, 2440
     rounded_panel(
         poster,
         (qx - 34, qy - 34, qx + qr.width + 34, qy + qr.height + 34),
@@ -275,8 +268,10 @@ def build_png():
         ("Richt je camera op de QR-code", "en start Vossenjacht op je badge.")
     ):
         draw.text((cta_x, 2935 + i * 70), line, font=cta_body, fill=INK)
-    url_face = font(PIXEL_FONT, 47)
-    draw.text((cta_x, 3125), "foxhunt.enigmeta.com", font=url_face, fill=GREEN_D)
+    url_face = font(PIXEL_FONT, 40)
+    draw.text(
+        (cta_x, 3125), "https://foxhunt.enigmeta.com/", font=url_face, fill=GREEN_D
+    )
 
     # Pixel corner details borrowed from the game's UI language.
     for x, y in ((168, 240), (2220, 360), (110, 1180), (2300, 1280), (2020, 2220)):
