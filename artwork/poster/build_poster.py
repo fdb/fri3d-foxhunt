@@ -2,8 +2,6 @@
 """Build the print-ready Vossenjacht A4 poster from project artwork."""
 
 from pathlib import Path
-import math
-import textwrap
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 from reportlab.graphics.barcode.qr import QrCodeWidget
@@ -61,33 +59,6 @@ def centered(
     draw.text(
         (x, y), text, font=face, fill=fill, stroke_width=stroke, stroke_fill=stroke_fill
     )
-
-
-def wrapped_center(
-    draw: ImageDraw.ImageDraw,
-    text: str,
-    y: int,
-    face,
-    fill,
-    max_width: int,
-    spacing: int,
-):
-    words = text.split()
-    lines, current = [], ""
-    for word in words:
-        candidate = f"{current} {word}".strip()
-        if draw.textlength(candidate, font=face) <= max_width:
-            current = candidate
-        else:
-            lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    for line in lines:
-        box = draw.textbbox((0, 0), line, font=face)
-        draw.text(((W - (box[2] - box[0])) // 2, y), line, font=face, fill=fill)
-        y += spacing
-    return y
 
 
 def rounded_panel(
