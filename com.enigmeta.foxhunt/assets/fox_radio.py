@@ -34,117 +34,44 @@ def rssi_to_bpm(rssi):
 
     A plain offset, no scaling — it puts the whole usable dBm span inside a
     believable pulse and keeps the number monotonic with proximity, so a
-    rising heart rate always means you are getting warmer. Unlike level
-    below, this stays on the fixed span: bpm is meant to read as an absolute
-    "how far into range are you", not a relative "warmer than a moment ago".
-    Hardware RSSI has half-dBm precision, but a heart rate is displayed as a
-    whole number; normalising here keeps every caller on that contract.
+    rising heart rate always means you are getting warmer. Hardware RSSI has
+    half-dBm precision, but a heart rate is displayed as a whole number;
+    normalising here keeps every caller on that contract.
     """
     return int(rssi + 255)
 
 
-def bpm_to_dots(bpm):
-    """Map the absolute heartbeat reading onto the home's four proximity dots.
+def bpm_to_level(bpm):
+    """Map the absolute heartbeat reading onto a 0..5 signal level.
 
-    Camp measurements put the useful range at 120 (edge of reception) through
-    180 (close enough for all four dots); readings above that stay full.  The
-    three lower bands divide that measured 60-bpm span evenly.
+    THE one strength scale: it drives the hunt screen's five physical LEDs
+    and its on-screen mirror, and (capped at 4) home's proximity dots, so
+    every readout agrees with the bpm number the player is watching.
+    Camp-measured endpoints: below 120 nothing lights — that is the edge of
+    reception, where bpm still ticks but means little — and 220 is measured
+    on top of the box, so 5 LEDs reads as "you are there". The 100-bpm span
+    divides into five even 25-wide bands, which keeps the useful very-close
+    stretch (200-219) distinguishable as 4 LEDs from the arrival at 5.
     """
     if bpm < 120:
         return 0
-    return min(4, 1 + ((bpm - 120) // 20))
-
-
-# ── 5-LED / mirror level: auto-ranged, ported from lora_rssi_meter.py ───────
-#
-# A fixed -40..-120 span (the old rssi_to_level) treats every hunt the same,
-# but a fox in the open and one behind a wall sit at completely different
-# absolute RSSI — so a fixed span either pins one hunt's LEDs at 5 the whole
-# way, or never lights them for the other. lora_rssi_meter.py's terminal bar
-# solves this by auto-scaling to whatever's actually been heard recently
-# (its window_range()/scale()) rather than a fixed span; this is that same
-# logic, per fox, driving the 5 LEDs instead of a terminal bar. bpm above is
-# deliberately NOT changed to match — it stays the plain, fixed-span reading.
-LEVEL_WINDOW_MS = 8000  # shorter than the meter's 20s default: a hunt is
-# tens of seconds, not minutes, and an 8s-old sample
-# from a different approach shouldn't still be
-# setting today's range
-RANGE_PAD_DB = 1.0  # same padding as the meter, either side of observed
-MIN_SPAN_DB = 4.0  # same floor — never auto-range narrower than this
-LEVEL_GAMMA = 2.0  # same power-law default: expands peaks, so the
-# last stretch into a fox reads as clearly hotter
-
-
-def _clamp01(x):
-    return max(0.0, min(1.0, x))
-
-
-class _LevelTracker:
-    """One per fox: the sliding window behind its 5-LED level. Direct port
-    of lora_rssi_meter.py's window_range() + scale(), swapping wall-clock
-    seconds for ticks_ms (no RTC needed) and a terminal bar's width for the
-    5 LEDs."""
-
-    def __init__(self):
-        self._samples = deque((), 128)  # (ticks_ms, rssi), pruned to the window
-
-    def push(self, rssi):
-        now = time.ticks_ms()
-        self._samples.append((now, rssi))
-        while (
-            self._samples
-            and time.ticks_diff(now, self._samples[0][0]) > LEVEL_WINDOW_MS
-        ):
-            self._samples.popleft()
-
-        lo, hi = self._range()
-        frac = _clamp01((rssi - lo) / (hi - lo)) ** LEVEL_GAMMA
-        return round(frac * 5)
-
-    def _range(self):
-        lo = min(r for _, r in self._samples) - RANGE_PAD_DB
-        hi = max(r for _, r in self._samples) + RANGE_PAD_DB
-        if hi - lo < MIN_SPAN_DB:
-            mid = (hi + lo) / 2.0
-            lo, hi = mid - MIN_SPAN_DB / 2.0, mid + MIN_SPAN_DB / 2.0
-        return lo, hi
+    return min(5, 1 + ((bpm - 120) // 25))
 
 
 class FoxReading:
     # NB: no "found" flag — RSSI can't tell you you've physically reached the
     # box. The player decides when to enter the code. We only report signal.
-    def __init__(self, fox_id, rssi, level, link=0, bearing=None):
+    def __init__(self, fox_id, rssi, link=0, bearing=None):
         self.fox_id = fox_id
-        self.rssi = rssi  # dBm, the one measured value — feeds bpm, untouched
-        self.level = level  # 0..5 hot/cold, auto-ranged (above) — home's
-        # heat bars and other observers still read this
+        self.rssi = rssi  # dBm, the one measured value — bpm_to_level and
+        # rssi_to_bpm are both views of it
         self.link = link  # 0..5 BEACONs actually received in the trailing
-        # link-quality window -> HuntActivity's 5 LEDs
-        # (screens_hunt.py); level above still drives
-        # everything else that reads .level unchanged
+        # link-quality window — the awake/asleep detector
+        # (screens_hunt.py breathes its sleep LED on 0)
         self.bearing = bearing  # degrees; present but UI ignores it (classic ARDF)
 
 
 class FoxRadio:
-    def __init__(self):
-        self._level_trackers = {}  # fox_id -> _LevelTracker
-
-    def _level(self, fox_id, rssi):
-        t = self._level_trackers.get(fox_id)
-        if t is None:
-            t = self._level_trackers[fox_id] = _LevelTracker()
-        return t.push(rssi)
-
-    def reset_level(self, fox_id):
-        """Drop fox_id's auto-range window. Called from start() so a fresh
-        hunt isn't still influenced by the tail of a previous approach, and
-        by screens_hunt.HuntActivity whenever link quality drops to 0 --
-        a silent fox means the player could be walking around (or away)
-        for a while, and the level shouldn't keep reporting wherever the
-        window happened to be when the beacons stopped. Public: called from
-        outside this module as well as from start() below."""
-        self._level_trackers.pop(fox_id, None)
-
     def active_foxes(self):
         raise NotImplementedError
 
@@ -220,19 +147,21 @@ class FoxRadio:
         raise NotImplementedError
 
 
-# ── 5-LED link quality: real receive counting for LoraFoxRadio (see
+# ── link quality: real receive counting for LoraFoxRadio (see
 # lora.LoRaLink.link_quality), a simulated equivalent here for the fake ────
 #
-# Distinct from level (above): level asks "how strong is the signal we DID
-# get", auto-ranged so it stays readable at any distance. Link quality asks
-# a blunter question — "how many of the fox's own ~LQ_PERIOD_MS
-# broadcasts actually arrived in the last five of them" — so the LEDs read
-# as a literal packet-loss meter: full when every expected message lands,
-# fading down over ~1.25s if the fox goes quiet, climbing back the same way
-# once it resumes. LoraFoxRadio gets this straight from lora.LINK, which
-# counts real BEACONs; FakeFoxRadio has no real packets to count, so
-# _FakeLinkSim fabricates the same kind of arrival/drop history at the same
-# cadence, driven by the existing walk-toward-the-fox `_strength`.
+# Distinct from bpm_to_level (above): that asks "how strong is the signal
+# we DID get". Link quality asks a blunter question — "how many of the
+# fox's own ~LQ_PERIOD_MS broadcasts actually arrived in the last five of
+# them" — a literal packet-loss count: full when every expected message
+# lands, fading down over ~1.25s if the fox goes quiet, climbing back the
+# same way once it resumes. The hunt screen reads it only as the
+# awake/asleep detector: 0 means "nothing heard lately", so the LEDs
+# breathe instead of showing a stale strength. LoraFoxRadio gets this
+# straight from lora.LINK, which counts real BEACONs; FakeFoxRadio has no
+# real packets to count, so _FakeLinkSim fabricates the same kind of
+# arrival/drop history at the same cadence, driven by the existing
+# walk-toward-the-fox `_strength`.
 LINK_DROP_MIN = 0.0  # best-case per-broadcast drop chance, right on top of the fox
 LINK_DROP_MAX = 0.65  # worst-case, at the edge of the simulated approach
 SILENCE_CHANCE = 0.004  # per simulated broadcast slot, chance the fox
@@ -311,7 +240,6 @@ class FakeFoxRadio(FoxRadio):
 
     def start(self, fox_id):
         self._strength[fox_id] = 0.12
-        self.reset_level(fox_id)
         self._link_sim.pop(fox_id, None)  # fresh hunt, fresh simulated air
 
     def _link(self, fox_id, strength):
@@ -330,24 +258,18 @@ class FakeFoxRadio(FoxRadio):
         s = max(0.0, min(1.0, s))
         self._strength[fox_id] = s
         rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
-        return FoxReading(
-            fox_id, rssi, self._level(fox_id, rssi), link=self._link(fox_id, s)
-        )
+        return FoxReading(fox_id, rssi, link=self._link(fox_id, s))
 
     def peek(self, fox_id):
         # No drift: reading() simulates walking toward the fox, and the home
         # row samples every awake fox on every resume — through reading(),
-        # ~30 visits home pinned all the heat bars at maximum forever. The
-        # level tracker still sees this rssi (harmless — same value repeated
-        # barely moves an auto-ranged window), just never a NEW one.
+        # ~30 visits home pinned all the heat bars at maximum forever.
         # The link sim, unlike strength, is driven by real elapsed time, not
         # by being looked at — same as a real fox keeps beaconing whether or
-        # not a screen is watching — so ticking it here is harmless too.
+        # not a screen is watching — so ticking it here is harmless.
         s = self._strength.get(fox_id, 0.12)
         rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
-        return FoxReading(
-            fox_id, rssi, self._level(fox_id, rssi), link=self._link(fox_id, s)
-        )
+        return FoxReading(fox_id, rssi, link=self._link(fox_id, s))
 
     def submit_code(self, fox_id, code, on_result):
         # A one-shot timer stands in for the round trip; the verdict is decided
@@ -393,9 +315,6 @@ class LoraFoxRadio(FoxRadio):
         ids = {c["id"] for c in CREATURES}
         return sorted(c for c in lora.LINK.active_chars() if c in ids)
 
-    def start(self, fox_id):
-        self.reset_level(fox_id)  # continuous RX already runs; just a fresh window
-
     def poll(self):
         lora.LINK.poll()
 
@@ -417,7 +336,7 @@ class LoraFoxRadio(FoxRadio):
         if rssi is None:
             rssi = RSSI_FAR
         link = lora.LINK.link_quality(fox_id)
-        return FoxReading(fox_id, rssi, self._level(fox_id, rssi), link=link)
+        return FoxReading(fox_id, rssi, link=link)
 
     def submit_code(self, fox_id, code, on_result):
         otc = lora.code_to_otc(code)

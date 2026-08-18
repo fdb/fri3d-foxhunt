@@ -21,7 +21,7 @@ import companion
 import store
 import sound
 from creatures import CREATURES
-from fox_radio import RADIO, bpm_to_dots, rssi_to_bpm
+from fox_radio import RADIO, bpm_to_level, rssi_to_bpm
 import registrar
 from foxhunt import lazy
 
@@ -69,7 +69,10 @@ def _nearby_cards(awake):
     for creature in CREATURES:
         if creature["id"] in awake:
             reading = RADIO.peek(creature["id"])
-            nearby.append((creature, bpm_to_dots(rssi_to_bpm(reading.rssi))))
+            # The card has four dots, the shared scale five levels: 4 and 5
+            # both read as full — the fifth step ("on top of the box") only
+            # matters once you're hunting, and the hunt LEDs carry it.
+            nearby.append((creature, min(4, bpm_to_level(rssi_to_bpm(reading.rssi)))))
     return nearby
 
 

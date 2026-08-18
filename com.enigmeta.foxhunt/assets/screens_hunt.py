@@ -9,18 +9,16 @@
 
 
 # ═════════════════════════ screen_hunt ═════════════════════════
-# screen_hunt.py — classic ARDF. Silhouette + heart/bpm + 5-LED hot/cold,
-# with the physical LEDs (badge) repurposed to show link quality.
+# screen_hunt.py — classic ARDF. Silhouette + heart/bpm + 5-LED hot/cold.
 #
 # A timer polls the (faked) radio; the RSSI it reports IS the heart rate
-# (rssi + 255) and also drives the on-screen 5-LED mirror (warmer = closer),
-# same as always. The physical NeoPixels are the one thing that diverged:
-# they now show link quality instead — how many of the fox's own ~250ms
-# broadcasts actually arrived in the last five of them (fox_radio.FoxReading
-# .link, 0..5; see lora.LoRaLink.link_quality) — so on the badge itself they
-# read as a signal-health meter: full when every expected message lands,
-# fading down over ~1.25s if the fox goes quiet, climbing back the same way
-# once it resumes.
+# (rssi + 255), and the same number drives the physical NeoPixels and the
+# on-screen 5-LED mirror through fox_radio.bpm_to_level — one fixed,
+# camp-measured scale (120 = edge of reception, 220 = on top of the box),
+# so the LEDs, the mirror, the bpm readout and home's dots all agree on
+# what "warm" means. Link quality (fox_radio.FoxReading.link, 0..5; see
+# lora.LoRaLink.link_quality) is only the awake/asleep detector: at 0 the
+# LEDs breathe (below) instead of showing a stale strength.
 # There is NO automatic "found": RSSI can't tell you you've physically reached
 # the box. The player walks up, reads the code off the device, and taps
 # "VOER DE CODE IN" themselves.
@@ -34,7 +32,7 @@ import art
 import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import sound
 from creatures import by_id
-from fox_radio import RADIO, rssi_to_bpm
+from fox_radio import RADIO, bpm_to_level, rssi_to_bpm
 
 # ── sleeping animation: link quality 0 looks identical to a frozen app if
 # the physical LEDs just go dark (leds.show_level(0)), so instead we breathe
@@ -139,28 +137,23 @@ class HuntActivity(Activity):
             return
         RADIO.poll()
         r = RADIO.reading(self.fox_id)
-        self.bpm.set_text(str(rssi_to_bpm(r.rssi)))
+        bpm = rssi_to_bpm(r.rssi)
+        self.bpm.set_text(str(bpm))
 
         # heartbeat: nudge the heart up/down each tick so it visibly throbs
         self._beat = not self._beat
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 6 if self._beat else 10)
 
-        # Physical LEDs (badge): link quality, or a breathing "listening"
-        # animation when it's flatlined at 0 (see _sleep_colors above) so a
-        # silent fox doesn't read as a frozen app.
+        # Physical LEDs (badge): signal strength on the fixed camp scale, or
+        # a breathing "listening" animation when the fox has gone quiet (see
+        # _sleep_colors above) so a silent fox doesn't read as a frozen app.
         if r.link == 0:
             leds.write(_sleep_colors())
-            # A silent fox means the player could be moving around freely,
-            # so keep dropping the auto-range window while it's quiet --
-            # otherwise level would keep reporting wherever that window
-            # happened to be when the beacons stopped, until a fresh BEACON
-            # eventually pushed it somewhere new.
-            RADIO.reset_level(self.fox_id)
-            level = 0  # mirror reads as "koud" too; r.level itself is just
-            # a stale rssi carried forward, not a real signal
+            level = 0  # mirror reads as "koud" too; r.rssi is just the
+            # last value carried forward, not a real signal
         else:
-            leds.show_level(r.link)
-            level = r.level
+            level = bpm_to_level(bpm)
+            leds.show_level(level)
         # Restyle the mirror only when the level moved: every set_style call
         # invalidates its cell, and at ~7 Hz an unchanged level would redraw
         # all five for nothing (same guard discipline as VliegActivity._drift).

@@ -59,7 +59,7 @@ def load_home():
     fox_radio = types.ModuleType("fox_radio")
     fox_radio.RADIO = MagicMock()
     fox_radio.rssi_to_bpm = MagicMock()
-    fox_radio.bpm_to_dots = MagicMock()
+    fox_radio.bpm_to_level = MagicMock()
 
     foxhunt = types.ModuleType("foxhunt")
     foxhunt.lazy = MagicMock()
@@ -105,7 +105,7 @@ class HomeSyncTest(unittest.TestCase):
         }
         module.RADIO.peek.side_effect = readings.__getitem__
         module.rssi_to_bpm.side_effect = lambda rssi: rssi + 255
-        module.bpm_to_dots.side_effect = lambda bpm: bpm // 50
+        module.bpm_to_level.side_effect = lambda bpm: bpm // 50
 
         first = module._nearby_cards({2, 4, 7, 9})
         readings[7].rssi, readings[2].rssi = readings[2].rssi, readings[7].rssi

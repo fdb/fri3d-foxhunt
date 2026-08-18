@@ -28,6 +28,7 @@ def load_screens_hunt(name="screens_hunt_under_test", **overrides):
     fox_radio = types.ModuleType("fox_radio")
     fox_radio.RADIO = MagicMock()
     fox_radio.rssi_to_bpm = MagicMock(return_value=60)
+    fox_radio.bpm_to_level = MagicMock(return_value=0)
 
     pluk_radio = types.ModuleType("pluk_radio")
     pluk_radio.RADIO = MagicMock()

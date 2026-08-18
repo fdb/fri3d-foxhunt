@@ -110,57 +110,35 @@ class FoxRadioTest(unittest.TestCase):
         self.assertEqual(bpm, 171)
         self.assertIs(type(bpm), int)
 
-    def test_heartbeat_dots_use_the_absolute_camp_range(self):
+    def test_level_uses_the_absolute_camp_range(self):
         cases = (
             (119, 0),
             (120, 1),
-            (139, 1),
-            (140, 2),
-            (159, 2),
-            (160, 3),
-            (179, 3),
-            (180, 4),
-            (250, 4),
+            (144, 1),
+            (145, 2),
+            (169, 2),
+            (170, 3),
+            (194, 3),
+            (195, 4),
+            (219, 4),
+            (220, 5),
+            (250, 5),
         )
 
         for bpm, expected in cases:
             with self.subTest(bpm=bpm):
-                self.assertEqual(self.module.bpm_to_dots(bpm), expected)
+                self.assertEqual(self.module.bpm_to_level(bpm), expected)
 
-    def test_level_auto_ranges_each_fox_independently(self):
-        first = self.radio._level(3, -100)
-        self.time.advance(100)
-        warmer = self.radio._level(3, -70)
-
-        # The same absolute signal is the first sample in fox 4's own window,
-        # so it starts near the middle instead of inheriting fox 3's hot end.
-        other_fox = self.radio._level(4, -70)
-
-        self.assertLess(first, warmer)
-        self.assertEqual(warmer, 5)
-        self.assertEqual(other_fox, first)
-
-    def test_level_window_forgets_old_extremes(self):
-        tracker = self.module._LevelTracker()
-        baseline = tracker.push(-100)
-        self.time.advance(100)
-        self.assertEqual(tracker.push(-70), 5)
-
-        self.time.advance(self.module.LEVEL_WINDOW_MS + 1)
-        self.assertEqual(tracker.push(-70), baseline)
-
-    def test_reading_reports_bounded_levels_that_rise_with_the_walk(self):
+    def test_reading_reports_bounded_rssi_that_rises_with_the_walk(self):
         self.radio.start(3)
         readings = []
         for _ in range(20):
             r = self.radio.reading(3)
             self.assertTrue(self.module.RSSI_FAR <= r.rssi <= self.module.RSSI_NEAR)
-            self.assertTrue(0 <= r.level <= 5)
             readings.append(r)
             self.time.advance(100)
 
         self.assertGreater(readings[-1].rssi, readings[0].rssi)
-        self.assertGreater(readings[-1].level, readings[0].level)
 
     def test_four_foxes_stay_active_while_the_fake_radio_is_polled(self):
         expected = list(self.module._AWAKE[:4])
