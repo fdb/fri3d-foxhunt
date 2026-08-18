@@ -1072,10 +1072,6 @@ function spriteExtent(rows){return {w:rows[0].length,h:rows.length};}
       if(i<level){const c=segColor(i);fill=`rgb(${c[0]},${c[1]},${c[2]})`;}
       seg.setAttribute('fill',fill);svg.appendChild(seg);
     }
-    const cold=document.createElementNS(NS,'text');
-    cold.setAttribute('x',20);cold.setAttribute('y',202);cold.setAttribute('class','svg-label');cold.setAttribute('fill','#3C6B2E');cold.textContent='koud';svg.appendChild(cold);
-    const warm=document.createElementNS(NS,'text');
-    warm.setAttribute('x',270);warm.setAttribute('y',202);warm.setAttribute('class','svg-label');warm.setAttribute('fill','#CF6A3F');warm.textContent='warm';svg.appendChild(warm);
     // button
     const btn=document.createElementNS(NS,'rect');
     btn.setAttribute('x',6);btn.setAttribute('y',208);btn.setAttribute('width',308);btn.setAttribute('height',26);
