@@ -45,17 +45,17 @@ def bpm_to_level(bpm):
     """Map the absolute heartbeat reading onto a 0..5 signal level.
 
     THE one strength scale: it drives the hunt screen's five physical LEDs
-    and its on-screen mirror, and (capped at 4) home's proximity dots, so
+    and its on-screen mirror, and home's five-segment proximity bar, so
     every readout agrees with the bpm number the player is watching.
     Camp-measured endpoints: below 120 nothing lights — that is the edge of
-    reception, where bpm still ticks but means little — and 220 is measured
-    on top of the box, so 5 LEDs reads as "you are there". The 100-bpm span
-    divides into five even 25-wide bands, which keeps the useful very-close
-    stretch (200-219) distinguishable as 4 LEDs from the arrival at 5.
+    reception, where bpm still ticks but means little — and 210 is measured
+    on top of the box, so a full bar reads as "you are there". The 90-bpm
+    span divides into five even bands (integer math, so band edges land on
+    143/165/188/210).
     """
     if bpm < 120:
         return 0
-    return min(5, 1 + ((bpm - 120) // 25))
+    return min(5, 1 + (bpm - 120) * 4 // 90)
 
 
 class FoxReading:

@@ -14,9 +14,9 @@
 # A timer polls the (faked) radio; the RSSI it reports IS the heart rate
 # (rssi + 255), and the same number drives the physical NeoPixels and the
 # on-screen 5-LED mirror through fox_radio.bpm_to_level — one fixed,
-# camp-measured scale (120 = edge of reception, 220 = on top of the box),
-# so the LEDs, the mirror, the bpm readout and home's dots all agree on
-# what "warm" means. Link quality (fox_radio.FoxReading.link, 0..5; see
+# camp-measured scale (120 = edge of reception, 210 = on top of the box),
+# so the LEDs, the mirror, the bpm readout and home's proximity bars all
+# agree on what "warm" means. Link quality (fox_radio.FoxReading.link, 0..5; see
 # lora.LoRaLink.link_quality) is only the awake/asleep detector: at 0 the
 # LEDs breathe (below) instead of showing a stale strength.
 # There is NO automatic "found": RSSI can't tell you you've physically reached

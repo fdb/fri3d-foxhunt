@@ -69,10 +69,7 @@ def _nearby_cards(awake):
     for creature in CREATURES:
         if creature["id"] in awake:
             reading = RADIO.peek(creature["id"])
-            # The card has four dots, the shared scale five levels: 4 and 5
-            # both read as full — the fifth step ("on top of the box") only
-            # matters once you're hunting, and the hunt LEDs carry it.
-            nearby.append((creature, min(4, bpm_to_level(rssi_to_bpm(reading.rssi)))))
+            nearby.append((creature, bpm_to_level(rssi_to_bpm(reading.rssi))))
     return nearby
 
 
@@ -439,12 +436,15 @@ class HomeActivity(Activity):
                 cell.set_style_border_color(ui.hexc(ui.TERRA), 0)
                 spr = art.creature_panel(cell, c, 2, silhouette=not is_caught)
                 spr.set_pos(18, 2)
-                for d in range(4):
-                    seg = ui.box(
-                        cell, 10 + d * 14, 40, 11, 5, ui.TERRA if d < dots else _SEG_OFF
+                # Five-segment proximity bar, same 0..5 scale as the hunt
+                # LEDs (fox_radio.bpm_to_level). One ink box is the outline
+                # AND the 1px ticks between segments: the fills leave a
+                # 1px column of it showing between each pair.
+                bar = ui.box(cell, 6, 39, 61, 7, ui.INK)
+                for d in range(5):
+                    ui.box(
+                        bar, 1 + d * 12, 1, 11, 5, ui.TERRA if d < dots else _SEG_OFF
                     )
-                    seg.set_style_border_width(ui.BORDER_THIN, 0)
-                    seg.set_style_border_color(ui.hexc(ui.INK), 0)
                 ui.focusable(
                     cell,
                     on_click=lambda cc=c["id"]: self._hunt(cc),
