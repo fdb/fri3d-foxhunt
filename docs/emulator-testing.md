@@ -28,11 +28,28 @@ sleep 30; pkill -f lvgl_micropy   # the emulator never exits on stdin EOF
 grep Traceback /tmp/run.log
 ```
 
-Screenshots are raw RGB565; convert with:
+`shot()` asks LVGL for a snapshot of the active screen, so it captures the
+320x240 framebuffer itself — never the SDL window, which the Mac backs at 2x
+and would hand out at 640x480. The file is raw pixels; PNG at 1:1 is one
+ffmpeg call:
 
 ```bash
-ffmpeg -vcodec rawvideo -f rawvideo -pix_fmt rgb565le -s 320x240 -i shot.raw shot.png
+ffmpeg -f rawvideo -pixel_format rgb565le -video_size 320x240 -i shot.raw shot.png
 ```
+
+RGB565 is the panel's own format, so it is what the badge shows — but it keeps
+5/6/5 bits, and a converted PNG is off by a few counts per channel (`0xFFCB45`
+comes back as `255,203,66`). For colour-exact evidence, ask for the wide format
+and read it as `bgra`, which is how LVGL lays ARGB8888 out in memory:
+
+```
+shot('x.raw', color_format=lv.COLOR_FORMAT.ARGB8888)   # 320*240*4 bytes
+ffmpeg -f rawvideo -pixel_format bgra -video_size 320x240 -i x.raw x.png
+```
+
+`scripts/capture_server_screens.sh` is the same path with one extra step: it
+scales to 640x480 with `flags=neighbor`, because the public site wants an exact
+2x. Drop that `-vf` to keep 100%.
 
 ## Useful REPL moves
 
