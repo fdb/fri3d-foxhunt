@@ -62,6 +62,7 @@ class HuntActivity(Activity):
         self.timer = None
         self._beat = False
         self._mirror_level = None  # last drawn LED-mirror level; None = never
+        self._bpm_live = True  # bpm drawn in terra (vs muted); matches below
 
         s = ui.make_screen(0xCFE2AD)
         rarity = self.c["rarity"]
@@ -152,6 +153,19 @@ class HuntActivity(Activity):
         else:
             level = bpm_to_level(bpm)
             leds.show_level(level)
+
+        # A silent fox keeps its last bpm on screen, muted. Losing the beacon
+        # for a few steps is ordinary on a hunt, so blanking the number would
+        # make the readout flicker and throw away the reading the player is
+        # walking on -- but leaving it in live terra beside a dark bar would
+        # claim a signal we no longer have. The heart keeps throbbing: it is
+        # the app's pulse, not the fox's, and it is the only on-screen sign
+        # that a quiet hunt has not frozen. Guarded like the mirror below,
+        # since a style write invalidates the label.
+        live = r.link != 0
+        if live != self._bpm_live:
+            self._bpm_live = live
+            self.bpm.set_style_text_color(ui.hexc(ui.TERRA if live else ui.MYSTERY), 0)
         # Restyle the mirror only when the level moved: every set_style call
         # invalidates its cell, and at ~7 Hz an unchanged level would redraw
         # all five for nothing (same guard discipline as VliegActivity._drift).
