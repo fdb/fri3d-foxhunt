@@ -437,10 +437,14 @@ class HomeActivity(Activity):
                 spr = art.creature_panel(cell, c, 2, silhouette=not is_caught)
                 spr.set_pos(18, 2)
                 # Five-segment proximity bar, same 0..5 scale as the hunt
-                # LEDs (fox_radio.bpm_to_level). One ink box is the outline
-                # AND the 1px ticks between segments: the fills leave a
-                # 1px column of it showing between each pair.
-                bar = ui.box(cell, 6, 39, 61, 7, ui.INK)
+                # LEDs (fox_radio.bpm_to_level). One muted box is the
+                # outline AND the 1px ticks between segments: the fills
+                # leave a 1px column of it showing between each pair.
+                # MYSTERY, not INK — a hairline this thin reads heavy in
+                # full ink next to the card's soft terra frame.
+                # x centers it in the cell's CONTENT area — LVGL places
+                # children inside the 2px border, so that area is 69 wide.
+                bar = ui.box(cell, 4, 39, 61, 7, ui.MYSTERY)
                 for d in range(5):
                     ui.box(
                         bar, 1 + d * 12, 1, 11, 5, ui.TERRA if d < dots else _SEG_OFF
