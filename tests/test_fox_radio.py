@@ -129,6 +129,34 @@ class FoxRadioTest(unittest.TestCase):
             with self.subTest(bpm=bpm):
                 self.assertEqual(self.module.bpm_to_level(bpm), expected)
 
+    def test_direction_level_makes_a_rotation_peak_explicit(self):
+        sweep = (-104, -101, -98, -96, -98, -101, -104)
+
+        levels = [self.radio.direction_level(3, rssi) for rssi in sweep]
+
+        self.assertGreaterEqual(max(levels), 4)
+        self.assertLessEqual(levels[-1], 1)
+        self.assertGreaterEqual(max(levels) - min(levels), 3)
+
+    def test_direction_level_is_independent_per_fox(self):
+        first = self.radio.direction_level(3, -100)
+        self.time.advance(100)
+        warmer = self.radio.direction_level(3, -70)
+
+        other_fox = self.radio.direction_level(4, -70)
+
+        self.assertLess(first, warmer)
+        self.assertEqual(warmer, 5)
+        self.assertEqual(other_fox, first)
+
+    def test_direction_window_forgets_old_extremes(self):
+        baseline = self.radio.direction_level(3, -100)
+        self.time.advance(100)
+        self.assertEqual(self.radio.direction_level(3, -70), 5)
+
+        self.time.advance(self.module.DIRECTION_WINDOW_MS + 1)
+        self.assertEqual(self.radio.direction_level(3, -70), baseline)
+
     def test_reading_reports_bounded_rssi_that_rises_with_the_walk(self):
         self.radio.start(3)
         readings = []

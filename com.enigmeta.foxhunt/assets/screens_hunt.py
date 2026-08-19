@@ -12,11 +12,10 @@
 # screen_hunt.py — classic ARDF. Silhouette + heart/bpm + 5-LED hot/cold.
 #
 # A timer polls the (faked) radio; the RSSI it reports IS the heart rate
-# (rssi + 255), and the same number drives the physical NeoPixels and the
-# on-screen 5-LED mirror through fox_radio.bpm_to_level — one fixed,
-# camp-measured scale (120 = edge of reception, 210 = on top of the box),
-# so the LEDs, the mirror, the bpm readout and home's proximity bars all
-# agree on what "warm" means. Link quality (fox_radio.FoxReading.link, 0..5; see
+# (rssi + 255) as a rough absolute distance cue. The physical NeoPixels and
+# on-screen 5-LED mirror instead auto-range over one slow rotation, making
+# the strongest antenna direction explicit even when its RSSI advantage is
+# only a few dB. Link quality (fox_radio.FoxReading.link, 0..5; see
 # lora.LoRaLink.link_quality) is only the awake/asleep detector: at 0 the
 # LEDs breathe (below) instead of showing a stale strength.
 # There is NO automatic "found": RSSI can't tell you you've physically reached
@@ -32,7 +31,7 @@ import art
 import sound as leds  # LED helpers live in sound.py (merged for block economy)
 import sound
 from creatures import by_id
-from fox_radio import RADIO, bpm_to_level, rssi_to_bpm
+from fox_radio import RADIO, rssi_to_bpm
 
 # ── sleeping animation: link quality 0 looks identical to a frozen app if
 # the physical LEDs just go dark (leds.show_level(0)), so instead we breathe
@@ -117,6 +116,7 @@ class HuntActivity(Activity):
     def onResume(self, screen):
         super().onResume(screen)
         RADIO.start(self.fox_id)  # restart cold on every entry / return
+        RADIO.reset_direction(self.fox_id)
         self.timer = lv.timer_create(self._tick, 150, None)
 
     def onPause(self, screen):
@@ -124,6 +124,7 @@ class HuntActivity(Activity):
         if self.timer:
             self.timer.delete()
             self.timer = None
+        RADIO.reset_direction(self.fox_id)
         leds.off()
 
     def _tick(self, t):
@@ -147,15 +148,16 @@ class HuntActivity(Activity):
         self._beat = not self._beat
         self.heart.align(lv.ALIGN.TOP_RIGHT, -54, 6 if self._beat else 10)
 
-        # Physical LEDs (badge): signal strength on the fixed camp scale, or
+        # Physical LEDs (badge): relative direction strength, or
         # a breathing "listening" animation when the fox has gone quiet (see
         # _sleep_colors above) so a silent fox doesn't read as a frozen app.
         if r.link == 0:
             leds.write(_sleep_colors())
+            RADIO.reset_direction(self.fox_id)
             level = 0  # mirror reads as "koud" too; r.rssi is just the
             # last value carried forward, not a real signal
         else:
-            level = bpm_to_level(bpm)
+            level = RADIO.direction_level(self.fox_id, r.rssi)
             leds.show_level(level)
 
         # A silent fox keeps its last bpm on screen, muted. Losing the beacon

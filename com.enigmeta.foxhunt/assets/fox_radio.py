@@ -42,11 +42,12 @@ def rssi_to_bpm(rssi):
 
 
 def bpm_to_level(bpm):
-    """Map the absolute heartbeat reading onto a 0..5 signal level.
+    """Map the absolute heartbeat reading onto a 0..5 proximity level.
 
-    THE one strength scale: it drives the hunt screen's five physical LEDs
-    and its on-screen mirror, and home's five-segment proximity bar, so
-    every readout agrees with the bpm number the player is watching.
+    This fixed scale drives home's five-segment proximity bar, so it agrees
+    with the bpm number the player is watching. The hunt bars deliberately
+    use the short-window relative scale below: their job is to distinguish
+    one antenna direction from another, not estimate absolute distance.
     Camp-measured endpoints: below 120 nothing lights — that is the edge of
     reception, where bpm still ticks but means little — and 210 is measured
     on top of the box, so a full bar reads as "you are there". The 90-bpm
@@ -56,6 +57,42 @@ def bpm_to_level(bpm):
     if bpm < 120:
         return 0
     return min(5, 1 + (bpm - 120) * 4 // 90)
+
+
+# ── Hunt direction bars: relative strength over one slow rotation ─────────
+#
+# Absolute RSSI is useful as a rough distance cue, but antenna direction is a
+# much smaller change riding on top of it. Five fixed ~22 dB-wide bands turn a
+# normal 4–8 dB rotation into a flat bar. Keep a short per-fox history and
+# stretch its observed range across all five cells instead. The square curve
+# gives the strongest direction extra visual separation from merely-good ones.
+DIRECTION_WINDOW_MS = 8000
+DIRECTION_RANGE_PAD_DB = 1.0
+DIRECTION_MIN_SPAN_DB = 4.0
+DIRECTION_GAMMA = 2.0
+
+
+class _DirectionTracker:
+    def __init__(self):
+        self._samples = deque((), 128)
+
+    def push(self, rssi):
+        now = time.ticks_ms()
+        self._samples.append((now, rssi))
+        while (
+            self._samples
+            and time.ticks_diff(now, self._samples[0][0]) > DIRECTION_WINDOW_MS
+        ):
+            self._samples.popleft()
+
+        lo = min(value for _, value in self._samples) - DIRECTION_RANGE_PAD_DB
+        hi = max(value for _, value in self._samples) + DIRECTION_RANGE_PAD_DB
+        if hi - lo < DIRECTION_MIN_SPAN_DB:
+            mid = (hi + lo) / 2.0
+            lo = mid - DIRECTION_MIN_SPAN_DB / 2.0
+            hi = mid + DIRECTION_MIN_SPAN_DB / 2.0
+        fraction = max(0.0, min(1.0, (rssi - lo) / (hi - lo))) ** DIRECTION_GAMMA
+        return round(fraction * 5)
 
 
 class FoxReading:
@@ -72,6 +109,24 @@ class FoxReading:
 
 
 class FoxRadio:
+    def direction_level(self, fox_id, rssi):
+        """Return 0..5 relative strength for finding the best antenna angle."""
+        try:
+            trackers = self._direction_trackers
+        except AttributeError:
+            trackers = self._direction_trackers = {}
+        tracker = trackers.get(fox_id)
+        if tracker is None:
+            tracker = trackers[fox_id] = _DirectionTracker()
+        return tracker.push(rssi)
+
+    def reset_direction(self, fox_id):
+        """Start a fresh comparison window for a hunt or after radio silence."""
+        try:
+            self._direction_trackers.pop(fox_id, None)
+        except AttributeError:
+            pass
+
     def active_foxes(self):
         raise NotImplementedError
 
