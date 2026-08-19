@@ -63,6 +63,7 @@ class HuntActivity(Activity):
         self._beat = False
         self._mirror_level = None  # last drawn LED-mirror level; None = never
         self._bpm_live = True  # bpm drawn in terra (vs muted); matches below
+        self._bpm_text = None  # unchanged set_text() still invalidates pixels
 
         s = ui.make_screen(0xCFE2AD)
         rarity = self.c["rarity"]
@@ -137,7 +138,10 @@ class HuntActivity(Activity):
         RADIO.poll()
         r = RADIO.reading(self.fox_id)
         bpm = rssi_to_bpm(r.rssi)
-        self.bpm.set_text(str(bpm))
+        bpm_text = str(bpm)
+        if bpm_text != self._bpm_text:
+            self._bpm_text = bpm_text
+            self.bpm.set_text(bpm_text)
 
         # heartbeat: nudge the heart up/down each tick so it visibly throbs
         self._beat = not self._beat

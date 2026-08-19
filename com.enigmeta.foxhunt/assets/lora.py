@@ -11,14 +11,14 @@
 #   TX briefly:    CODE_ENTRY (§3.2), low power, when the player submits a
 #                  code (§5.2 step 1, from our side).
 #
-# NO THREADS. main.py's radio_thread proved why not: the SX1262 driver holds
-# CS low across a busy-wait and one SPI transaction per byte, and the ST7789
-# display shares the same SPI host (see main.py's header comment and
-# sx1262_spi_patch.md). A second thread can get a display flush clocked into
-# a selected radio mid-transaction. There is no such window here — this
-# module is only ever entered from LVGL timer callbacks, i.e. from inside
-# lv_timer_handler() on the one and only thread, interleaved with (never
-# concurrent with) the display's own flush timer. That is the whole fix.
+# NO RADIO THREAD. main.py's radio_thread proved why not: the SX1262 driver
+# holds CS low across a busy-wait and one SPI transaction per byte, and the
+# ST7789 display shares the same SPI host (see main.py's header comment and
+# sx1262_spi_patch.md). A second Python thread can get a display flush clocked
+# into a selected radio mid-transaction. Keeping radio entry on LVGL's thread
+# prevents that CPU-side overlap. Display DMA can still outlive the widget call
+# that scheduled it, so poll-first ordering and avoiding redundant redraws
+# reduce the remaining overlap window; they do not make the shared bus atomic.
 #
 # The radio is put into continuous receive once, at import time (see LINK.
 # start() at the bottom), and stays there. A CODE_ENTRY send leaves RX just
@@ -28,16 +28,14 @@
 # THERE IS NO INTERNAL POLLING LOOP EITHER. LINK.poll() does one round of
 # "is a packet waiting? read it; is the chip healthy? tick the claim" and
 # returns — it is meant to be called from a screen's own existing tick
-# timer, first thing, before that screen touches any widget. That is what
-# actually guarantees no bus conflict: the whole poll (and any TX it
-# triggers) runs to completion before the tick goes on to do LVGL work, on
-# the same call stack, on the one UI thread. A second always-on lv.timer
-# polling independently of the screen timers would still be safe from a
-# genuine SPI race (nothing here is concurrent), but it loses the "poll,
-# then draw, in that order, every tick" guarantee that makes the ordering
-# obviously correct rather than incidentally correct — so screens_hunt.py's
-# HuntActivity and CodeActivity call LINK.poll() (via RADIO.poll()) from
-# their own ticks instead.
+# timer, first thing, before that screen touches any widget. The whole poll
+# (and any TX it triggers) therefore returns before that same tick asks LVGL
+# for more display work. A second always-on lv.timer would lose even this
+# deterministic poll-then-draw ordering, so screens_hunt.py's HuntActivity and
+# CodeActivity call LINK.poll() (via RADIO.poll()) from their own ticks instead.
+# The first CODE_ENTRY starts from the keypad callback after its final widget
+# update; retries run from poll(), before HuntActivity's widget work. Neither
+# ordering is an exclusive lock against DMA launched by an earlier flush.
 
 import time
 from collections import deque
@@ -59,7 +57,8 @@ CURRENT_LIMIT = 140.0  # copied from the known-working main.py bring-up; the
 # uses, so 140 mA is harmless headroom, not a risk.
 LP_POWER = 4  # dBm; hunter devices only ever transmit at LP (spec §6.2)
 
-RF_SW_PIN = 46  # fri3d_2026: high = receive path enabled
+RF_SW_PIN = 46  # fri3d_2026: high = Wio module RF-switch gate enabled;
+# internal DIO2 selects TX versus RX and stays under driver control
 REG_LORA_SYNC_WORD_MSB = 0x0740
 PACKET_TYPE_LORA = 0x01
 MODE_RX = 5
@@ -102,6 +101,9 @@ RECOVERY_ATTEMPTS = 2
 IRQ_RX_ANY = 0b0000000010 | 0b0000100000 | 0b0001000000  # RX_DONE|HEADER_ERR|CRC_ERR
 IRQ_TX_DONE = 0b0000000001
 IRQ_TX_ANY = IRQ_TX_DONE | 0b1000000000  # TX_DONE|TIMEOUT
+_RX_EMPTY = 0
+_RX_READY = 1
+_RX_SUSPECT = 2
 
 # CH32 expander config byte (fri3d_2026 only; see main.py):
 #   bit 4 = LoRa reset (1 = released)   bit 1 = LCD reset   bit 0 = AUX 3v3
@@ -235,6 +237,9 @@ T_PEND_INITIAL = 3000  # ms; no PENDING yet on the first send -> start
 # repeating CODE_ENTRY (§5.3)
 T_CODE_RETRY_INTERVAL = 1000  # ms between repeats after that (§5.3 "1 s intervals")
 N_CODE_RETRY = 5  # max CODE_ENTRY attempts before giving up (§5.3)
+T_TX_DEFER_MAX = 3000  # ms a continuously suspect RX latch may defer TX;
+# enough for transient validation noise to settle without making the claim
+# immortal when the status bus remains unreadable
 T_VERIFY_HUNTER = 8500  # ms after PENDING to wait for PROOF/FAIL. Spec's
 # own §5.2 fox-side T_VERIFY is 12s, so this is
 # deliberately shorter than that margin: chosen for
@@ -259,14 +264,24 @@ class _Claim:
         self.attempts = 0
         self.pending_seen = False
         self.pending_at = 0
-        self.sent_at = 0
+        self.sent_at = time.ticks_ms()
+        self.tx_deferred_at = None
         self.done = False
         self._send()
 
     def _send(self):
+        sent_at = self.link._transmit(build_code_entry(self.fid, self.hid, self.otc))
+        if sent_at is None:
+            if self.tx_deferred_at is None:
+                self.tx_deferred_at = time.ticks_ms()
+            return
+        self.tx_deferred_at = None
         self.attempts += 1
-        self.sent_at = time.ticks_ms()
-        self.link._transmit(build_code_entry(self.fid, self.hid, self.otc))
+        # Preserve the protocol's send-time retry anchor while allowing a
+        # blocked preflight to leave both the deadline and attempt count
+        # untouched. The inner TX_DONE deadline is separately anchored
+        # after radio.send() returns in _transmit().
+        self.sent_at = sent_at
 
     def on_packet(self, kind, fid, hid):
         if self.done or fid != self.fid or hid != self.hid:
@@ -290,6 +305,11 @@ class _Claim:
             return
         now = time.ticks_ms()
         if not self.pending_seen:
+            if self.tx_deferred_at is not None and (
+                time.ticks_diff(now, self.tx_deferred_at) >= T_TX_DEFER_MAX
+            ):
+                self._finish("wrong")
+                return
             timeout = T_PEND_INITIAL if self.attempts == 1 else T_CODE_RETRY_INTERVAL
             if time.ticks_diff(now, self.sent_at) >= timeout:
                 if self.attempts >= N_CODE_RETRY:
@@ -351,9 +371,7 @@ class LoRaLink:
     # ------------------------------------------------------------ lifecycle
 
     def start(self):
-        """Called once, at import (see bottom of file) -- "the start of the
-        app" for every practical purpose, since fox_radio is the first thing
-        any screen touches the radio through."""
+        """Discover the shared chip and schedule its first full bring-up."""
         try:
             from mpos import LoRaManager, DeviceInfo
         except Exception as e:
@@ -469,7 +487,8 @@ class LoRaLink:
             try:
                 from machine import Pin
 
-                self.rf_sw = Pin(RF_SW_PIN, Pin.OUT)
+                if self.rf_sw is None:
+                    self.rf_sw = Pin(RF_SW_PIN, Pin.OUT)
                 self.rf_sw.value(1)
             except Exception as e:
                 print("lora: could not drive RF switch pin:", repr(e))
@@ -679,9 +698,10 @@ class LoRaLink:
         self.radio.setBlockingCallback(False)
 
         if self.is_fri3d:
-            # begin() ends with setDio2AsRfSwitch(True); this board drives
-            # the RF switch itself (RF_SW_PIN), not via DIO2.
-            self.radio.setDio2AsRfSwitch(False)
+            # begin() ends with setDio2AsRfSwitch(True). Preserve it: the Wio
+            # module keeps DIO2 internal and uses it to select TX (high) versus
+            # RX (low). GPIO46 is the separate external gate, held high for
+            # both directions while foxhunt owns the radio.
             if self.rf_sw is not None:
                 self.rf_sw.value(1)
 
@@ -740,16 +760,17 @@ class LoRaLink:
     # the first thing a screen's own tick does, before any widget update, so
     # every SPI transaction this triggers (a read, or a health-check re-arm,
     # or a claim's CODE_ENTRY retry) finishes before that same tick goes on
-    # to touch LVGL. That ordering, not anything below, is what keeps this
-    # off the display's bus at the wrong moment.
+    # to touch LVGL. That ordering narrows the asynchronous display-DMA overlap
+    # window; it is not an exclusive bus lock (see module header).
 
     def poll(self):
         if not self.ready:
             return
         try:
-            if self.rx_pending():
+            rx_state = self._rx_state()
+            if rx_state == _RX_READY:
                 self.read_packet()
-            elif (
+            elif rx_state == _RX_EMPTY and (
                 time.ticks_diff(time.ticks_ms(), self._last_health_check)
                 >= MODE_CHECK_MS
             ):
@@ -769,10 +790,19 @@ class LoRaLink:
         retried rather than acted on (see main.py). The IRQ stays latched
         through a rejection -- a real packet is never dropped, just picked
         up on a later poll."""
+        return self._rx_state() == _RX_READY
+
+    def _rx_state(self):
+        """Classify the receive latch without conflating suspect with empty.
+
+        _RX_SUSPECT deliberately preserves the IRQ and payload for another
+        read. A transmitter must treat it as occupied: sx1262.py's send()
+        would otherwise erase the packet this validation chose to keep.
+        """
         irq = self.radio.getIrqStatus()
         if not (irq & IRQ_RX_ANY):
             self._consecutive_rejects = 0
-            return False
+            return _RX_EMPTY
 
         if (
             self.radio.getIrqStatus() != irq
@@ -787,10 +817,10 @@ class LoRaLink:
                 )
                 self._consecutive_rejects = 0
                 self.soft_recover()
-            return False
+            return _RX_SUSPECT
 
         self._consecutive_rejects = 0
-        return True
+        return _RX_READY
 
     def read_packet(self):
         try:
@@ -839,14 +869,36 @@ class LoRaLink:
 
     def _transmit(self, data):
         """Leave continuous RX just long enough to clock out one packet (LP,
-        §7), then return to it. Runs inline from poll()/_Claim -- always the
-        same call stack, so there is nothing else on this SPI bus to race."""
+        §7), then return to it. Runs inline from poll()/_Claim on the LVGL
+        thread, so another Python radio call cannot interleave with it."""
         if not self.ready:
-            return
+            return None
+        attempted_at = None
+        sent_at = None
         try:
+            # Close the gap between poll()'s first IRQ read and a due claim
+            # retry. sx1262.py writes TX at the same 0x00 buffer base as RX and
+            # clears all IRQs inside send(), so an unread frame must be drained
+            # before entering the driver. A matching PENDING/PROOF/FAIL makes
+            # this retry redundant; an unrelated BEACON does not, so continue
+            # on to send it rather than silently burning an attempt.
+            claim = self._claim
+            rx_state = self._rx_state()
+            if rx_state == _RX_SUSPECT:
+                return None
+            if rx_state == _RX_READY:
+                self.read_packet()
+                if claim is not None and (claim.done or claim.pending_seen):
+                    return None
+            # The public driver call can raise before or after SetTx; it does
+            # not expose that stage. Count any entered send() conservatively
+            # as an air attempt so an ambiguous failure cannot exceed the
+            # protocol's N_CODE_RETRY maximum.
+            attempted_at = time.ticks_ms()
             self.radio.send(bytes(data))  # non-blocking: queues the TX and
             # returns once the BUSY line clears -- that covers issuing the
             # command, not the transmission, so poll IRQ for the real done.
+            sent_at = time.ticks_ms()
             deadline = time.ticks_add(time.ticks_ms(), TX_DEADLINE_MS)
             while time.ticks_diff(deadline, time.ticks_ms()) > 0:
                 if self.radio.getIrqStatus() & IRQ_TX_ANY:
@@ -854,9 +906,11 @@ class LoRaLink:
                 time.sleep_ms(2)
             self.radio.clearIrqStatus()
             self.radio.startReceive()  # back to continuous RX
+            return sent_at
         except Exception as e:
             print("lora: transmit failed:", repr(e))
             self.soft_recover()
+            return sent_at if sent_at is not None else attempted_at
 
     # --------------------------------------------------------------- reads
 

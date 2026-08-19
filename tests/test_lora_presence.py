@@ -17,6 +17,7 @@ class RadioChip:
         self.awake = packet_type in (0, 1)
         self.packet_type_calls = 0
         self.begin_calls = 0
+        self.dio2_calls = []
         self.SPItransfer = MagicMock()
 
     def getPacketType(self):
@@ -29,13 +30,16 @@ class RadioChip:
         self.begin_calls += 1
         if self.wakes_on_begin:
             self.awake = True
+        # The pinned sx1262.py does this at the end of begin(). Application
+        # code must preserve it rather than immediately overriding it.
+        self.setDio2AsRfSwitch(True)
         return 0 if self.awake else -1
 
     def setBlockingCallback(self, _blocking):
         pass
 
-    def setDio2AsRfSwitch(self, _enabled):
-        pass
+    def setDio2AsRfSwitch(self, enabled):
+        self.dio2_calls.append(enabled)
 
     def getDeviceErrors(self):
         return 0
@@ -82,6 +86,20 @@ class FakeExpander:
         self.released = bool(value & 0x10)
 
 
+class FakePin:
+    OUT = 1
+    instances = []
+
+    def __init__(self, number, mode):
+        self.number = number
+        self.mode = mode
+        self.writes = []
+        type(self).instances.append(self)
+
+    def value(self, value):
+        self.writes.append(value)
+
+
 def load_lora(packet_type, wakes_on_begin=True):
     lvgl = types.ModuleType("lvgl")
     timers = []
@@ -99,7 +117,8 @@ def load_lora(packet_type, wakes_on_begin=True):
     mpos.io_expander = expander
     mpos.ui = types.SimpleNamespace(task_handler=task_handler)
     machine = types.ModuleType("machine")
-    machine.Pin = MagicMock(OUT=1)
+    FakePin.instances = []
+    machine.Pin = FakePin
     module_stubs.update({"lvgl": lvgl, "mpos": mpos, "machine": machine})
 
     spec = importlib.util.spec_from_file_location(
@@ -112,6 +131,7 @@ def load_lora(packet_type, wakes_on_begin=True):
     ):
         spec.loader.exec_module(module)
     module._test_module_stubs = module_stubs
+    module._test_pins = FakePin.instances
     return module, timers, radio, expander, task_handler
 
 
@@ -160,6 +180,17 @@ class LoRaPresenceTest(unittest.TestCase):
 
                 self.assertTrue(lora.LINK.ready)
                 self.assertIsNone(lora.LINK.notice())
+
+    def test_configuration_preserves_dio2_automation_and_rf_gate(self):
+        lora, timers, radio, _expander, _task_handler = load_lora(1)
+
+        fire_all(timers)
+
+        self.assertEqual(radio.dio2_calls, [True])
+        self.assertEqual(len(lora._test_pins), 1)
+        self.assertEqual(lora._test_pins[0].number, lora.RF_SW_PIN)
+        self.assertTrue(lora._test_pins[0].writes)
+        self.assertTrue(all(value == 1 for value in lora._test_pins[0].writes))
 
     def test_fitted_is_a_pure_query_that_never_resets(self):
         # The register screen asks "is an antenna fitted?" while it builds;
