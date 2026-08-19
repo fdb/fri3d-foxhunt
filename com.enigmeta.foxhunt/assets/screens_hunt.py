@@ -33,6 +33,11 @@ import sound
 from creatures import by_id
 from fox_radio import RADIO, rssi_to_bpm
 
+# Receiver-side latency budget: a freshly received RSSI sample reaches the
+# bars on the next tick. Keep this at or below 200 ms (5 Hz); direction_level
+# applies the sample immediately and does not average it over its history.
+HUNT_TICK_MS = 150
+
 # ── sleeping animation: link quality 0 looks identical to a frozen app if
 # the physical LEDs just go dark (leds.show_level(0)), so instead we breathe
 # LED 0 gently -- a slow fade in/out, red, for "listening, nothing heard
@@ -117,7 +122,7 @@ class HuntActivity(Activity):
         super().onResume(screen)
         RADIO.start(self.fox_id)  # restart cold on every entry / return
         RADIO.reset_direction(self.fox_id)
-        self.timer = lv.timer_create(self._tick, 150, None)
+        self.timer = lv.timer_create(self._tick, HUNT_TICK_MS, None)
 
     def onPause(self, screen):
         super().onPause(screen)

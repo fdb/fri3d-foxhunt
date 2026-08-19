@@ -145,7 +145,7 @@ _scale = None  # 0.0..1.0, lazily read from the "led" setting
 
 
 def brightness():
-    """LED strength 0..100, from settings (cached — the hunt polls at 4 Hz)."""
+    """LED strength 0..100, cached because the hunt polls above 5 Hz."""
     global _scale
     if _scale is None:
         import store

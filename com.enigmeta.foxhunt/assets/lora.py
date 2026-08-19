@@ -65,9 +65,9 @@ MODE_RX = 5
 CHIP_MODES = {2: "STBY_RC", 3: "STBY_XOSC", 4: "FS", 5: "RX", 6: "TX"}
 
 SETTLE_MS = 1000  # let the activity transition finish before touching SPI
-# Suggested cadence for whoever calls LINK.poll() from their own tick — tight
-# enough to keep up with ~30 ms airtime packets (§3) without demanding it.
-# HuntActivity already ticks at this rate for its own reasons (screens_hunt.py).
+# Suggested maximum cadence for non-interactive callers. HuntActivity polls
+# faster (150 ms) so a packet already waiting reaches its direction bars within
+# the receiver-side 200 ms / 5 Hz feedback budget.
 SUGGESTED_POLL_MS = 250
 MODE_CHECK_MS = 1000  # real elapsed time between health checks, not a
 # call count — poll() is called at whatever cadence

@@ -34,6 +34,9 @@ class HuntRadioTickTest(unittest.TestCase):
         self.assertEqual(screen.heart.align.call_count, 2)
         self.assertEqual(self.radio.poll.call_count, 2)
 
+    def test_receiver_feedback_budget_is_at_least_five_hz(self):
+        self.assertLessEqual(self.module.HUNT_TICK_MS, 200)
+
     def test_hunt_bars_use_relative_direction_level(self):
         screen = MagicMock()
         screen.has_foreground.return_value = True
