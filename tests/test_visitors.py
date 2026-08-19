@@ -128,6 +128,14 @@ class VisitorTest(unittest.TestCase):
         )
         self.assertIsNone(self.store.claim_visitor())
 
+    def test_visits_are_not_fenced_to_camp_dates(self):
+        after_camp = 1_787_230_800  # Thu 2026-08-20 15:00 Europe/Brussels
+        _Prefs.data["profile"]["since"] = after_camp
+        self.clock[0] = self.store.visitor_due_at(after_camp, "A4:CF:12:9B:03:7E", 0)
+
+        self.assertIsNotNone(self.store.visitor_pending())
+        self.assertEqual(_Prefs.data["visitor"]["started"], after_camp)
+
     def test_social_progress_skips_visit_thresholds(self):
         _Prefs.data["caught"] = [0, 1, 2]
         self.clock[0] += 30 * 60 * 60

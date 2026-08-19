@@ -19,7 +19,7 @@
 #   "pluk"     : {spots: {bssid: epoch}, phase, count, creature_spots: []} —
 #                hourly food reloads + one creature roll per spot/camp phase
 #   "visitor"  : {started, slot, pending, pending_slot, debug, debug_due,
-#                cooldown} — scheduled fallback meetings for verzamelaars
+#                cooldown} — paced fallback meetings for verzamelaars
 #   "outbox"   : list of queued badge→server reports (registrar.flush drains it)
 #
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
@@ -632,14 +632,13 @@ def outbox_pop():
 
 
 # ── random visitors: a safe collection floor for verzamelaars ─────────────
-# Three broad, seeded windows spread meetings over a busy camp weekend. The
-# badge owns the schedule so a bad network cannot make the fallback disappear;
+# Three broad, seeded windows pace meetings after registration. They have no
+# calendar fence: a verzamelaar can receive them before, during or after camp.
+# The badge owns the timing so a bad network cannot make the fallback disappear;
 # successful real meetings ride the outbox so account restore keeps the beest.
 _VISITOR_WINDOWS_H = ((2, 4), (18, 26), (38, 48))
 _VISITOR_FLOORS = (2, 3, 4)  # total collection size, including the startbeest
 _VISITOR_COOLDOWN_S = 6 * 60 * 60
-_CAMP_START = 1786021200  # Thu 2026-08-06 15:00 Europe/Brussels
-_CAMP_END = 1786280400  # Sun 2026-08-09 15:00 Europe/Brussels
 
 
 def visitor_due_at(started, badge_id, slot):
@@ -673,7 +672,7 @@ def _visitor():
     if since is None:
         since = _now()
     since = int(since)
-    d.setdefault("started", max(since, _CAMP_START))
+    d.setdefault("started", since)
     d.setdefault("slot", 0)
     d.setdefault("pending", None)
     d.setdefault("pending_slot", None)
@@ -747,10 +746,6 @@ def visitor_pending():
     slot = int(d.get("slot", 0))
     while slot < len(_VISITOR_WINDOWS_H):
         due = visitor_due_at(d["started"], badge, slot)
-        if due > _CAMP_END:
-            d["slot"] = len(_VISITOR_WINDOWS_H)
-            _save_visitor(d)
-            return None
         if now < due:
             return None
         if len(have) >= _VISITOR_FLOORS[slot]:

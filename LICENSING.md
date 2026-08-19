@@ -48,6 +48,8 @@ baked from even though they look like code:
   (`scripts/bake_server_art.sh`).
 - `server/src/lib/icon-art.ts` — SVG run geometry baked from the `ICONS` grids
   (`scripts/bake_server_icons.sh`).
+- `server/src/lib/discovery-art.ts` — creature frames and silhouettes inlined as
+  data URIs (`scripts/bake_discovery_art.sh`).
 - `server/static/screens/*.png` — screenshots, since what they show is the art.
 
 One boundary worth stating outright, because no directory rule catches it: the

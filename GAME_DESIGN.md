@@ -195,7 +195,9 @@ receives up to three scheduled visitors. Their broad, per-badge seeded windows
 are 2–4, 18–26 and 38–48 hours after registration; each is skipped when the
 collection has already reached two, three or four creatures respectively. A
 full-weekend solo player therefore reaches four creatures including the
-startbeest, while an active player sees fewer or no fallback meetings.
+startbeest, while an active player sees fewer or no fallback meetings. These
+windows are relative to registration and have no calendar end date: visits can
+happen before, during or after camp.
 
 A due visitor waits permanently behind a calm home-screen notification. The
 player opens a campsite scene, says hello to the silhouette, and the creature
