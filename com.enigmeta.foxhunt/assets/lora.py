@@ -347,6 +347,7 @@ class LoRaLink:
         self._recovery_active = False
         self._recovery_attempt = 0
         self._recovery_limit = 0
+        self._recovery_allow_reset = True
         self._reset_done = False
         self._status = "waiting"
         self._status_detail = "controle wordt gestart"
@@ -391,13 +392,18 @@ class LoRaLink:
             self._set_status("starting", "instellingen laden")
             self._schedule_bring_up(lambda: self.request_recovery(False))
         else:
-            # MicroPythonOS constructs this driver even when no daughterboard
-            # is fitted. Do not pulse the shared CH32 expander merely because
-            # the read-only presence probe found an open bus: on some cold
-            # boots that can restart the badge. WORD JAGER remains the explicit
-            # recovery path for a fitted but wedged SX1262.
-            print("lora: no responding SX1262; waiting for explicit recovery")
-            self._set_status("missing", "geen radioverbinding")
+            # A fitted SX1262 can still answer 0xFF before begin() wakes it.
+            # Fox Boss uses begin() as its first real presence test on this
+            # same hardware, so defer one ordinary initialization attempt here
+            # too.  It deliberately may NOT escalate to an expander reset:
+            # an absent daughterboard follows the same pre-init path, and a
+            # startup reset can restart the badge. WORD JAGER remains the
+            # explicit reset path for a genuinely wedged fitted chip.
+            print("lora: no pre-init answer; scheduling one reset-free setup attempt")
+            self._set_status("starting", "chip activeren")
+            self._schedule_bring_up(
+                lambda: self.request_recovery(reset_first=False, allow_reset=False)
+            )
 
     def _packet_type(self):
         """A valid SX1262 packet type, or None for an unreadable/open bus."""
@@ -511,7 +517,7 @@ class LoRaLink:
         t = lv.timer_create(lambda _t: fn(), max(1, ms), None)
         t.set_repeat_count(1)
 
-    def request_recovery(self, reset_first=True):
+    def request_recovery(self, reset_first=True, allow_reset=True):
         """Start one finite, timer-driven recovery and return immediately.
 
         Reset hold/release and retry delays used to be sleep_ms calls inside
@@ -525,10 +531,14 @@ class LoRaLink:
         self.ready = False
         self._recovery_active = True
         self._recovery_attempt = 0
+        self._recovery_allow_reset = allow_reset
         self._reset_done = False
         if reset_first:
             self._begin_reset()
         else:
+            # configure() needs the external RF-switch gate enabled even when
+            # the chip did not answer the pre-init packet-type read.
+            self._mark_available()
             # A chip which answered the probe gets one ordinary begin(). If
             # verification fails, _attempt_setup escalates to a full reset.
             self._recovery_limit = 1
@@ -608,7 +618,7 @@ class LoRaLink:
         if self._recovery_attempt < self._recovery_limit:
             self._later(RECOVERY_RETRY_MS, self._attempt_setup)
             return
-        if self.is_fri3d and not self._reset_done:
+        if self.is_fri3d and self._recovery_allow_reset and not self._reset_done:
             self._begin_reset()
             return
         self._finish_recovery(self._friendly_failure(detail))

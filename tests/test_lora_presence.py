@@ -144,7 +144,29 @@ def fire_all(timers, start=0):
 
 
 class LoRaPresenceTest(unittest.TestCase):
-    def test_failed_startup_probe_does_not_reset_shared_board_expander(self):
+    def test_startup_initializes_a_fitted_chip_that_is_asleep_before_begin(self):
+        # Fox Boss's working path establishes the hardware behaviour: the
+        # SX1262 can read as an open bus before begin(), then answer normally
+        # once begin() has woken and configured it.  A pre-init packet-type
+        # read must therefore not be the final presence verdict.
+        lora, timers, radio, expander, _ = load_lora(0xFF, wakes_on_begin=True)
+
+        self.assertEqual(len(timers), 1)
+        self.assertEqual(radio.begin_calls, 0)
+        self.assertEqual(expander.writes, [])
+
+        fire_all(timers)
+
+        self.assertEqual(radio.begin_calls, 1)
+        self.assertTrue(lora.LINK.available)
+        self.assertTrue(lora.LINK.ready)
+        self.assertIsNone(lora.LINK.notice())
+        self.assertEqual(expander.writes, [])
+        self.assertEqual(len(lora._test_pins), 1)
+        self.assertEqual(lora._test_pins[0].number, lora.RF_SW_PIN)
+        self.assertEqual(lora._test_pins[0].writes, [1, 1])
+
+    def test_failed_startup_setup_does_not_reset_shared_board_expander(self):
         for reply in (
             0xFF,
             0xFE,
@@ -158,11 +180,10 @@ class LoRaPresenceTest(unittest.TestCase):
 
                 self.assertFalse(lora.LINK.available)
                 self.assertFalse(lora.LINK.ready)
-                self.assertEqual(lora.LINK.notice()[0], "Geen LoRa-chip aangesloten")
+                self.assertEqual(lora.LINK.notice()[0], "LoRa reageert niet")
                 self.assertEqual(radio.packet_type_calls, 1)
-                self.assertEqual(radio.begin_calls, 0)
+                self.assertEqual(radio.begin_calls, 1)
                 self.assertEqual(expander.writes, [])
-                self.assertEqual(timers, [])
                 task_handler.disable.assert_not_called()
                 task_handler.enable.assert_not_called()
 
@@ -196,12 +217,13 @@ class LoRaPresenceTest(unittest.TestCase):
         # The register screen asks "is an antenna fitted?" while it builds;
         # that question must never fire the shared CH32 reset pulse.
         lora, timers, radio, expander, task_handler = load_lora(0xFF)
+        timer_count = len(timers)
 
         with patch.dict(sys.modules, lora._test_module_stubs):
             self.assertFalse(lora.LINK.fitted())
 
         self.assertEqual(expander.writes, [])
-        self.assertEqual(timers, [])
+        self.assertEqual(len(timers), timer_count)
         self.assertEqual(radio.begin_calls, 0)
         task_handler.disable.assert_not_called()
 
@@ -218,7 +240,7 @@ class LoRaPresenceTest(unittest.TestCase):
     def test_word_jager_retry_starts_recovery_without_blocking(self):
         lora, timers, radio, expander, _ = load_lora(0xFF)
 
-        self.assertEqual(timers, [])
+        self.assertEqual(len(timers), 1)
         with patch.dict(sys.modules, lora._test_module_stubs):
             self.assertFalse(lora.LINK.ensure_available())
         # The reset assertion is a quick expander write; all waits, release,
