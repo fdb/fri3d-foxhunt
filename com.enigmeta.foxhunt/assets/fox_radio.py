@@ -130,8 +130,10 @@ class FoxRadio:
             return None
         seen[fox_id] = sample_id
         previous = smooth.get(fox_id)
-        value = rssi if previous is None else previous + DIRECTION_EMA_ALPHA * (
-            rssi - previous
+        value = (
+            rssi
+            if previous is None
+            else previous + DIRECTION_EMA_ALPHA * (rssi - previous)
         )
         smooth[fox_id] = value
         return value
