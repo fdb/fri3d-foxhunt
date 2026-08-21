@@ -1,18 +1,23 @@
-# Foxhunt 🦊
+<div align="center">
+  <img src="com.enigmeta.foxhunt/icon_64x64.png" width="96" height="96" alt="Foxhunt app icon">
 
-A playful radio fox-hunting (ARDF) game for the **Fri3d Camp 2026 badge**.
-Players track hidden LoRa beacons with a directional antenna and collect the
-creatures they find in a Pokédex-style book.
+# Foxhunt
+
+**A playful radio fox-hunting game for the Fri3d Camp 2026 badge.**
+
+[Download Foxhunt on BadgeHub](https://badgehub.eu/page/project/com.enigmeta.foxhunt)
+
+</div>
 
 <p align="center">
   <img src=".github/screenshot.png" alt="Foxhunt's creature collection screen, showing nearby animals and the player's book" width="640">
 </p>
 
-**Download:** [Get Foxhunt on BadgeHub](https://badgehub.eu/page/project/com.enigmeta.foxhunt)
-
-Foxhunt combines a Dutch-language interface, original pixel art, and two ways
-to play. It runs from the same source on the ESP32-S3 badge and in the macOS SDL
-emulator, using MicroPythonOS and LVGL.
+Players track hidden LoRa beacons with a directional antenna and collect the
+creatures they find in a Pokédex-style book. Foxhunt combines a Dutch-language
+interface, original pixel art, and two ways to play. It runs from the same
+source on the ESP32-S3 badge and in the macOS SDL emulator, using MicroPythonOS
+and LVGL.
 
 ## How it works
 
