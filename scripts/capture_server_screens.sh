@@ -108,7 +108,7 @@ mkfifo "$fifo"
 runner_pid="$!"
 exec 3> "$fifo"
 
-# Boot includes MicroPythonOS and the app's splash/router. Wait for Home to
+# Boot includes MicroPythonOS and the app's non-visual router. Wait for Home to
 # settle before replacing its activity stack with the capture fixtures.
 for _ in $(seq 1 60); do
     if grep -q "apps.py _launch_activity" "$log"; then

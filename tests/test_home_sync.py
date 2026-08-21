@@ -40,6 +40,12 @@ def load_home():
     lvgl.timer_create = timer_create
 
     class Activity:
+        def setResult(self, result):
+            self.result = result
+
+        def finish(self):
+            self.finished = True
+
         def onResume(self, _screen):
             pass
 
@@ -89,6 +95,18 @@ def load_home():
 
 
 class HomeSyncTest(unittest.TestCase):
+    def test_missing_profile_reports_state_change_to_router(self):
+        module, _timers, store, registrar = load_home()
+        store.profile.return_value = None
+        home = module.HomeActivity()
+        home.finished = False
+
+        home.onResume(MagicMock())
+
+        self.assertEqual(home.result, "unregistered")
+        self.assertTrue(home.finished)
+        registrar.flush.assert_not_called()
+
     def test_nearby_cards_keep_roster_order_when_signal_changes(self):
         module, _timers, _store, _registrar = load_home()
         module.CREATURES = [

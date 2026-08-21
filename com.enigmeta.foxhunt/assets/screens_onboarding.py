@@ -19,7 +19,7 @@
 # art is the header — and no back button, per the house rules.
 #
 # Both routes save the profile before they report "registered" back up, so the
-# router underneath (foxhunt.py) opens the book either way when this closes.
+# non-visual router (foxhunt.py) opens the book either way when this closes.
 
 import lvgl as lv
 from mpos import Activity, Intent

@@ -21,7 +21,7 @@ same source.
 com.enigmeta.foxhunt/      # the MicroPythonOS app (the thing that ships)
   MANIFEST.JSON
   assets/                    # all the Python; assets/ is on sys.path at runtime
-    foxhunt.py          # entry: FoxhuntActivity — splash + registered? router
+    foxhunt.py          # entry: FoxhuntActivity — non-visual registered? router
     screen_home.py           # the "boek" grid, profile header, nearby foxes
     screen_hunt.py           # classic ARDF: silhouette + heart/bpm + 5 LEDs
     screen_code.py           # PIN keypad + reveal

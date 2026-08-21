@@ -10,7 +10,7 @@
 # screen_home.py — the book. Profile header, "nu in de buurt" hunt shortcuts,
 # and the scrolling boek (design: home.jsx PxHomeNew).
 #
-# Only ever reached through foxhunt.py's router, so a profile is guaranteed:
+# Only ever launched by foxhunt.py's router, so a profile is guaranteed:
 # store.profile() is not None here, and the header renders it unconditionally.
 
 import lvgl as lv
@@ -100,9 +100,11 @@ class HomeActivity(Activity):
         RADIO.poll()
         # The profile can vanish under us: instellingen -> ALLES WISSEN erases
         # it. Leave before repopulating — _populate reads the profile as a dict
-        # and would fail on None — and the router below (foxhunt.py) opens the
-        # welcome screen. Same rule it routes on: the profile IS the verdict.
+        # and would fail on None — and report the state change to the non-visual
+        # router (foxhunt.py), which opens the welcome screen. Same rule it
+        # routes on: the profile IS the verdict.
         if store.profile() is None:
+            self.setResult("unregistered")
             self.finish()
             return
         # Home is the natural WiFi moment: drain any queued badge→server
@@ -893,7 +895,8 @@ class SettingsActivity(Activity):
         super().onResume(screen)
         # Back from the wipe screen with no profile left: this screen is showing
         # a badge id and a jager id that belong to nobody. Leave, and let the
-        # screens below do the same until the router reaches the welcome screen.
+        # screens below do the same until home reports the change to the router,
+        # which opens the welcome screen.
         # The profile IS the verdict — the same rule foxhunt.py routes on.
         if store.profile() is None:
             self.finish()
@@ -1483,8 +1486,8 @@ class WipeActivity(Activity):
         # server row is already gone: keeping the local profile would leave the
         # badge living on a deleted account. From here the profile is gone,
         # which is the signal every screen below reads on the way out: settings
-        # and the boek finish themselves, and the router (foxhunt.py) shows the
-        # welcome screen again.
+        # and the boek finish themselves; the boek reports "unregistered" and
+        # the router (foxhunt.py) shows the welcome screen again.
         store.reset_all()
         # The radio's session state is not in the store, so reset_all cannot
         # reach it: the fake burns one-time fox codes in RAM, and a wipe hands
