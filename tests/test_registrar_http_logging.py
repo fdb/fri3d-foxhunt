@@ -107,13 +107,35 @@ class RegistrarHttpLoggingTest(unittest.TestCase):
         creatures.starter_for = MagicMock(return_value=7)
         updates = []
 
-        with patch.dict(sys.modules, {"creatures": creatures}):
+        with (
+            patch.dict(sys.modules, {"creatures": creatures}),
+            patch.object(registrar, "has_lora", return_value=False),
+        ):
             registrar.REGISTRAR.register(
                 "Sam", "A4:CF:12:9B:03:7E", "H01A000C1", updates.append
             )
 
         self.assertTrue(updates[0]["ok"])
         self.assertEqual(updates[0]["starter"], 7)
+        self.assertIsNone(updates[0]["hunter_id"])
+        registrar.TaskManager.create_task.assert_not_called()
+
+    def test_registration_becomes_hunter_when_lora_is_present(self):
+        registrar = load_registrar()
+        creatures = types.ModuleType("creatures")
+        creatures.starter_for = MagicMock(return_value=7)
+        updates = []
+
+        with (
+            patch.dict(sys.modules, {"creatures": creatures}),
+            patch.object(registrar, "has_lora", return_value=True),
+        ):
+            registrar.REGISTRAR.register(
+                "Sam", "A4:CF:12:9B:03:7E", "H01A000C1", updates.append
+            )
+
+        self.assertEqual(updates[0]["hunter"], "ok")
+        self.assertEqual(updates[0]["hunter_id"], 0x037E)
         registrar.TaskManager.create_task.assert_not_called()
 
 

@@ -555,12 +555,13 @@ class HttpRegistrar(Registrar):
         if not server_configured():
             from creatures import starter_for
 
+            hid = local_hunter_id(badge) if has_lora() else None
             on_update(
                 {
                     "cloud": "skip",
                     "bridge": "skip",
-                    "hunter": "skip",
-                    "hunter_id": None,
+                    "hunter": "ok" if hid is not None else "skip",
+                    "hunter_id": hid,
                     "starter": starter_for(badge),
                     "done": True,
                     "ok": True,
