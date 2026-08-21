@@ -13,7 +13,7 @@
 # Usage:
 #   npm --prefix server run dev &      # then, in another shell:
 #   scripts/test_server_wipe.sh
-#   scripts/test_server_wipe.sh --server https://foxhunt.enigmeta.workers.dev
+#   scripts/test_server_wipe.sh --server https://foxhunt.enigmeta.com
 #
 # Env overrides:
 #   FOXHUNT_SERVER      same as --server (default: the local wrangler dev worker)

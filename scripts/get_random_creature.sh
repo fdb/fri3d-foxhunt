@@ -24,7 +24,7 @@ cd "$(dirname "$0")/.."
 #   FOXHUNT_SERVER   same as --server (default: the deployed worker)
 
 APP_ID="com.enigmeta.foxhunt"
-SERVER="${FOXHUNT_SERVER:-https://foxhunt.enigmeta.workers.dev}"
+SERVER="${FOXHUNT_SERVER:-https://foxhunt.enigmeta.com}"
 PORT="${BADGE_PORT:-}"
 
 while [[ $# -gt 0 ]]; do

@@ -46,7 +46,7 @@ cd "$(dirname "$0")/.."
 #   FOXHUNT_SERVER   same as --server (default: prod, where registrar points)
 
 APP_ID="com.enigmeta.foxhunt"
-SERVER="${FOXHUNT_SERVER:-https://foxhunt.enigmeta.workers.dev}"
+SERVER="${FOXHUNT_SERVER:-https://foxhunt.enigmeta.com}"
 PORT="${BADGE_PORT:-}"
 MODE=""
 FORCE=0

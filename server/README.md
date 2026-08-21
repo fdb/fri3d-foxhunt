@@ -4,7 +4,7 @@ Cloudflare Worker (Hono + D1 + HTMX) that keeps badge registrations and
 scoring for the fox hunt. All game activity lands in the append-only
 `game_events` log; `players` and `players_creatures` are projections of it.
 
-Deployed at **https://foxhunt.enigmeta.workers.dev/** — the badge points
+Deployed at **https://foxhunt.enigmeta.com/** — the badge points
 `registrar.py` at that host.
 
 ## Trust model

@@ -37,7 +37,7 @@ cd "$(dirname "$0")/.."
 # Prod is the default because that is where registrar.py points: an account
 # this script is asked to clean up is, nine times out of ten, one the app
 # created on prod without anyone choosing to.
-BASE="${FOXHUNT_SERVER:-https://foxhunt.enigmeta.workers.dev}"
+BASE="${FOXHUNT_SERVER:-https://foxhunt.enigmeta.com}"
 # Must match registrar.badge_id's desktop fallback.
 EMULATOR_BADGE="a4:cf:12:9b:03:7e"
 # ...and the second desktop persona: run_on_mac.sh --lora sets this one through
