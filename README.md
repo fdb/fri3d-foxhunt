@@ -5,7 +5,7 @@
 
 **A playful radio fox-hunting game for the [Fri3d Badge 2026](https://fri3d.be/badge/).**
 
-[Download Foxhunt on BadgeHub](https://badgehub.eu/page/project/com.enigmeta.foxhunt)
+**[foxhunt.enigmeta.com](https://foxhunt.enigmeta.com/)** · [Download on BadgeHub](https://badgehub.eu/page/project/com.enigmeta.foxhunt)
 
 </div>
 
@@ -140,7 +140,7 @@ test.
   the font every screen is drawn with.
 
 The same list, with who holds what, is in [`LICENSING.md`](LICENSING.md), and on
-the site under [Gemaakt door](https://foxhunt.enigmeta.workers.dev/#credits).
+the site under [Gemaakt door](https://foxhunt.enigmeta.com/#credits).
 
 ## Licence
 
