@@ -1,46 +1,63 @@
-# Vossenjacht 🦊
+# Foxhunt 🦊
 
-A "fox hunting" (ARDF) game for the **Fri3d Camp 2026 badge**. Kids hunt hidden
-LoRa beacons ("foxes") with a directional antenna and collect them in a
-Pokédex-style book. Dutch UI, cutesy pixel-art. Runs on the badge
-(ESP32-S3 / MicroPythonOS / LVGL) **and** on the macOS SDL emulator from the
-same source.
+A playful radio fox-hunting (ARDF) game for the **Fri3d Camp 2026 badge**.
+Players track hidden LoRa beacons with a directional antenna and collect the
+creatures they find in a Pokédex-style book.
+
+<p align="center">
+  <img src=".github/screenshot.png" alt="Foxhunt's creature collection screen, showing nearby animals and the player's book" width="640">
+</p>
+
+Foxhunt combines a Dutch-language interface, original pixel art, and two ways
+to play. It runs from the same source on the ESP32-S3 badge and in the macOS SDL
+emulator, using MicroPythonOS and LVGL.
+
+## How it works
+
+- **Jagers** use a LoRa antenna to follow signal strength, find the four
+  physical foxes around the camp, and earn points.
+- **Verzamelaars** play without an antenna. They collect creatures from other
+  players and care for their own book, with separate scoring.
+- A **LoRa bridge** confirms finds in the field and relays them to the cloud
+  scoreboard over Wi-Fi.
+- The badge app keeps the game approachable with a warm pixel-art interface,
+  sound, LEDs, and keyboard-friendly navigation in the emulator.
 
 ## Glossary
 
-- Players: people playing the game
-- Hunters: players actively searching for foxes; these have LoRa antennas installed. They receive points for foxes found.
-- Caretakers: players that don't have LoRa but still want to participate; instead of hunting for foxes they take of the foxes. They can clone foxes of hunters to take care of them. Scoring works differently.
-- Fox: 4 fixed hardware devices positioned in the field, sending out beacon signals. Hunters will find these with their directional antennas. They don't have Wi-Fi, instead they communicate to the LoRa bridge relay.
-- Bridge relay: hardware device that receives and acknowledges messages of foxes being found through LoRa. It communicates to the cloud server over Wi-Fi.
-- Cloud server: server running in the cloud on a VPS that keeps track of active users and current scores.
+| Term | Meaning |
+| --- | --- |
+| Player | Anyone playing Foxhunt. |
+| Jager (hunter) | A player with a LoRa antenna who tracks foxes and earns points for finds. |
+| Verzamelaar (collector) | A player without an antenna who collects creatures from jagers and cares for them. |
+| Fox | One of four fixed devices in the field that transmits a LoRa beacon. |
+| Bridge relay | Hardware that acknowledges finds over LoRa and relays them to the server over Wi-Fi. |
+| Cloud server | The service that tracks players, collections, and scores. |
 
 ## Layout
 
 ```
-com.enigmeta.foxhunt/      # the MicroPythonOS app (the thing that ships)
+com.enigmeta.foxhunt/        # the MicroPythonOS app (the thing that ships)
   MANIFEST.JSON
-  assets/                    # all the Python; assets/ is on sys.path at runtime
-    foxhunt.py          # entry: FoxhuntActivity — non-visual registered? router
-    screen_home.py           # the "boek" grid, profile header, nearby foxes
-    screen_hunt.py           # classic ARDF: silhouette + heart/bpm + 5 LEDs
-    screen_code.py           # PIN keypad + reveal
-    screen_debug.py          # hidden test menu: code 1111 + catch toggles
-    screen_win.py            # "Gevangen!" payoff -> back to home
-    creatures.py             # roster data (no LVGL)
-    art.py                   # placeholder pixel sprites (the art swap point)
-    ui.py                    # colours, fonts, positioned-widget builders, focus
-    fox_radio.py             # FoxRadio interface + FakeFoxRadio sim (LoRa stub)
-    leds.py                  # 5 NeoPixels hot/cold (no-op on desktop)
-    sound.py                 # buzzer RTTTL jingles (no-op on desktop)
-    store.py                 # caught-set persistence (SharedPreferences)
+  assets/                    # Python; this directory is on sys.path at runtime
+    foxhunt.py               # entry point and initial route
+    screens_*.py             # onboarding, system, hunt, and care flows
+    creatures.py / pet.py    # roster and care rules
+    companion.py             # player avatar model and renderer
+    registrar.py             # optional cloud API client
+    *_radio.py / lora.py     # LoRa, ESP-NOW, and Wi-Fi game transports
+    art.py / ui.py           # drawing, shared widgets, fonts, and colours
+    store.py                 # local persistence
+    sprites.bin / atlas.py   # generated pixel-art atlas and index
   icon_64x64.png
-layout/foxhunt-layout.html   # pixel-exact 320x240 layout spec (source of truth)
-PLAN.md                           # architecture + decisions
-proposal.md / app.md              # original workshop brief
+artwork/                     # editable pixel-art sources
+server/                      # Cloudflare Worker, D1 schema, and public website
+scripts/                     # emulator, packaging, capture, and release tooling
+layout/foxhunt-layout.html   # pixel-exact 320×240 layout source of truth
+PLAN.md / DESIGN.md          # architecture and interface decisions
 ```
 
-## Run on the desktop emulator
+## Run it locally
 
 From the repo root:
 
@@ -57,11 +74,11 @@ so edits show up on the next run with no copy step, and it points the save at
 the persona's own slot before launching — each persona keeps a separate save
 and a separate server account.
 
-The emulator does not exit when its window closes or when stdin ends, and it
-often ignores SIGTERM. Kill it when you are done, then check what survived:
+The emulator does not always exit when its window closes or stdin ends. Note
+the PIDs started by your run, stop those processes when you are done, and then
+check for survivors:
 
 ```bash
-pkill -f lvgl_micropy; pkill -f run_desktop.sh
 pgrep -fl lvgl_micropy_macOS   # anything left needs kill -9 <pid>
 ```
 
@@ -69,7 +86,7 @@ Mouse = touch · arrow keys = focus nav · Esc = back. The hunt "warms up" on it
 own (FakeFoxRadio) until it auto-advances to the code screen. Codes are in
 `creatures.py` (e.g. Everzwaan = `7391`).
 
-## Refresh the public-site screenshots
+## Refresh the website screenshots
 
 From the repo root:
 
@@ -83,7 +100,7 @@ scale. It uses a temporary hunter profile containing only base creatures, with
 the Vos marked as an own find so the provenance badge remains covered. The
 existing emulator profile is restored when the run finishes or fails.
 
-## Same source, both targets
+## Architecture
 
 The app never touches a pin. The MicroPythonOS **board layer**
 (`board/fri3d_2026.py` on the badge, `board/linux.py` on desktop) sets up the
@@ -91,7 +108,7 @@ The app never touches a pin. The MicroPythonOS **board layer**
 (`mpos.lights`, the buzzer audio output) is gated: we call it, check the return,
 and fall back (on-screen LED mirror, silent audio) on desktop.
 
-## Build a BadgeHub package
+## Build for BadgeHub
 
 Build the uploadable, bytecode-only `.mpk` from the version in the app manifest:
 
