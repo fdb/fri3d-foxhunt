@@ -2,9 +2,9 @@
   "name": "Foxhunt",
   "publisher": "Frederik De Bleser",
   "short_description": "Vang de beesten van het bos!",
-  "long_description": "Jaag op verstopte LoRa-zenders met je antenne en verzamel alle beesten in je boek.",
+  "long_description": "Speel Vossenjacht thuis zonder internet: verzamel beesten, verzorg ze en speel samen met andere badges.",
   "fullname": "com.enigmeta.foxhunt",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "category": "games",
   "activities": [
     {
