@@ -8,6 +8,8 @@ creatures they find in a Pokédex-style book.
   <img src=".github/screenshot.png" alt="Foxhunt's creature collection screen, showing nearby animals and the player's book" width="640">
 </p>
 
+**Download:** [Get Foxhunt on BadgeHub](https://badgehub.eu/page/project/com.enigmeta.foxhunt)
+
 Foxhunt combines a Dutch-language interface, original pixel art, and two ways
 to play. It runs from the same source on the ESP32-S3 badge and in the macOS SDL
 emulator, using MicroPythonOS and LVGL.
