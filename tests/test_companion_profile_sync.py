@@ -103,7 +103,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
         self.assertIn("volgt", labels)
         self.assertNotIn("VERZAMELAAR", labels)
 
-    def test_standalone_welcome_hides_account_restore(self):
+    def test_standalone_welcome_explains_offline_mode(self):
         self.ui.reset_mock()
         self.registrar.server_configured.return_value = False
         screen = MagicMock()
@@ -112,6 +112,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
 
         labels = [call.args[1] for call in self.ui.label.call_args_list]
         self.assertNotIn("Herstel mijn account", labels)
+        self.assertIn("Offline modus - alles blijft op je badge", labels)
 
     def test_standalone_registration_is_complete_locally(self):
         self.registrar.server_configured.return_value = False

@@ -72,6 +72,17 @@ class WelcomeActivity(Activity):
             text.set_x((304 - tw) // 2)
             ui.box(link, (304 - tw) // 2, _UNDERLINE_Y, tw, 2, ui.GREEN)
             ui.focusable(link, on_click=self._restore)
+        else:
+            ui.label(
+                s,
+                "Offline modus - alles blijft op je badge",
+                0,
+                208,
+                ui.TEXT_MUTED,
+                ui.font_small(),
+                w=320,
+                center=True,
+            )
 
         self.setContentView(s)
 
