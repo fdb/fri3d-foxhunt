@@ -164,6 +164,14 @@ class LoRaTransmitTest(unittest.TestCase):
             ]
         )
 
+    def test_beacon_cache_exposes_receive_time_as_sample_identity(self):
+        beacon_fid = (5 << 3) | 2
+
+        self.link._handle(bytes([self.lora.TYPE_BEACON << 4, beacon_fid]), -77.5)
+
+        self.assertEqual(self.link.last_reading(5), (-77.5, 0))
+        self.assertEqual(self.link.last_rssi(5), -77.5)
+
     def test_retry_drains_proof_arriving_between_poll_check_and_send(self):
         results = []
         self._submit_and_make_retry_due(results)

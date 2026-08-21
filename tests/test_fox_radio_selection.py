@@ -19,6 +19,8 @@ def load_fox_radio(is_fri3d, available):
         available=available,
         active_chars=lambda: [],
         notice=lambda: ("Wachten op LoRa", "controle wordt gestart"),
+        last_reading=lambda _fox_id: (-83.5, 1234),
+        link_quality=lambda _fox_id: 3,
     )
     lora.LQ_PERIOD_MS = 300
     lora.LQ_WINDOW_MS = 1500
@@ -47,6 +49,15 @@ class FoxRadioSelectionTest(unittest.TestCase):
 
         self.assertIsInstance(fox_radio.RADIO, fox_radio.FakeFoxRadio)
         self.assertIsNone(fox_radio.RADIO.notice())
+
+    def test_real_radio_preserves_the_beacon_receive_timestamp(self):
+        fox_radio = load_fox_radio(is_fri3d=True, available=True)
+
+        reading = fox_radio.RADIO.reading(3)
+
+        self.assertEqual(reading.rssi, -83.5)
+        self.assertEqual(reading.sample_id, 1234)
+        self.assertEqual(reading.link, 3)
 
 
 if __name__ == "__main__":

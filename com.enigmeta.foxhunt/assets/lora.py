@@ -924,16 +924,25 @@ class LoRaLink:
 
     # --------------------------------------------------------------- reads
 
-    def last_rssi(self, char):
-        """Most recent BEACON RSSI for this creature, or None if we've never
-        heard one or it's gone stale (§4.3.4-ish, from the hunter's view)."""
+    def last_reading(self, char):
+        """Most recent ``(rssi, received_at)`` BEACON sample, or None.
+
+        ``received_at`` is also the sample identity: a screen may poll this
+        cache faster than foxes beacon, but each over-the-air measurement must
+        be filtered and rendered exactly once.
+        """
         r = self._last_reading.get(char)
         if r is None:
             return None
-        rssi, seen = r
+        _, seen = r
         if time.ticks_diff(time.ticks_ms(), seen) > STALE_MS:
             return None
-        return rssi
+        return r
+
+    def last_rssi(self, char):
+        """Most recent BEACON RSSI for compatibility with scalar callers."""
+        r = self.last_reading(char)
+        return None if r is None else r[0]
 
     def last_fid(self, char):
         """Full FID byte last seen for this creature (has the real SEQ, see

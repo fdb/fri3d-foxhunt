@@ -14,8 +14,13 @@ class HuntRadioTickTest(unittest.TestCase):
 
     def setUp(self):
         self.radio.reset_mock()
+        self.module.leds.reset_mock()
         self.absolute_level.reset_mock()
-        self.radio.reading.return_value = types.SimpleNamespace(rssi=-80, link=1)
+        self.radio.reading.return_value = types.SimpleNamespace(
+            rssi=-80, link=1, sample_id=1000
+        )
+        self.radio.direction_rssi.side_effect = None
+        self.radio.direction_rssi.return_value = -80
         self.radio.direction_level.return_value = 4
 
     def test_unchanged_bpm_does_not_invalidate_the_label_again(self):
@@ -33,6 +38,8 @@ class HuntRadioTickTest(unittest.TestCase):
         screen.bpm.set_text.assert_called_once_with("60")
         self.assertEqual(screen.heart.align.call_count, 2)
         self.assertEqual(self.radio.poll.call_count, 2)
+        self.assertEqual(self.radio.direction_rssi.call_count, 2)
+        self.assertEqual(self.radio.direction_level.call_count, 2)
 
     def test_receiver_feedback_budget_is_at_least_five_hz(self):
         self.assertLessEqual(self.module.HUNT_TICK_MS, 200)
@@ -48,8 +55,26 @@ class HuntRadioTickTest(unittest.TestCase):
 
         self.module.HuntActivity._tick(screen, None)
 
+        self.radio.direction_rssi.assert_called_once_with(screen.fox_id, -80, 1000)
         self.radio.direction_level.assert_called_once_with(screen.fox_id, -80)
         self.absolute_level.assert_not_called()
+        self.module.leds.show_level.assert_called_once_with(4)
+
+    def test_repeated_timer_tick_does_not_reprocess_the_same_packet(self):
+        screen = MagicMock()
+        screen.has_foreground.return_value = True
+        screen._bpm_text = None
+        screen._beat = False
+        screen._bpm_live = True
+        screen._mirror_level = 4
+        screen.mirror = []
+        self.radio.direction_rssi.side_effect = (-80, None)
+
+        self.module.HuntActivity._tick(screen, None)
+        self.module.HuntActivity._tick(screen, None)
+
+        screen.bpm.set_text.assert_called_once_with("60")
+        self.radio.direction_level.assert_called_once_with(screen.fox_id, -80)
         self.module.leds.show_level.assert_called_once_with(4)
 
 

@@ -157,6 +157,37 @@ class FoxRadioTest(unittest.TestCase):
         self.time.advance(self.module.DIRECTION_WINDOW_MS + 1)
         self.assertEqual(self.radio.direction_level(3, -70), baseline)
 
+    def test_direction_rssi_counts_each_packet_once(self):
+        first = self.radio.direction_rssi(3, -100, 1000)
+        duplicate = self.radio.direction_rssi(3, -60, 1000)
+        second = self.radio.direction_rssi(3, -90, 1281)
+
+        self.assertEqual(first, -100)
+        self.assertIsNone(duplicate)
+        self.assertAlmostEqual(second, -96.0)
+
+    def test_direction_rssi_uses_a_point_four_packet_ema(self):
+        samples = (-100, -90, -90, -90, -90)
+
+        smoothed = [
+            self.radio.direction_rssi(3, rssi, 1000 + i * 281)
+            for i, rssi in enumerate(samples)
+        ]
+
+        self.assertEqual(smoothed[0], -100)
+        self.assertAlmostEqual(smoothed[1], -96.0)
+        self.assertAlmostEqual(smoothed[2], -93.6)
+        self.assertAlmostEqual(smoothed[3], -92.16)
+        self.assertAlmostEqual(smoothed[4], -91.296)
+
+    def test_reset_direction_starts_the_packet_filter_fresh(self):
+        self.radio.direction_rssi(3, -100, 1000)
+        self.radio.direction_rssi(3, -90, 1281)
+
+        self.radio.reset_direction(3)
+
+        self.assertEqual(self.radio.direction_rssi(3, -70, 1562), -70)
+
     def test_reading_reports_bounded_rssi_that_rises_with_the_walk(self):
         self.radio.start(3)
         readings = []
@@ -167,6 +198,17 @@ class FoxRadioTest(unittest.TestCase):
             self.time.advance(100)
 
         self.assertGreater(readings[-1].rssi, readings[0].rssi)
+
+    def test_fake_radio_keeps_one_sample_between_beacon_slots(self):
+        self.radio.start(3)
+
+        first = self.radio.reading(3)
+        self.time.advance(100)
+        repeated = self.radio.reading(3)
+
+        self.assertIsNotNone(first.sample_id)
+        self.assertEqual(repeated.sample_id, first.sample_id)
+        self.assertEqual(repeated.rssi, first.rssi)
 
     def test_four_foxes_stay_active_while_the_fake_radio_is_polled(self):
         expected = list(self.module._AWAKE[:4])

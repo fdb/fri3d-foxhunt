@@ -13,9 +13,11 @@
 #
 # A timer polls the (faked) radio; the RSSI it reports IS the heart rate
 # (rssi + 255) as a rough absolute distance cue. The physical NeoPixels and
-# on-screen 5-LED mirror instead auto-range over one slow rotation, making
-# the strongest antenna direction explicit even when its RSSI advantage is
-# only a few dB. Link quality (fox_radio.FoxReading.link, 0..5; see
+# on-screen 5-LED mirror use each received BEACON once, smooth it with a
+# responsive four-sample-equivalent EMA, then auto-range over one slow
+# rotation. That makes the strongest antenna direction explicit even when its
+# RSSI advantage is only a few dB. Link quality (fox_radio.FoxReading.link,
+# 0..5; see
 # lora.LoRaLink.link_quality) is only the awake/asleep detector: at 0 the
 # LEDs breathe (below) instead of showing a stale strength.
 # There is NO automatic "found": RSSI can't tell you you've physically reached
@@ -34,8 +36,9 @@ from creatures import by_id
 from fox_radio import RADIO, rssi_to_bpm
 
 # Receiver-side latency budget: a freshly received RSSI sample reaches the
-# bars on the next tick. Keep this at or below 200 ms (5 Hz); direction_level
-# applies the sample immediately and does not average it over its history.
+# bars on the next tick. Keep this at or below 200 ms; signal UI updates once
+# per BEACON (~281 ms), while this faster timer collects it promptly and keeps
+# the heart animation fluid.
 HUNT_TICK_MS = 150
 
 # ── sleeping animation: link quality 0 looks identical to a frozen app if
@@ -143,11 +146,6 @@ class HuntActivity(Activity):
             return
         RADIO.poll()
         r = RADIO.reading(self.fox_id)
-        bpm = rssi_to_bpm(r.rssi)
-        bpm_text = str(bpm)
-        if bpm_text != self._bpm_text:
-            self._bpm_text = bpm_text
-            self.bpm.set_text(bpm_text)
 
         # heartbeat: nudge the heart up/down each tick so it visibly throbs
         self._beat = not self._beat
@@ -162,8 +160,16 @@ class HuntActivity(Activity):
             level = 0  # mirror reads as "koud" too; r.rssi is just the
             # last value carried forward, not a real signal
         else:
-            level = RADIO.direction_level(self.fox_id, r.rssi)
-            leds.show_level(level)
+            filtered = RADIO.direction_rssi(self.fox_id, r.rssi, r.sample_id)
+            if filtered is None:
+                level = None  # this timer tick saw the same cached BEACON
+            else:
+                bpm_text = str(rssi_to_bpm(filtered))
+                if bpm_text != self._bpm_text:
+                    self._bpm_text = bpm_text
+                    self.bpm.set_text(bpm_text)
+                level = RADIO.direction_level(self.fox_id, filtered)
+                leds.show_level(level)
 
         # A silent fox keeps its last bpm on screen, muted. Losing the beacon
         # for a few steps is ordinary on a hunt, so blanking the number would
@@ -180,7 +186,7 @@ class HuntActivity(Activity):
         # Restyle the mirror only when the level moved: every set_style call
         # invalidates its cell, and at ~7 Hz an unchanged level would redraw
         # all five for nothing (same guard discipline as VliegActivity._drift).
-        if level != self._mirror_level:
+        if level is not None and level != self._mirror_level:
             self._mirror_level = level
             cols = leds.colors_for_level(level)
             for i, seg in enumerate(self.mirror):

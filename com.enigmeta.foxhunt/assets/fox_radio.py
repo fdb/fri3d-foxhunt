@@ -70,6 +70,7 @@ DIRECTION_WINDOW_MS = 8000
 DIRECTION_RANGE_PAD_DB = 1.0
 DIRECTION_MIN_SPAN_DB = 4.0
 DIRECTION_GAMMA = 2.0
+DIRECTION_EMA_ALPHA = 0.4
 
 
 class _DirectionTracker:
@@ -98,7 +99,7 @@ class _DirectionTracker:
 class FoxReading:
     # NB: no "found" flag — RSSI can't tell you you've physically reached the
     # box. The player decides when to enter the code. We only report signal.
-    def __init__(self, fox_id, rssi, link=0, bearing=None):
+    def __init__(self, fox_id, rssi, link=0, bearing=None, sample_id=None):
         self.fox_id = fox_id
         self.rssi = rssi  # dBm, the one measured value — bpm_to_level and
         # rssi_to_bpm are both views of it
@@ -106,9 +107,35 @@ class FoxReading:
         # link-quality window — the awake/asleep detector
         # (screens_hunt.py breathes its sleep LED on 0)
         self.bearing = bearing  # degrees; present but UI ignores it (classic ARDF)
+        self.sample_id = sample_id  # receive timestamp of the BEACON carrying
+        # this RSSI. Repeated reads of the cache keep the same identity.
 
 
 class FoxRadio:
+    def direction_rssi(self, fox_id, rssi, sample_id):
+        """Filter one newly received BEACON; return None for a cached repeat.
+
+        The 150 ms screen timer polls faster than the ~281 ms beacon period.
+        Packet identity prevents that timer phase from giving some BEACONs one
+        vote and others two. The EMA's 0.4 new-sample weight behaves like a
+        roughly four-packet moving average while reacting on the first packet.
+        """
+        try:
+            seen = self._direction_sample_ids
+            smooth = self._direction_ema
+        except AttributeError:
+            seen = self._direction_sample_ids = {}
+            smooth = self._direction_ema = {}
+        if sample_id is None or seen.get(fox_id) == sample_id:
+            return None
+        seen[fox_id] = sample_id
+        previous = smooth.get(fox_id)
+        value = rssi if previous is None else previous + DIRECTION_EMA_ALPHA * (
+            rssi - previous
+        )
+        smooth[fox_id] = value
+        return value
+
     def direction_level(self, fox_id, rssi):
         """Return 0..5 relative strength for finding the best antenna angle."""
         try:
@@ -122,10 +149,11 @@ class FoxRadio:
 
     def reset_direction(self, fox_id):
         """Start a fresh comparison window for a hunt or after radio silence."""
-        try:
-            self._direction_trackers.pop(fox_id, None)
-        except AttributeError:
-            pass
+        for name in ("_direction_trackers", "_direction_sample_ids", "_direction_ema"):
+            try:
+                getattr(self, name).pop(fox_id, None)
+            except AttributeError:
+                pass
 
     def active_foxes(self):
         raise NotImplementedError
@@ -252,7 +280,8 @@ class _FakeLinkSim:
             self._next_slot = time.ticks_add(self._next_slot, lora.LQ_PERIOD_MS)
         while self._times and time.ticks_diff(now, self._times[0]) > lora.LQ_WINDOW_MS:
             self._times.popleft()
-        return min(len(self._times), 5)
+        newest = self._times[-1] if self._times else None
+        return min(len(self._times), 5), newest
 
 
 class FakeFoxRadio(FoxRadio):
@@ -271,6 +300,8 @@ class FakeFoxRadio(FoxRadio):
         self._strength = {}
         self._used = set()  # burnt one-time codes; the real server owns this
         self._link_sim = {}  # fox_id -> _FakeLinkSim (see class below)
+        self._sample_rssi = {}
+        self._sample_id = {}
         self._active = _FAKE_DEFAULT_ACTIVE
 
     def reset(self):
@@ -282,6 +313,9 @@ class FakeFoxRadio(FoxRadio):
         # restart, so nothing else was ever going to clear them.
         self._strength = {}
         self._used = set()
+        self._link_sim = {}
+        self._sample_rssi = {}
+        self._sample_id = {}
         self._active = _FAKE_DEFAULT_ACTIVE
 
     def active_foxes(self):
@@ -296,6 +330,8 @@ class FakeFoxRadio(FoxRadio):
     def start(self, fox_id):
         self._strength[fox_id] = 0.12
         self._link_sim.pop(fox_id, None)  # fresh hunt, fresh simulated air
+        self._sample_rssi.pop(fox_id, None)
+        self._sample_id.pop(fox_id, None)
 
     def _link(self, fox_id, strength):
         sim = self._link_sim.get(fox_id)
@@ -308,12 +344,24 @@ class FakeFoxRadio(FoxRadio):
         self._strength[fox_id] = max(0.0, min(1.0, s))
 
     def reading(self, fox_id):
+        return self._reading(fox_id, advance=True)
+
+    def _reading(self, fox_id, advance):
         s = self._strength.get(fox_id, 0.12)
-        s += random.uniform(-0.04, 0.10)  # drift up, with jitter
-        s = max(0.0, min(1.0, s))
-        self._strength[fox_id] = s
-        rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
-        return FoxReading(fox_id, rssi, link=self._link(fox_id, s))
+        link, sample_id = self._link(fox_id, s)
+        if sample_id is not None and self._sample_id.get(fox_id) != sample_id:
+            if advance:
+                s += random.uniform(-0.04, 0.10)  # one step per fake BEACON
+                s = max(0.0, min(1.0, s))
+                self._strength[fox_id] = s
+            self._sample_rssi[fox_id] = int(
+                round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR))
+            )
+            self._sample_id[fox_id] = sample_id
+        rssi = self._sample_rssi.get(
+            fox_id, int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
+        )
+        return FoxReading(fox_id, rssi, link=link, sample_id=sample_id)
 
     def peek(self, fox_id):
         # No drift: reading() simulates walking toward the fox, and the home
@@ -322,9 +370,7 @@ class FakeFoxRadio(FoxRadio):
         # The link sim, unlike strength, is driven by real elapsed time, not
         # by being looked at — same as a real fox keeps beaconing whether or
         # not a screen is watching — so ticking it here is harmless.
-        s = self._strength.get(fox_id, 0.12)
-        rssi = int(round(RSSI_FAR + s * (RSSI_NEAR - RSSI_FAR)))
-        return FoxReading(fox_id, rssi, link=self._link(fox_id, s))
+        return self._reading(fox_id, advance=False)
 
     def submit_code(self, fox_id, code, on_result):
         # A one-shot timer stands in for the round trip; the verdict is decided
@@ -387,11 +433,13 @@ class LoraFoxRadio(FoxRadio):
         return self._reading(fox_id)
 
     def _reading(self, fox_id):
-        rssi = lora.LINK.last_rssi(fox_id)
-        if rssi is None:
-            rssi = RSSI_FAR
+        sample = lora.LINK.last_reading(fox_id)
+        if sample is None:
+            rssi, sample_id = RSSI_FAR, None
+        else:
+            rssi, sample_id = sample
         link = lora.LINK.link_quality(fox_id)
-        return FoxReading(fox_id, rssi, link=link)
+        return FoxReading(fox_id, rssi, link=link, sample_id=sample_id)
 
     def submit_code(self, fox_id, code, on_result):
         otc = lora.code_to_otc(code)
