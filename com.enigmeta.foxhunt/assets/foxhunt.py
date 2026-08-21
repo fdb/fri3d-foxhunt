@@ -102,9 +102,7 @@ class FoxhuntActivity(Activity):
             target = lazy("screens_onboarding").WelcomeActivity
         else:
             target = lazy("screens_system").HomeActivity
-        self.startActivityForResult(
-            Intent(activity_class=target), self._route_changed
-        )
+        self.startActivityForResult(Intent(activity_class=target), self._route_changed)
 
     def _route_changed(self, _result):
         # Only explicit state changes return a result. Backing out of Welcome
