@@ -3,7 +3,7 @@
 
 # Foxhunt
 
-**A playful radio fox-hunting game for the Fri3d Camp 2026 badge.**
+**A playful radio fox-hunting game for the [Fri3d Badge 2026](https://fri3d.be/badge/).**
 
 [Download Foxhunt on BadgeHub](https://badgehub.eu/page/project/com.enigmeta.foxhunt)
 
