@@ -40,6 +40,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
         registrar.badge_id = MagicMock(return_value="A4:CF:12:9B:03:7E")
         registrar.has_lora = MagicMock(return_value=False)
         registrar.hunter_label = MagicMock(return_value=None)
+        registrar.server_configured = MagicMock(return_value=True)
         registrar.REGISTRAR = MagicMock()
         registrar.flush = MagicMock()
         cls.registrar = registrar
@@ -72,6 +73,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
         self.sound.reset_mock()
         self.companion.encode.reset_mock()
         self.registrar.flush.reset_mock()
+        self.registrar.server_configured.return_value = True
 
     def _register_text(self, has_lora):
         self.ui.reset_mock()
@@ -100,6 +102,28 @@ class CompanionProfileSyncTest(unittest.TestCase):
         self.assertIn("JAGER ID", labels)
         self.assertIn("volgt", labels)
         self.assertNotIn("VERZAMELAAR", labels)
+
+    def test_standalone_welcome_hides_account_restore(self):
+        self.ui.reset_mock()
+        self.registrar.server_configured.return_value = False
+        screen = MagicMock()
+
+        self.module.WelcomeActivity.onCreate(screen)
+
+        labels = [call.args[1] for call in self.ui.label.call_args_list]
+        self.assertNotIn("Herstel mijn account", labels)
+
+    def test_standalone_registration_is_complete_locally(self):
+        self.registrar.server_configured.return_value = False
+        screen = MagicMock(edit=False, name="Sam", head="vos", accs=["bril"], bg=2)
+
+        with patch.object(self.module, "Intent", MagicMock()):
+            self.module.CompanionActivity._register(screen)
+
+        profile = self.store.save_profile.call_args.args[0]
+        self.assertTrue(profile["synced"])
+        self.assertIsNone(profile["hunter_id"])
+        screen.startActivityForResult.assert_called_once()
 
     def test_edit_saves_locally_and_queues_shortcode_patch(self):
         screen = MagicMock(edit=True, head="uil", accs=["bril"], bg=2)
@@ -149,6 +173,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
         registrar = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, {"lvgl": lvgl, "mpos": mpos}):
             spec.loader.exec_module(registrar)
+        registrar.BASE_URL = "http://localhost:8787"
         return registrar
 
     def _load_routes(self, name):
@@ -226,7 +251,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
                 "helped_encounters": ["enc-a"],
             }
 
-        registrar._json_request = request
+        registrar.api_request = request
         with patch.dict(sys.modules, {"store": store}):
             asyncio.run(registrar._drain())
 
@@ -254,7 +279,7 @@ class CompanionProfileSyncTest(unittest.TestCase):
             self.assertIsNone(body)
             return 200, {"name": "old server without help fields"}
 
-        registrar._json_request = request
+        registrar.api_request = request
         with patch.dict(sys.modules, {"store": store}):
             asyncio.run(registrar._drain())
 

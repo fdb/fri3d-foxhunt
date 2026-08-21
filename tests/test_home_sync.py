@@ -140,6 +140,17 @@ class HomeSyncTest(unittest.TestCase):
         self.assertTrue(timers[0].deleted)
         self.assertIsNone(home._sync_timer)
 
+    def test_standalone_home_does_not_start_sync_timer(self):
+        module, timers, _store, registrar = load_home()
+        registrar.server_configured.return_value = False
+        home = module.HomeActivity()
+        home._sync_timer = None
+
+        home._start_sync_retry()
+
+        self.assertEqual(timers, [])
+        self.assertIsNone(home._sync_timer)
+
 
 if __name__ == "__main__":
     unittest.main()

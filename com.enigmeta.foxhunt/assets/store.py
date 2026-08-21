@@ -25,6 +25,7 @@
 # pet.py owns the rules (pure); this module owns persistence + the wall-clock.
 
 import random
+import sys
 
 from mpos import SharedPreferences
 import mpos.time
@@ -37,6 +38,11 @@ _PLACE = "Fri3d Camp"  # stub: no GPS yet — see fox_radio for the backend seam
 # in step with companion.BGS without importing that graphics module during the
 # entrypoint's profile check (a cold badge import costs roughly 0.25 seconds).
 _PROFILE_BG_COUNT = 7
+
+
+def _server_configured():
+    registrar = sys.modules.get("registrar")
+    return registrar is None or registrar.server_configured()
 
 
 def _now():
@@ -602,7 +608,13 @@ def take_food(food):
 
 
 def outbox():
-    return SharedPreferences(_APP).get_list("outbox", [])
+    prefs = SharedPreferences(_APP)
+    box = prefs.get_list("outbox", [])
+    if not _server_configured():
+        if box:
+            prefs.edit().put_list("outbox", []).commit()
+        return []
+    return box
 
 
 def enqueue_report(kind, data):
@@ -610,6 +622,8 @@ def enqueue_report(kind, data):
     "bonded" | "profile" — registrar._ROUTES maps kinds to routes. Callers enqueue LAST
     in their write path (the one-instance-one-editor rule: this commits via its
     own instance)."""
+    if not _server_configured():
+        return
     prefs = SharedPreferences(_APP)
     box = prefs.get_list("outbox", [])
     box.append({"kind": kind, "data": data, "t": _now()})
@@ -1019,6 +1033,8 @@ def record_help_pending(mac, encounter_id):
     that report leaving the outbox: the partner may not upload their half until
     hours later, after this badge has already found WiFi.
     """
+    if not _server_configured():
+        return False
     prefs, state = _help_state()
     if mac in state["seen"]:
         return False

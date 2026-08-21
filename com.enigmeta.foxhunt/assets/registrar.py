@@ -18,9 +18,10 @@ from mpos import TaskManager
 
 # The deployed worker (see server/README.md). NO trailing slash — the request
 # path is appended verbatim, and "…dev/" + "/api/…" would ask for "//api/…".
-# Point it at a wrangler dev instance to work against a local D1:
+# Point it at a wrangler dev instance to work against a local D1. None makes
+# the app entirely badge-local: no HTTP, account restore, or report outbox.
 #   sys.modules["registrar"].BASE_URL = "http://localhost:8787"
-BASE_URL = "https://foxhunt.enigmeta.workers.dev"
+BASE_URL = None
 
 # Connect timeout. Only guards opening the socket (that is all the aiohttp
 # shim takes), which is the part that hangs on a dead network.
@@ -31,6 +32,15 @@ CONNECT_TIMEOUT = 10
 # this await, so a single stalled response used to wedge the outbox until
 # reboot. Generous on purpose: it only has to beat "forever".
 TOTAL_TIMEOUT = 30
+
+
+def server_configured():
+    return BASE_URL is not None
+
+
+def local_hunter_id(badge):
+    """Stable standalone HID: the MAC's lower 16 bits; zero is reserved."""
+    return int(badge.replace(":", "")[-4:], 16) or 1
 
 
 def _env(name):
@@ -165,6 +175,9 @@ def resync():
         answer (adopt or overwrite). Answering it needs the screen, so this
         leaves it for the instellingen row to open.
     """
+    if not server_configured():
+        return
+
     import store
 
     p = store.profile()
@@ -481,13 +494,16 @@ class FakeRegistrar(Registrar):
         t.set_repeat_count(1)
 
 
-async def _json_request(method, path, body=None):
+async def api_request(method, path, body=None):
     """One JSON round trip against BASE_URL. Returns (status, parsed | None).
 
     A response with no parseable body is not an error here — a 404 from the
     restore route is a perfectly good answer — so the caller reads the status
     and decides. Raises (TimeoutError included) on anything short of a
     response; every caller already treats an exception as "no answer"."""
+    if not server_configured():
+        return 0, None
+
     import asyncio
 
     # Query strings can carry badge ids. Keep those out of serial/emulator
@@ -524,9 +540,9 @@ def hunter_label(n):
     """Display form of a HID. The profile and the wire keep hunter_id as the
     raw number (spec §2.2, a uint16 — fox_radio packs it into HID_hi/HID_lo),
     and screens format it here, at the last moment. Zero-padded to four
-    digits, so the label is a fixed width for every id this server mints
-    (1-9999); None (no antenna yet) stays None, so callers can fall back to
-    their own placeholder ("volgt", "Verzamelaar")."""
+    digits for the cloud's 1-9999 ids; a standalone id may use the spec's full
+    1-65535 range. None (no antenna yet) stays None, so callers can fall back
+    to their own placeholder ("volgt", "Verzamelaar")."""
     return None if not n else "JGR-%04d" % n
 
 
@@ -536,6 +552,22 @@ class HttpRegistrar(Registrar):
     timers put it, which is why neither screen needs to care which is live."""
 
     def register(self, name, badge, companion, on_update):
+        if not server_configured():
+            from creatures import starter_for
+
+            on_update(
+                {
+                    "cloud": "skip",
+                    "bridge": "skip",
+                    "hunter": "skip",
+                    "hunter_id": None,
+                    "starter": starter_for(badge),
+                    "done": True,
+                    "ok": True,
+                    "error": None,
+                }
+            )
+            return
         st = {
             "cloud": "busy",
             "bridge": "wait",
@@ -553,7 +585,7 @@ class HttpRegistrar(Registrar):
         """The server's view of an account that already exists, in the shape
         restore() reports. None when the server won't say — we refuse to offer
         the player a choice we cannot back with the real account."""
-        status, data = await _json_request("GET", "/api/v1/auth/user?badge_id=" + badge)
+        status, data = await api_request("GET", "/api/v1/auth/user?badge_id=" + badge)
         if status != 200 or not data:
             print("registrar: account lookup rejected, HTTP", status)
             return None
@@ -562,7 +594,7 @@ class HttpRegistrar(Registrar):
             # An account from before the startbeest existed. The server grants
             # one to an EMPTY roster only, so this can neither reroll nor
             # double; it just finishes what registration would have done.
-            s, d = await _json_request(
+            s, d = await api_request(
                 "POST", "/api/v1/auth/starter", {"badge_id": badge}
             )
             if s == 200 and d and d.get("ok"):
@@ -585,7 +617,7 @@ class HttpRegistrar(Registrar):
         ok = False
         starter = None
         try:
-            status, data = await _json_request("POST", "/api/v1/auth/register", body)
+            status, data = await api_request("POST", "/api/v1/auth/register", body)
             if status == 201:
                 # A fresh account comes back holding its startbeest.
                 starter = data.get("starter") if data else None
@@ -627,13 +659,16 @@ class HttpRegistrar(Registrar):
         on_update(dict(st))
 
     def overwrite(self, name, badge, companion, on_update):
+        if not server_configured():
+            on_update({"done": True, "ok": True, "error": None})
+            return
         TaskManager.create_task(self._overwrite(name, badge, companion, on_update))
 
     async def _overwrite(self, name, badge, companion, on_update):
         body = {"badge_id": badge, "name": name, "profile_pic": companion}
         status, data = 0, None
         try:
-            status, data = await _json_request("PATCH", "/api/v1/auth/user", body)
+            status, data = await api_request("PATCH", "/api/v1/auth/user", body)
         except Exception as e:
             print("registrar: overwrite failed:", e)
         # JSON body required, like the delete: adopt() runs on this verdict,
@@ -644,12 +679,15 @@ class HttpRegistrar(Registrar):
         on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})
 
     def delete_account(self, badge, on_update):
+        if not server_configured():
+            on_update({"done": True, "ok": True, "error": None})
+            return
         TaskManager.create_task(self._delete_account(badge, on_update))
 
     async def _delete_account(self, badge, on_update):
         status, data = 0, None
         try:
-            status, data = await _json_request(
+            status, data = await api_request(
                 "DELETE", "/api/v1/auth/user", {"badge_id": badge}
             )
         except Exception as e:
@@ -672,12 +710,23 @@ class HttpRegistrar(Registrar):
         on_update({"done": True, "ok": ok, "error": None if ok else "E-01"})
 
     def word_jager(self, badge, on_update):
+        if not server_configured():
+            hid = local_hunter_id(badge) if has_lora() else None
+            on_update(
+                {
+                    "done": True,
+                    "ok": hid is not None,
+                    "hunter_id": hid,
+                    "error": None if hid is not None else "E-02",
+                }
+            )
+            return
         TaskManager.create_task(self._word_jager(badge, on_update))
 
     async def _word_jager(self, badge, on_update):
         status, data = 0, None
         try:
-            status, data = await _json_request(
+            status, data = await api_request(
                 "POST", "/api/v1/auth/hunter", {"badge_id": badge}
             )
         except Exception as e:
@@ -695,11 +744,14 @@ class HttpRegistrar(Registrar):
         )
 
     def restore(self, badge, on_update):
+        if not server_configured():
+            on_update({"done": True, "found": False, "error": None})
+            return
         TaskManager.create_task(self._restore(badge, on_update))
 
     async def _restore(self, badge, on_update):
         try:
-            status, data = await _json_request(
+            status, data = await api_request(
                 "GET", "/api/v1/auth/user?badge_id=" + badge
             )
         except Exception as e:
@@ -760,6 +812,8 @@ _busy = False
 def flush():
     """Drain reports and reconcile pending help whenever WiFi is available."""
     global _busy
+    if not server_configured():
+        return
     import store
 
     _, pending_help = store.help_counts()
@@ -790,7 +844,7 @@ async def _drain():
             body = dict(item.get("data") or {})
             body["badge_id"] = badge_id()
             try:
-                status, _ = await _json_request(route[0], route[1], body)
+                status, _ = await api_request(route[0], route[1], body)
             except Exception:
                 return  # no network; the next natural moment retries
             if status == 404:
@@ -812,7 +866,7 @@ async def _drain():
         _, pending_help = store.help_counts()
         if pending_help:
             try:
-                status, data = await _json_request(
+                status, data = await api_request(
                     "GET", "/api/v1/auth/user?badge_id=" + badge_id()
                 )
             except Exception:

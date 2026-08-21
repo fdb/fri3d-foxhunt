@@ -144,7 +144,7 @@ class HomeActivity(Activity):
         self._stop_nearby_poll()
 
     def _start_sync_retry(self):
-        if self._sync_timer is None:
+        if registrar.server_configured() and self._sync_timer is None:
             self._sync_timer = lv.timer_create(self._retry_sync, _SYNC_RETRY_MS, None)
 
     def _stop_sync_retry(self):
@@ -789,7 +789,7 @@ class SettingsActivity(Activity):
         ui.label(row, "Alles wissen", 8, 5, ui.TERRA_D, ui.font_small())
         ui.label(
             row,
-            "badge + server",
+            "badge + server" if registrar.server_configured() else "alleen badge",
             160,
             5,
             ui.TEXT_MUTED,
@@ -870,9 +870,9 @@ class SettingsActivity(Activity):
             self._slot = row
         else:
             # WORD JAGER takes the jager-id slot: the upgrade moment lives
-            # here (GAME_DESIGN.md, Onboarding) — probe the antenna, then ask
-            # the server to mint the id. Jager mode everywhere derives from
-            # hunter_id, so the mint IS the enable.
+            # here (GAME_DESIGN.md, Onboarding) — probe the antenna, then mint
+            # an id locally (or ask the configured server). Jager mode
+            # everywhere derives from hunter_id, so the mint IS the enable.
             self._wj_busy = False
             row = ui.panel(self._s, 6, 210, _ROW_W, ROW_H, bg=ui.CARD)
             ui.label(row, "Word jager", 8, 5, ui.GREEN_D, ui.font_small())
@@ -981,7 +981,11 @@ class SettingsActivity(Activity):
     def _request_hunter_id(self):
         sound.play("tap")
         self._wj_busy = True
-        self._wj.set_text("LoRa klaar! jager-id ophalen...")
+        self._wj.set_text(
+            "LoRa klaar! jager-id ophalen..."
+            if registrar.server_configured()
+            else "LoRa klaar! jager-id maken..."
+        )
         registrar.REGISTRAR.word_jager(registrar.badge_id(), self._wj_done)
 
     def _wj_done(self, st):
@@ -1002,7 +1006,11 @@ class SettingsActivity(Activity):
             )
         else:
             sound.play("error")
-            self._wj.set_text("geen verbinding - probeer later")
+            self._wj.set_text(
+                "geen verbinding - probeer later"
+                if registrar.server_configured()
+                else "LoRa niet klaar - probeer weer"
+            )
 
     def _id_tap(self):
         self._id_taps += 1
@@ -1278,7 +1286,8 @@ class WipeActivity(Activity):
         self.warn = ui.panel(s, ui.PAD, 32, 304, 76, bg=ui.CARD, border=ui.TERRA)
         ui.label(
             self.warn,
-            "Weg van deze badge EN van de server:",
+            "Weg van deze badge"
+            + (" EN van de server:" if registrar.server_configured() else ":"),
             8,
             4,
             ui.TERRA_D,
@@ -1288,8 +1297,8 @@ class WipeActivity(Activity):
         ui.label(
             self.warn,
             "je naam, je maatje, al je beesten,\n"
-            "je vrienden en je voorraad.\n"
-            "Je plek op het scorebord.",
+            "je vrienden en je voorraad."
+            + ("\nJe plek op het scorebord." if registrar.server_configured() else ""),
             8,
             19,
             ui.INK,
@@ -1440,7 +1449,11 @@ class WipeActivity(Activity):
         self._stop_poll()  # nothing may repaint the button while it runs
         self._style_btn(False)
         self.btn_label.set_text("WISSEN...")
-        self.status.set_text("De server wordt bijgewerkt.")
+        self.status.set_text(
+            "De server wordt bijgewerkt."
+            if registrar.server_configured()
+            else "De badge wordt gewist."
+        )
         self.status.set_style_text_color(ui.hexc(ui.TEXT_MUTED), 0)
         registrar.REGISTRAR.delete_account(registrar.badge_id(), self._on_delete)
 

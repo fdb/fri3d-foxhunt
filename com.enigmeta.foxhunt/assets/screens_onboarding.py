@@ -60,17 +60,18 @@ class WelcomeActivity(Activity):
         # "already have a badge" link: a text button, underlined the way a link
         # is, so it reads as the quieter of the two routes without a second
         # button competing with the CTA.
-        link = ui.box(s, ui.PAD, 208, 304, _LINK_H)
-        text = ui.label(link, "Herstel mijn account", 0, 0, ui.GREEN_D, ui.font_small())
-        # The underline has to match the *text* width, not the box width, and
-        # only LVGL knows what the bitmap font measured — so leave the label
-        # auto-sized, lay it out, and read the width back instead of counting
-        # characters here (which breaks the moment the wording changes).
-        link.update_layout()
-        tw = text.get_width()
-        text.set_x((304 - tw) // 2)
-        ui.box(link, (304 - tw) // 2, _UNDERLINE_Y, tw, 2, ui.GREEN)
-        ui.focusable(link, on_click=self._restore)
+        if registrar.server_configured():
+            link = ui.box(s, ui.PAD, 208, 304, _LINK_H)
+            text = ui.label(
+                link, "Herstel mijn account", 0, 0, ui.GREEN_D, ui.font_small()
+            )
+            # Only LVGL knows what the bitmap font measured, so lay it out
+            # before drawing an underline that matches the text exactly.
+            link.update_layout()
+            tw = text.get_width()
+            text.set_x((304 - tw) // 2)
+            ui.box(link, (304 - tw) // 2, _UNDERLINE_Y, tw, 2, ui.GREEN)
+            ui.focusable(link, on_click=self._restore)
 
         self.setContentView(s)
 
@@ -710,7 +711,7 @@ class CompanionActivity(Activity):
                 "bg": self.bg,
                 "badge_id": registrar.badge_id(),
                 "hunter_id": None,
-                "synced": False,
+                "synced": not registrar.server_configured(),
             }
         )
         self.startActivityForResult(
@@ -872,6 +873,14 @@ class RegSendActivity(Activity):
     # ---- state: sending ---------------------------------------------------
     def _start_sending(self):
         self._stop_bar()
+        if not registrar.server_configured():
+            REGISTRAR.register(
+                self.p["name"],
+                self.p.get("badge_id", ""),
+                companion.encode(self.p["head"], self.p["accs"], self.p["bg"]),
+                self._on_update,
+            )
+            return
         s = self.screen
         s.clean()
         s.set_style_bg_color(ui.hexc(SEND_BG), 0)
@@ -961,6 +970,7 @@ class RegSendActivity(Activity):
         s = self.screen
         s.clean()
         s.set_style_bg_color(ui.hexc(DONE_BG), 0)
+        local = not registrar.server_configured()
 
         for x, y, sc in (
             (20, 44, 2),
@@ -973,7 +983,7 @@ class RegSendActivity(Activity):
 
         ui.label(
             s,
-            "+ JE BENT INGESCHREVEN +",
+            "+ JE PROFIEL STAAT KLAAR +" if local else "+ JE BENT INGESCHREVEN +",
             0,
             30,
             ui.GOLD,
@@ -1001,7 +1011,9 @@ class RegSendActivity(Activity):
             ui.font_small(),
         )
 
-        if st["bridge"] == "ok":
+        if local:
+            line = "alles staat op je badge - op pad!"
+        elif st["bridge"] == "ok":
             line = "cloud ok - bridge ok - op jacht!"
         else:
             line = "cloud ok - op jacht!"

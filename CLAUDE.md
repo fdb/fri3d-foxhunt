@@ -493,8 +493,8 @@ after when touching the file layout.
   them; keep per-widget state in the Activity.
 
 ## Cloud server
-Base URL: **https://foxhunt.enigmeta.workers.dev/** — the badge's `registrar.py`
-talks to `/api/v1/auth/*` there.
+`registrar.py` uses `BASE_URL = None` for the standalone app. Setting it to a
+URL enables the optional cloud account, restore and report paths.
 
 - **Test against a local worker, not prod.** `cd server && npm run dev` (plus
   `npm run db:init:local` once), then point the app at it from the emulator

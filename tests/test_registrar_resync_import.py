@@ -73,6 +73,7 @@ def entrypoint_lazy():
 class ResyncColdLaunchTest(unittest.TestCase):
     def setUp(self):
         self.registrar = load_registrar()
+        self.registrar.BASE_URL = "http://localhost:8787"
         self.sent = []
         self.registrar.REGISTRAR = types.SimpleNamespace(
             register=lambda *a: self.sent.append(a)

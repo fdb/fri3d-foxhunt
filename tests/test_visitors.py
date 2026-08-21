@@ -154,6 +154,26 @@ class VisitorTest(unittest.TestCase):
         self.assertEqual(self.store.claim_visitor(), cid)
         self.assertNotIn("outbox", _Prefs.data)
 
+    def test_standalone_meeting_never_creates_an_outbox(self):
+        registrar = types.SimpleNamespace(server_configured=lambda: False)
+        due = self.store.visitor_due_at(self.clock[0], "A4:CF:12:9B:03:7E", 0)
+        self.clock[0] = due
+
+        with patch.dict(sys.modules, {"registrar": registrar}):
+            self.assertIsNotNone(self.store.visitor_pending())
+            self.assertIsNotNone(self.store.claim_visitor())
+
+        self.assertNotIn("outbox", _Prefs.data)
+
+    def test_standalone_discards_an_old_outbox(self):
+        _Prefs.data["outbox"] = [{"kind": "pluk", "data": {}}]
+        registrar = types.SimpleNamespace(server_configured=lambda: False)
+
+        with patch.dict(sys.modules, {"registrar": registrar}):
+            self.assertEqual(self.store.outbox(), [])
+
+        self.assertEqual(_Prefs.data["outbox"], [])
+
     def test_hunter_gets_no_new_visit_but_keeps_an_existing_one(self):
         due = self.store.visitor_due_at(self.clock[0], "A4:CF:12:9B:03:7E", 0)
         self.clock[0] = due
